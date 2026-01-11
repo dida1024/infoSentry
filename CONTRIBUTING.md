@@ -22,6 +22,14 @@
 ./dev.sh migrate
 ```
 
+## 代码格式检查（推荐）
+
+在仓库根目录：
+
+```bash
+make format-check
+```
+
 ## 后端（`infoSentry-backend/`）
 
 ```bash
@@ -43,4 +51,3 @@ npm run build
 
 - 不要提交 `.env` / `.env.*` 等包含密钥的文件
 - 请提交示例文件：`.env.example` / `.env.*.example` / `env.example`
-
