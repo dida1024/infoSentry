@@ -1,0 +1,83 @@
+name: backend-ci
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infoSentry-backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "infoSentry-backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            infoSentry-backend/uv.lock
+            infoSentry-backend/pyproject.toml
+
+      - name: Install dependencies
+        working-directory: infoSentry-backend
+        run: uv sync
+
+      - name: Prepare test database
+        working-directory: infoSentry-backend
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        run: |
+          uv run python -c "import psycopg; conn=psycopg.connect('postgresql://postgres:postgres@localhost:5432/postgres', autocommit=True); conn.execute('CREATE DATABASE infosentry_test'); conn.close()"
+          uv run python -c "import psycopg; conn=psycopg.connect('postgresql://postgres:postgres@localhost:5432/infosentry_test', autocommit=True); conn.execute('CREATE EXTENSION IF NOT EXISTS vector'); conn.close()"
+
+      - name: Lint
+        working-directory: infoSentry-backend
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Typecheck
+        working-directory: infoSentry-backend
+        run: uv run mypy .
+
+      - name: Test
+        working-directory: infoSentry-backend
+        run: uv run pytest
+
