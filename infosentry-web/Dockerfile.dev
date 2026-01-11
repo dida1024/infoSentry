@@ -1,0 +1,30 @@
+# ============================================
+# infoSentry Web - Development Dockerfile
+# ============================================
+# 用于开发环境的简化 Dockerfile，支持热重载
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# 安装依赖工具
+RUN apk add --no-cache libc6-compat
+
+# 复制依赖文件
+COPY package.json package-lock.json* ./
+
+# 安装所有依赖（包括开发依赖）
+RUN npm install
+
+# 复制源代码（实际会被 volume 挂载覆盖）
+COPY . .
+
+# 禁用遥测
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=development
+
+# 暴露端口
+EXPOSE 3000
+
+# 以开发模式运行
+CMD ["npm", "run", "dev"]

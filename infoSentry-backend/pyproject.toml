@@ -1,0 +1,140 @@
+[project]
+name = "infosentry-backend"
+version = "0.1.0"
+requires-python = ">=3.12,<4.0"
+description = "信息追踪 Agent - 抓取、匹配、推送一体化信息追踪系统"
+dependencies = [
+    # 核心 Web 框架
+    "fastapi>=0.111.0,<1.0.0",
+    "sqlmodel>=0.0.21,<1.0.0",
+    # PostgreSQL 异步驱动
+    "psycopg[binary]>=3.1.19,<4.0.0",
+    "asyncpg>=0.29.0,<1.0.0",
+    # pgvector 支持
+    "pgvector>=0.3.0,<1.0.0",
+    # 工具与辅助
+    "python-multipart>=0.0.9,<1.0.0",
+    "pydantic>=2.8.2,<3.0.0",
+    "pydantic-settings>=2.4.0,<3.0.0",
+    "passlib[bcrypt]>=1.7.4,<2.0.0",
+    "pyjwt>=2.8.0,<3.0.0",
+    "cryptography>=43.0.0,<44.0.0",
+    "aiofiles>=23.2.1,<24.0.0",
+    # 邮件相关
+    "email-validator>=2.2.0,<3.0.0",
+    "emails>=0.6,<1.0",
+    "jinja2>=3.1.4,<4.0.0",
+    # HTTP 客户端
+    "httpx>=0.27.0,<1.0.0",
+    "tenacity>=8.5.0,<9.0.0",
+    # 任务队列
+    "celery[redis]>=5.4.0,<6.0.0",
+    # RSS 解析
+    "feedparser>=6.0.10,<7.0.0",
+    # HTML 解析
+    "beautifulsoup4>=4.12.0,<5.0.0",
+    "lxml>=5.0.0,<6.0.0",
+    # OpenAI API
+    "openai>=1.35.13,<2.0.0",
+    # 监控与排程
+    "sentry-sdk[fastapi]>=2.9.0,<3.0.0",
+    "uvicorn>=0.35.0",
+    "loguru>=0.7.3",
+    "structlog>=24.4.0,<25.0.0",
+    "greenlet>=3.2.4",
+    "alembic>=1.13.2,<2.0.0",
+    # Redis
+    "redis>=5.0.0,<6.0.0",
+    # 时区支持
+    "pytz>=2024.1",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.3.2,<9.0.0",
+    "pytest-cov>=4.1.0,<5.0.0",
+    "pytest-anyio>=0.0.0,<1.0.0",
+    "anyio>=4.0.0,<5.0.0",
+    "aiosqlite>=0.19.0,<1.0.0",
+    "mypy>=1.11.0,<2.0.0",
+    "ruff>=0.5.5,<1.0.0",
+    "pre-commit>=3.7.1,<4.0.0",
+    "types-passlib>=1.7.7.20240106,<2.0.0.0",
+    "coverage>=7.6.0,<8.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.mypy]
+strict = true
+exclude = ["venv", ".venv", "alembic"]
+
+[tool.ruff]
+target-version = "py312"
+exclude = ["alembic", ".cursorrules"]
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+    "ARG001", # unused arguments in functions
+]
+ignore = [
+    "E501",  # line too long, handled by formatter
+    "B008",  # do not perform function calls in argument defaults
+    "W191",  # indentation contains tabs
+    "B904",  # Allow raising exceptions without `from e`, for HTTPException
+]
+
+[tool.ruff.lint.pyupgrade]
+keep-runtime-typing = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+]
+markers = [
+    "anyio: mark test as async",
+    "slow: mark test as slow",
+    "integration: mark test as integration test",
+    "e2e: mark test as end-to-end test",
+]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/migrations/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@abstractmethod",
+    "pass",
+]
+fail_under = 30
+show_missing = true
+skip_covered = false
