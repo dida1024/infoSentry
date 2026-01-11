@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -64,8 +64,8 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: postgres
         run: |
-          uv run python -c "import psycopg; conn=psycopg.connect('postgresql://postgres:postgres@localhost:5432/postgres', autocommit=True); conn.execute('CREATE DATABASE infosentry_test'); conn.close()"
-          uv run python -c "import psycopg; conn=psycopg.connect('postgresql://postgres:postgres@localhost:5432/infosentry_test', autocommit=True); conn.execute('CREATE EXTENSION IF NOT EXISTS vector'); conn.close()"
+          uv run python -c "import psycopg\nfrom psycopg import errors\nconn=psycopg.connect('postgresql://postgres:postgres@localhost:5432/postgres', autocommit=True)\ntry:\n  conn.execute('CREATE DATABASE infosentry_test')\nexcept errors.DuplicateDatabase:\n  pass\nfinally:\n  conn.close()"
+          uv run python -c "import psycopg\nconn=psycopg.connect('postgresql://postgres:postgres@localhost:5432/infosentry_test', autocommit=True)\nconn.execute('CREATE EXTENSION IF NOT EXISTS vector')\nconn.close()"
 
       - name: Lint
         working-directory: infoSentry-backend
@@ -80,4 +80,3 @@ jobs:
       - name: Test
         working-directory: infoSentry-backend
         run: uv run pytest
-
