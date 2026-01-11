@@ -1,0 +1,28 @@
+# UI Design References
+
+此目录存放设计参考资料：
+- 截图
+- 灵感来源
+- 竞品分析
+
+---
+
+## 推荐参考
+
+### 企业级应用
+
+- [Linear](https://linear.app/) - 简洁的项目管理
+- [Notion](https://notion.so/) - 内容优先的布局
+- [Stripe Dashboard](https://dashboard.stripe.com/) - 数据密集型界面
+
+### 设计系统
+
+- [Tailwind UI](https://tailwindui.com/)
+- [shadcn/ui](https://ui.shadcn.com/)
+- [Radix UI](https://www.radix-ui.com/)
+
+### 色彩
+
+- [Tailwind Colors](https://tailwindcss.com/docs/customizing-colors)
+- [Realtime Colors](https://www.realtimecolors.com/)
+
