@@ -1,0 +1,312 @@
+# ============================================
+# infoSentry 生产环境部署配置
+# ============================================
+# 适用于：单 VM (2c4g) 部署
+#
+# 使用方法:
+#   首次部署: docker-compose -f docker-compose.prod.yml up -d
+#   更新部署: docker-compose -f docker-compose.prod.yml up -d --build
+#   查看日志: docker-compose -f docker-compose.prod.yml logs -f
+#   停止服务: docker-compose -f docker-compose.prod.yml down
+#   停止并删除数据: docker-compose -f docker-compose.prod.yml down -v
+#
+# 注意事项:
+#   1. 部署前请先复制 .env.example 到 .env 并填写配置
+#   2. 确保端口 80、443（如启用 HTTPS）未被占用
+#   3. 首次部署后需运行数据库迁移：
+#      docker-compose -f docker-compose.prod.yml exec api uv run alembic upgrade head
+
+version: '3.8'
+
+x-common-env: &common-env
+  POSTGRES_SERVER: postgres
+  POSTGRES_PORT: 5432
+  POSTGRES_USER: ${POSTGRES_USER:-infosentry}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+  POSTGRES_DB: ${POSTGRES_DB:-infosentry}
+  REDIS_URL: redis://redis:6379/0
+  ENVIRONMENT: production
+  TZ: ${TZ:-Asia/Shanghai}
+  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  OPENAI_API_BASE: ${OPENAI_API_BASE:-https://api.openai.com/v1}
+  OPENAI_EMBED_MODEL: ${OPENAI_EMBED_MODEL:-text-embedding-3-small}
+  OPENAI_JUDGE_MODEL: ${OPENAI_JUDGE_MODEL:-gpt-4o-mini}
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL:-}
+  EMAILS_FROM_NAME: ${EMAILS_FROM_NAME:-infoSentry}
+  FRONTEND_HOST: ${FRONTEND_HOST:-http://localhost:3000}
+  BACKEND_HOST: ${BACKEND_HOST:-http://localhost:8000}
+  LLM_ENABLED: ${LLM_ENABLED:-true}
+  EMBEDDING_ENABLED: ${EMBEDDING_ENABLED:-true}
+  IMMEDIATE_ENABLED: ${IMMEDIATE_ENABLED:-true}
+  EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
+  DAILY_USD_BUDGET: ${DAILY_USD_BUDGET:-0.33}
+  JUDGE_PER_DAY: ${JUDGE_PER_DAY:-200}
+  EMBED_PER_MIN: ${EMBED_PER_MIN:-300}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+services:
+  # ============================================
+  # 数据存储层
+  # ============================================
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: infosentry-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-infosentry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-infosentry}
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/backup:/backup  # 备份脚本挂载
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-infosentry}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - infosentry-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  redis:
+    image: redis:7-alpine
+    container_name: infosentry-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --appendfsync everysec --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - infosentry-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ============================================
+  # 应用层
+  # ============================================
+
+  api:
+    build:
+      context: ./infoSentry-backend
+      dockerfile: Dockerfile
+    container_name: infosentry-api
+    restart: unless-stopped
+    command: uv run uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
+    environment:
+      <<: *common-env
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - infosentry-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  web:
+    build:
+      context: ./infosentry-web
+      dockerfile: Dockerfile
+    container_name: infosentry-web
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${BACKEND_HOST:-http://localhost:8000}
+      NODE_ENV: production
+    expose:
+      - "3000"
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - infosentry-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ============================================
+  # Worker 层（Celery）
+  # ============================================
+
+  worker_ingest:
+    build:
+      context: ./infoSentry-backend
+      dockerfile: Dockerfile
+    container_name: infosentry-worker-ingest
+    restart: unless-stopped
+    command: uv run celery -A src.core.infrastructure.celery.app worker -Q q_ingest -c 2 -l INFO -n worker_ingest@%h
+    environment:
+      <<: *common-env
+      CELERY_WORKER_NAME: worker_ingest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - infosentry-network
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  worker_embed_match:
+    build:
+      context: ./infoSentry-backend
+      dockerfile: Dockerfile
+    container_name: infosentry-worker-embed-match
+    restart: unless-stopped
+    command: uv run celery -A src.core.infrastructure.celery.app worker -Q q_embed,q_match -c 1 -l INFO -n worker_embed_match@%h
+    environment:
+      <<: *common-env
+      CELERY_WORKER_NAME: worker_embed_match
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - infosentry-network
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  worker_agent:
+    build:
+      context: ./infoSentry-backend
+      dockerfile: Dockerfile
+    container_name: infosentry-worker-agent
+    restart: unless-stopped
+    command: uv run celery -A src.core.infrastructure.celery.app worker -Q q_agent -c 1 -l INFO -n worker_agent@%h
+    environment:
+      <<: *common-env
+      CELERY_WORKER_NAME: worker_agent
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - infosentry-network
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  worker_email:
+    build:
+      context: ./infoSentry-backend
+      dockerfile: Dockerfile
+    container_name: infosentry-worker-email
+    restart: unless-stopped
+    command: uv run celery -A src.core.infrastructure.celery.app worker -Q q_email -c 1 -l INFO -n worker_email@%h
+    environment:
+      <<: *common-env
+      CELERY_WORKER_NAME: worker_email
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - infosentry-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  beat:
+    build:
+      context: ./infoSentry-backend
+      dockerfile: Dockerfile
+    container_name: infosentry-beat
+    restart: unless-stopped
+    command: uv run celery -A src.core.infrastructure.celery.app beat -l INFO
+    environment:
+      <<: *common-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - infosentry-network
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # ============================================
+  # 反向代理层
+  # ============================================
+
+  nginx:
+    image: nginx:alpine
+    container_name: infosentry-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro  # SSL 证书目录（可选）
+    depends_on:
+      - api
+      - web
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - infosentry-network
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+volumes:
+  postgres_data:
+    name: infosentry-postgres-data
+  redis_data:
+    name: infosentry-redis-data
+
+networks:
+  infosentry-network:
+    name: infosentry-network
+    driver: bridge
+
