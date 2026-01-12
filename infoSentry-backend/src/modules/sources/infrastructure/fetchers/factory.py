@@ -59,3 +59,22 @@ class FetcherFactory:
             SourceType.SITE: settings.SITE_FETCH_INTERVAL_SEC,
         }
         return interval_map.get(source_type, 1800)
+
+
+class InfrastructureFetcherFactory:
+    """Adapter to expose fetcher factory via interface instance."""
+
+    def create(
+        self,
+        source_type: SourceType,
+        config: dict[str, Any],
+        max_items: int | None = None,
+    ) -> BaseFetcher:
+        return FetcherFactory.create(
+            source_type=source_type,
+            config=config,
+            max_items=max_items,
+        )
+
+    def get_default_interval(self, source_type: SourceType) -> int:
+        return FetcherFactory.get_default_interval(source_type)

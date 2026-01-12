@@ -7,12 +7,14 @@ from fastapi.routing import APIRoute
 from loguru import logger
 from starlette.middleware.cors import CORSMiddleware
 
+from src.core.application import security as app_security
 from src.core.config import settings
 from src.core.domain.exceptions import DomainException
 from src.core.infrastructure.ai import check_ai_service_health
 from src.core.infrastructure.database.session import init_db, check_db_health
-from src.core.infrastructure.redis import redis_client
+from src.core.infrastructure.redis import get_redis_client, redis_client
 from src.core.infrastructure.logging import setup_logging
+from src.core.infrastructure.security import jwt as infra_jwt
 from src.core.interfaces.http.exceptions import (
     BizException,
     biz_exception_handler,
@@ -20,6 +22,18 @@ from src.core.interfaces.http.exceptions import (
     global_exception_handler,
 )
 from src.core.interfaces.http.routers import api_router
+from src.modules.agent.application import dependencies as agent_app_deps
+from src.modules.agent.infrastructure import dependencies as agent_infra_deps
+from src.modules.goals.application import dependencies as goals_app_deps
+from src.modules.goals.infrastructure import dependencies as goals_infra_deps
+from src.modules.items.application import dependencies as items_app_deps
+from src.modules.items.infrastructure import dependencies as items_infra_deps
+from src.modules.push.application import dependencies as push_app_deps
+from src.modules.push.infrastructure import dependencies as push_infra_deps
+from src.modules.sources.application import dependencies as sources_app_deps
+from src.modules.sources.infrastructure import dependencies as sources_infra_deps
+from src.modules.users.application import dependencies as users_app_deps
+from src.modules.users.infrastructure import dependencies as users_infra_deps
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -67,6 +81,81 @@ app = FastAPI(
     root_path=settings.ROOTPATH,
     generate_unique_id_function=custom_generate_unique_id,
     lifespan=lifespan,
+)
+
+# Dependency overrides (application -> infrastructure)
+app.dependency_overrides[app_security.get_current_user_id] = (
+    infra_jwt.get_current_user_id
+)
+
+app.dependency_overrides[agent_app_deps.get_agent_run_repository] = (
+    agent_infra_deps.get_agent_run_repository
+)
+app.dependency_overrides[agent_app_deps.get_agent_tool_call_repository] = (
+    agent_infra_deps.get_agent_tool_call_repository
+)
+app.dependency_overrides[agent_app_deps.get_agent_action_ledger_repository] = (
+    agent_infra_deps.get_agent_action_ledger_repository
+)
+app.dependency_overrides[agent_app_deps.get_budget_daily_repository] = (
+    agent_infra_deps.get_budget_daily_repository
+)
+app.dependency_overrides[agent_app_deps.get_kv_client] = get_redis_client
+
+app.dependency_overrides[goals_app_deps.get_goal_repository] = (
+    goals_infra_deps.get_goal_repository
+)
+app.dependency_overrides[goals_app_deps.get_push_config_repository] = (
+    goals_infra_deps.get_push_config_repository
+)
+app.dependency_overrides[goals_app_deps.get_term_repository] = (
+    goals_infra_deps.get_term_repository
+)
+
+app.dependency_overrides[items_app_deps.get_item_repository] = (
+    items_infra_deps.get_item_repository
+)
+app.dependency_overrides[items_app_deps.get_goal_item_match_repository] = (
+    items_infra_deps.get_goal_item_match_repository
+)
+
+app.dependency_overrides[push_app_deps.get_push_decision_repository] = (
+    push_infra_deps.get_push_decision_repository
+)
+app.dependency_overrides[push_app_deps.get_click_event_repository] = (
+    push_infra_deps.get_click_event_repository
+)
+app.dependency_overrides[push_app_deps.get_item_feedback_repository] = (
+    push_infra_deps.get_item_feedback_repository
+)
+app.dependency_overrides[push_app_deps.get_blocked_source_repository] = (
+    push_infra_deps.get_blocked_source_repository
+)
+app.dependency_overrides[push_app_deps.get_item_repository] = (
+    items_infra_deps.get_item_repository
+)
+app.dependency_overrides[push_app_deps.get_source_repository] = (
+    sources_infra_deps.get_source_repository
+)
+app.dependency_overrides[push_app_deps.get_goal_repository] = (
+    goals_infra_deps.get_goal_repository
+)
+
+app.dependency_overrides[sources_app_deps.get_source_repository] = (
+    sources_infra_deps.get_source_repository
+)
+
+app.dependency_overrides[users_app_deps.get_user_repository] = (
+    users_infra_deps.get_user_repository
+)
+app.dependency_overrides[users_app_deps.get_magic_link_repository] = (
+    users_infra_deps.get_magic_link_repository
+)
+app.dependency_overrides[users_app_deps.get_user_budget_daily_repository] = (
+    users_infra_deps.get_user_budget_daily_repository
+)
+app.dependency_overrides[users_app_deps.get_token_service] = (
+    infra_jwt.get_token_service
 )
 
 # Exception handlers
@@ -174,4 +263,3 @@ if __name__ == "__main__":
         port=settings.SERVER_PORT,
         reload=settings.ENVIRONMENT == "local",
     )
-

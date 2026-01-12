@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, Query, status
 
-from src.core.infrastructure.security.jwt import get_current_user_id
+from src.core.application.security import get_current_user_id
 from src.core.interfaces.http.response import ApiResponse, PaginatedResponse
 from src.modules.sources.application.commands import (
     CreateSourceCommand,
@@ -11,16 +11,7 @@ from src.modules.sources.application.commands import (
     EnableSourceCommand,
     UpdateSourceCommand,
 )
-from src.modules.sources.application.handlers import (
-    CreateSourceHandler,
-    DeleteSourceHandler,
-    DisableSourceHandler,
-    EnableSourceHandler,
-    UpdateSourceHandler,
-)
-from src.modules.sources.domain.entities import SourceType
-from src.modules.sources.domain.exceptions import SourceNotFoundError
-from src.modules.sources.infrastructure.dependencies import (
+from src.modules.sources.application.dependencies import (
     get_create_source_handler,
     get_delete_source_handler,
     get_disable_source_handler,
@@ -28,7 +19,16 @@ from src.modules.sources.infrastructure.dependencies import (
     get_source_repository,
     get_update_source_handler,
 )
-from src.modules.sources.infrastructure.repositories import PostgreSQLSourceRepository
+from src.modules.sources.application.handlers import (
+    CreateSourceHandler,
+    DeleteSourceHandler,
+    DisableSourceHandler,
+    EnableSourceHandler,
+    UpdateSourceHandler,
+)
+from src.modules.sources.domain.entities import Source, SourceType
+from src.modules.sources.domain.exceptions import SourceNotFoundError
+from src.modules.sources.domain.repository import SourceRepository
 from src.modules.sources.interfaces.schemas import (
     CreateSourceRequest,
     SourceResponse,
@@ -38,7 +38,7 @@ from src.modules.sources.interfaces.schemas import (
 router = APIRouter(prefix="/sources", tags=["sources"])
 
 
-def _source_to_response(source) -> SourceResponse:
+def _source_to_response(source: Source) -> SourceResponse:
     """Convert source entity to response."""
     return SourceResponse(
         id=source.id,
@@ -66,7 +66,7 @@ async def list_sources(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(50, ge=1, le=100, description="每页数量"),
     _: str = Depends(get_current_user_id),
-    source_repository: PostgreSQLSourceRepository = Depends(get_source_repository),
+    source_repository: SourceRepository = Depends(get_source_repository),
 ) -> PaginatedResponse[SourceResponse]:
     """List all sources."""
     sources, total = await source_repository.list_by_type(
@@ -120,7 +120,7 @@ async def create_source(
 async def get_source(
     source_id: str,
     _: str = Depends(get_current_user_id),
-    source_repository: PostgreSQLSourceRepository = Depends(get_source_repository),
+    source_repository: SourceRepository = Depends(get_source_repository),
 ) -> ApiResponse[SourceResponse]:
     """Get source by ID."""
     source = await source_repository.get_by_id(source_id)
@@ -201,7 +201,7 @@ async def disable_source(
 
 @router.delete(
     "/{source_id}",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[dict[str, bool]],
     summary="删除信息源",
     description="删除信息源（软删除）",
 )
@@ -209,7 +209,7 @@ async def delete_source(
     source_id: str,
     _: str = Depends(get_current_user_id),
     handler: DeleteSourceHandler = Depends(get_delete_source_handler),
-) -> ApiResponse[dict]:
+) -> ApiResponse[dict[str, bool]]:
     """Delete a source."""
     command = DeleteSourceCommand(source_id=source_id)
     success = await handler.handle(command)

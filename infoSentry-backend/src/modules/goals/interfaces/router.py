@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, Query, status
 
-from src.core.infrastructure.security.jwt import get_current_user_id
+from src.core.application.security import get_current_user_id
 from src.core.interfaces.http.response import ApiResponse, PaginatedResponse
 from src.modules.goals.application.commands import (
     CreateGoalCommand,
@@ -11,16 +11,7 @@ from src.modules.goals.application.commands import (
     ResumeGoalCommand,
     UpdateGoalCommand,
 )
-from src.modules.goals.application.handlers import (
-    CreateGoalHandler,
-    DeleteGoalHandler,
-    PauseGoalHandler,
-    ResumeGoalHandler,
-    UpdateGoalHandler,
-)
-from src.modules.goals.domain.entities import TermType
-from src.modules.goals.domain.exceptions import GoalNotFoundError
-from src.modules.goals.infrastructure.dependencies import (
+from src.modules.goals.application.dependencies import (
     get_create_goal_handler,
     get_delete_goal_handler,
     get_goal_repository,
@@ -30,10 +21,19 @@ from src.modules.goals.infrastructure.dependencies import (
     get_term_repository,
     get_update_goal_handler,
 )
-from src.modules.goals.infrastructure.repositories import (
-    PostgreSQLGoalPriorityTermRepository,
-    PostgreSQLGoalPushConfigRepository,
-    PostgreSQLGoalRepository,
+from src.modules.goals.application.handlers import (
+    CreateGoalHandler,
+    DeleteGoalHandler,
+    PauseGoalHandler,
+    ResumeGoalHandler,
+    UpdateGoalHandler,
+)
+from src.modules.goals.domain.entities import Goal, TermType
+from src.modules.goals.domain.exceptions import GoalNotFoundError
+from src.modules.goals.domain.repository import (
+    GoalPriorityTermRepository,
+    GoalPushConfigRepository,
+    GoalRepository,
 )
 from src.modules.goals.interfaces.schemas import (
     CreateGoalRequest,
@@ -46,9 +46,9 @@ router = APIRouter(prefix="/goals", tags=["goals"])
 
 
 async def _build_goal_response(
-    goal,
-    push_config_repo: PostgreSQLGoalPushConfigRepository,
-    term_repo: PostgreSQLGoalPriorityTermRepository,
+    goal: Goal,
+    push_config_repo: GoalPushConfigRepository,
+    term_repo: GoalPriorityTermRepository,
 ) -> GoalResponse:
     """Build goal response with config and terms."""
     push_config = await push_config_repo.get_by_goal_id(goal.id)
@@ -67,6 +67,7 @@ async def _build_goal_response(
         negative_terms=negative_terms if negative_terms else None,
         batch_windows=push_config.batch_windows if push_config else None,
         digest_send_time=push_config.digest_send_time if push_config else None,
+        stats=None,
         created_at=goal.created_at,
         updated_at=goal.updated_at,
     )
@@ -82,13 +83,11 @@ async def list_goals(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     user_id: str = Depends(get_current_user_id),
-    goal_repository: PostgreSQLGoalRepository = Depends(get_goal_repository),
-    push_config_repository: PostgreSQLGoalPushConfigRepository = Depends(
+    goal_repository: GoalRepository = Depends(get_goal_repository),
+    push_config_repository: GoalPushConfigRepository = Depends(
         get_push_config_repository
     ),
-    term_repository: PostgreSQLGoalPriorityTermRepository = Depends(
-        get_term_repository
-    ),
+    term_repository: GoalPriorityTermRepository = Depends(get_term_repository),
 ) -> PaginatedResponse[GoalResponse]:
     """List all goals for current user."""
     goals, total = await goal_repository.list_by_user(
@@ -123,12 +122,10 @@ async def create_goal(
     request: CreateGoalRequest,
     user_id: str = Depends(get_current_user_id),
     handler: CreateGoalHandler = Depends(get_create_goal_handler),
-    push_config_repository: PostgreSQLGoalPushConfigRepository = Depends(
+    push_config_repository: GoalPushConfigRepository = Depends(
         get_push_config_repository
     ),
-    term_repository: PostgreSQLGoalPriorityTermRepository = Depends(
-        get_term_repository
-    ),
+    term_repository: GoalPriorityTermRepository = Depends(get_term_repository),
 ) -> ApiResponse[GoalResponse]:
     """Create a new goal."""
     command = CreateGoalCommand(
@@ -157,13 +154,11 @@ async def create_goal(
 async def get_goal(
     goal_id: str,
     user_id: str = Depends(get_current_user_id),
-    goal_repository: PostgreSQLGoalRepository = Depends(get_goal_repository),
-    push_config_repository: PostgreSQLGoalPushConfigRepository = Depends(
+    goal_repository: GoalRepository = Depends(get_goal_repository),
+    push_config_repository: GoalPushConfigRepository = Depends(
         get_push_config_repository
     ),
-    term_repository: PostgreSQLGoalPriorityTermRepository = Depends(
-        get_term_repository
-    ),
+    term_repository: GoalPriorityTermRepository = Depends(get_term_repository),
 ) -> ApiResponse[GoalResponse]:
     """Get goal details."""
     goal = await goal_repository.get_by_id(goal_id)
@@ -190,12 +185,10 @@ async def update_goal(
     request: UpdateGoalRequest,
     user_id: str = Depends(get_current_user_id),
     handler: UpdateGoalHandler = Depends(get_update_goal_handler),
-    push_config_repository: PostgreSQLGoalPushConfigRepository = Depends(
+    push_config_repository: GoalPushConfigRepository = Depends(
         get_push_config_repository
     ),
-    term_repository: PostgreSQLGoalPriorityTermRepository = Depends(
-        get_term_repository
-    ),
+    term_repository: GoalPriorityTermRepository = Depends(get_term_repository),
 ) -> ApiResponse[GoalResponse]:
     """Update a goal."""
     command = UpdateGoalCommand(
@@ -226,11 +219,10 @@ async def delete_goal(
     goal_id: str,
     user_id: str = Depends(get_current_user_id),
     handler: DeleteGoalHandler = Depends(get_delete_goal_handler),
-):
+) -> None:
     """Delete a goal (soft delete)."""
     command = DeleteGoalCommand(goal_id=goal_id, user_id=user_id)
     await handler.handle(command)
-    return None
 
 
 @router.post(

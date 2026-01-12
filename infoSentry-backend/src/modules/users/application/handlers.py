@@ -1,15 +1,12 @@
 """User command handlers."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from loguru import logger
 
 from src.core.config import settings
-from src.core.infrastructure.security.jwt import (
-    create_access_token,
-    create_magic_link_token,
-)
+from src.core.domain.ports.token import TokenService
 from src.modules.users.application.commands import (
     ConsumeMagicLinkCommand,
     RequestMagicLinkCommand,
@@ -33,9 +30,11 @@ class RequestMagicLinkHandler:
         self,
         user_repository: UserRepository,
         magic_link_repository: MagicLinkRepository,
+        token_service: TokenService,
     ):
         self.user_repository = user_repository
         self.magic_link_repository = magic_link_repository
+        self.token_service = token_service
         self.logger = logger
 
     async def handle(self, command: RequestMagicLinkCommand) -> MagicLink:
@@ -59,7 +58,7 @@ class RequestMagicLinkHandler:
         await self.magic_link_repository.invalidate_all_for_email(command.email)
 
         # Create new magic link
-        token = create_magic_link_token(command.email)
+        token = self.token_service.create_magic_link_token(command.email)
         expires_at = datetime.now() + timedelta(
             minutes=settings.MAGIC_LINK_EXPIRE_MINUTES
         )
@@ -90,9 +89,11 @@ class ConsumeMagicLinkHandler:
         self,
         user_repository: UserRepository,
         magic_link_repository: MagicLinkRepository,
+        token_service: TokenService,
     ):
         self.user_repository = user_repository
         self.magic_link_repository = magic_link_repository
+        self.token_service = token_service
         self.logger = logger
 
     async def handle(self, command: ConsumeMagicLinkCommand) -> tuple[User, str]:
@@ -107,7 +108,7 @@ class ConsumeMagicLinkHandler:
             raise MagicLinkAlreadyUsedError()
 
         # Check if expired
-        if datetime.now(timezone.utc) > magic_link.expires_at:
+        if datetime.now(UTC) > magic_link.expires_at:
             raise MagicLinkExpiredError()
 
         # Get user
@@ -124,7 +125,7 @@ class ConsumeMagicLinkHandler:
         await self.user_repository.update(user)
 
         # Create access token
-        access_token = create_access_token(
+        access_token = self.token_service.create_access_token(
             subject=user.id,
             extra_claims={"email": user.email},
         )

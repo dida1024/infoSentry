@@ -1,53 +1,25 @@
 """Agent API routes."""
 
-import base64
-from datetime import UTC, datetime
+from fastapi import APIRouter, Depends, Query
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-
-from src.core.config import settings
-from src.core.infrastructure.redis.client import get_redis_client
-from src.core.infrastructure.security.jwt import get_current_user_id
+from src.core.application.security import get_current_user_id
+from src.core.domain.exceptions import ValidationError
 from src.core.interfaces.http.response import ApiResponse, CursorPaginatedResponse
-from src.modules.agent.domain.entities import AgentRunStatus
-from src.modules.agent.infrastructure.dependencies import (
-    get_agent_action_ledger_repository,
-    get_agent_run_repository,
-    get_agent_tool_call_repository,
-    get_budget_daily_repository,
+from src.modules.agent.application.dependencies import (
+    get_agent_admin_service,
+    get_agent_run_query_service,
 )
-from src.modules.agent.infrastructure.repositories import (
-    PostgreSQLAgentActionLedgerRepository,
-    PostgreSQLAgentRunRepository,
-    PostgreSQLAgentToolCallRepository,
-    PostgreSQLBudgetDailyRepository,
+from src.modules.agent.application.services import (
+    AgentAdminService,
+    AgentRunQueryService,
 )
 from src.modules.agent.interfaces.schemas import (
-    ActionLedgerResponse,
     AgentRunDetailResponse,
     AgentRunSummaryResponse,
     BudgetResponse,
-    ToolCallResponse,
 )
 
 router = APIRouter(tags=["agent"])
-
-
-def _decode_cursor(cursor: str | None) -> tuple[int, int]:
-    """Decode cursor to (page, page_size)."""
-    if not cursor:
-        return 1, 20
-    try:
-        decoded = base64.b64decode(cursor).decode()
-        page, page_size = decoded.split(":")
-        return int(page), int(page_size)
-    except Exception:
-        return 1, 20
-
-
-def _encode_cursor(page: int, page_size: int) -> str:
-    """Encode (page, page_size) to cursor."""
-    return base64.b64encode(f"{page}:{page_size}".encode()).decode()
 
 
 class AgentRunListResponse(CursorPaginatedResponse[AgentRunSummaryResponse]):
@@ -67,56 +39,19 @@ async def list_agent_runs(
     cursor: str | None = Query(None, description="分页游标"),
     run_status: str | None = Query(None, alias="status", description="状态过滤"),
     _: str = Depends(get_current_user_id),
-    run_repo: PostgreSQLAgentRunRepository = Depends(get_agent_run_repository),
+    service: AgentRunQueryService = Depends(get_agent_run_query_service),
 ) -> AgentRunListResponse:
     """List agent runs."""
-    page, page_size = _decode_cursor(cursor)
+    result = await service.list_runs(goal_id, cursor, run_status)
 
-    # Parse status filter
-    status_filter = None
-    if run_status:
-        try:
-            status_filter = AgentRunStatus(run_status)
-        except ValueError:
-            pass
-
-    # Get runs
-    if goal_id:
-        runs, total = await run_repo.list_by_goal(
-            goal_id=goal_id,
-            status=status_filter,
-            page=page,
-            page_size=page_size,
-        )
-    else:
-        runs, total = await run_repo.list_recent(
-            page=page,
-            page_size=page_size,
-        )
-
-    # Build responses
-    responses = []
-    for run in runs:
-        responses.append(
-            AgentRunSummaryResponse(
-                id=run.id,
-                trigger=run.trigger,
-                goal_id=run.goal_id,
-                status=run.status,
-                llm_used=run.llm_used,
-                model_name=run.model_name,
-                latency_ms=run.latency_ms,
-                created_at=run.created_at,
-            )
-        )
-
-    has_more = (page * page_size) < total
-    next_cursor = _encode_cursor(page + 1, page_size) if has_more else None
+    responses = [
+        AgentRunSummaryResponse(**item.model_dump()) for item in result.items
+    ]
 
     return AgentRunListResponse.create(
         items=responses,
-        next_cursor=next_cursor,
-        has_more=has_more,
+        next_cursor=result.next_cursor,
+        has_more=result.has_more,
     )
 
 
@@ -129,66 +64,11 @@ async def list_agent_runs(
 async def get_agent_run(
     run_id: str,
     _: str = Depends(get_current_user_id),
-    run_repo: PostgreSQLAgentRunRepository = Depends(get_agent_run_repository),
-    tool_call_repo: PostgreSQLAgentToolCallRepository = Depends(
-        get_agent_tool_call_repository
-    ),
-    ledger_repo: PostgreSQLAgentActionLedgerRepository = Depends(
-        get_agent_action_ledger_repository
-    ),
+    service: AgentRunQueryService = Depends(get_agent_run_query_service),
 ) -> ApiResponse[AgentRunDetailResponse]:
     """Get agent run detail."""
-    run = await run_repo.get_by_id(run_id)
-    if not run:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "NOT_FOUND", "message": "Agent run not found"},
-        )
-
-    # Get tool calls
-    tool_calls = await tool_call_repo.list_by_run(run_id)
-    tool_call_responses = [
-        ToolCallResponse(
-            id=tc.id,
-            tool_name=tc.tool_name,
-            input=tc.input_json,
-            output=tc.output_json,
-            status=tc.status,
-            latency_ms=tc.latency_ms,
-        )
-        for tc in tool_calls
-    ]
-
-    # Get action ledger
-    ledger_entries = await ledger_repo.list_by_run(run_id)
-    ledger_responses = [
-        ActionLedgerResponse(
-            id=entry.id,
-            action_type=entry.action_type,
-            payload=entry.payload_json,
-            created_at=entry.created_at,
-        )
-        for entry in ledger_entries
-    ]
-
-    response = AgentRunDetailResponse(
-        id=run.id,
-        trigger=run.trigger,
-        goal_id=run.goal_id,
-        status=run.status,
-        input_snapshot=run.input_snapshot_json,
-        output_snapshot=run.output_snapshot_json,
-        final_actions=run.final_actions_json,
-        budget_snapshot=run.budget_snapshot_json,
-        llm_used=run.llm_used,
-        model_name=run.model_name,
-        latency_ms=run.latency_ms,
-        error_message=run.error_message,
-        created_at=run.created_at,
-        tool_calls=tool_call_responses,
-        action_ledger=ledger_responses,
-    )
-
+    detail = await service.get_run_detail(run_id)
+    response = AgentRunDetailResponse(**detail.model_dump())
     return ApiResponse.success(data=response)
 
 
@@ -201,25 +81,12 @@ async def get_agent_run(
 async def replay_agent_run(
     run_id: str,
     _: str = Depends(get_current_user_id),
-    run_repo: PostgreSQLAgentRunRepository = Depends(get_agent_run_repository),
+    service: AgentRunQueryService = Depends(get_agent_run_query_service),
 ) -> ApiResponse[dict]:
     """Replay an agent run based on its input snapshot."""
-    run = await run_repo.get_by_id(run_id)
-    if not run:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "NOT_FOUND", "message": "Agent run not found"},
-        )
-
-    # Return the replay information
-    # In production, this would trigger an actual replay
+    replay_info = await service.get_replay_info(run_id)
     return ApiResponse.success(
-        data={
-            "original_run_id": run_id,
-            "input_snapshot": run.input_snapshot_json,
-            "original_output": run.output_snapshot_json,
-            "message": "Replay endpoint available. Use input_snapshot to manually replay.",
-        },
+        data=replay_info,
         message="Replay information retrieved",
     )
 
@@ -232,22 +99,11 @@ async def replay_agent_run(
 )
 async def get_budget_status(
     _: str = Depends(get_current_user_id),
-    budget_repo: PostgreSQLBudgetDailyRepository = Depends(get_budget_daily_repository),
+    service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[BudgetResponse]:
     """Get budget status."""
-    budget = await budget_repo.get_or_create_today()
-
-    return ApiResponse.success(
-        data=BudgetResponse(
-            date=budget.date,
-            embedding_tokens_est=budget.embedding_tokens_est,
-            judge_tokens_est=budget.judge_tokens_est,
-            usd_est=budget.usd_est,
-            embedding_disabled=budget.embedding_disabled,
-            judge_disabled=budget.judge_disabled,
-            daily_limit=settings.DAILY_USD_BUDGET,
-        )
-    )
+    budget = await service.get_budget_status()
+    return ApiResponse.success(data=BudgetResponse(**budget.model_dump()))
 
 
 class ConfigUpdateRequest(ApiResponse):
@@ -276,21 +132,11 @@ class ConfigResponse(ApiResponse):
 )
 async def get_config(
     _: str = Depends(get_current_user_id),
+    service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[dict]:
     """Get current config."""
-    return ApiResponse.success(
-        data={
-            "LLM_ENABLED": settings.LLM_ENABLED,
-            "EMBEDDING_ENABLED": settings.EMBEDDING_ENABLED,
-            "IMMEDIATE_ENABLED": settings.IMMEDIATE_ENABLED,
-            "EMAIL_ENABLED": settings.EMAIL_ENABLED,
-            "DAILY_USD_BUDGET": settings.DAILY_USD_BUDGET,
-            "IMMEDIATE_THRESHOLD": settings.IMMEDIATE_THRESHOLD,
-            "BATCH_THRESHOLD": settings.BATCH_THRESHOLD,
-            "BOUNDARY_LOW": settings.BOUNDARY_LOW,
-            "BOUNDARY_HIGH": settings.BOUNDARY_HIGH,
-        }
-    )
+    config = await service.get_config()
+    return ApiResponse.success(data=config)
 
 
 @router.post(
@@ -302,6 +148,7 @@ async def get_config(
 async def update_config(
     config: dict,
     _: str = Depends(get_current_user_id),
+    service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[dict]:
     """Update config in Redis for hot reload.
 
@@ -311,25 +158,10 @@ async def update_config(
     - IMMEDIATE_ENABLED: bool
     - EMAIL_ENABLED: bool
     """
-    allowed_keys = {
-        "LLM_ENABLED",
-        "EMBEDDING_ENABLED",
-        "IMMEDIATE_ENABLED",
-        "EMAIL_ENABLED",
-    }
-
-    updated = {}
     try:
-        redis = get_redis_client()
-
-        for key, value in config.items():
-            if key in allowed_keys:
-                # Store in Redis with config: prefix
-                await redis.set(f"config:{key}", str(value).lower())
-                updated[key] = value
-
+        updated = await service.update_config(config)
         return ApiResponse.success(
-            data={"updated": updated},
+            data=updated,
             message="Configuration updated successfully",
         )
     except Exception as e:
@@ -347,36 +179,17 @@ async def update_config(
 )
 async def health_check(
     _: str = Depends(get_current_user_id),
-    budget_repo: PostgreSQLBudgetDailyRepository = Depends(get_budget_daily_repository),
+    service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[dict]:
     """Health check endpoint."""
-    health_status = {
-        "status": "healthy",
-        "timestamp": datetime.now(UTC).isoformat(),
-        "components": {
-            "database": "unknown",
-            "redis": "unknown",
-        },
-    }
-
-    # Check database
     try:
-        await budget_repo.get_or_create_today()
-        health_status["components"]["database"] = "healthy"
+        health_status = await service.health_check()
+        return ApiResponse.success(data=health_status)
     except Exception as e:
-        health_status["components"]["database"] = f"unhealthy: {str(e)}"
-        health_status["status"] = "degraded"
-
-    # Check Redis
-    try:
-        redis = get_redis_client()
-        is_ok = await redis.ping()
-        health_status["components"]["redis"] = "healthy" if is_ok else "unhealthy"
-    except Exception as e:
-        health_status["components"]["redis"] = f"unhealthy: {str(e)}"
-        health_status["status"] = "degraded"
-
-    return ApiResponse.success(data=health_status)
+        return ApiResponse.error(
+            message=f"Failed to get health status: {str(e)}",
+            code=500,
+        )
 
 
 @router.get(
@@ -387,16 +200,13 @@ async def health_check(
 )
 async def get_monitoring_status(
     _: str = Depends(get_current_user_id),
+    service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[dict]:
     """Get full monitoring status."""
-    from src.modules.agent.application.monitoring_service import MonitoringService
 
     try:
-        redis = get_redis_client()
-        monitoring = MonitoringService(redis)
-        status = await monitoring.check_all()
-
-        return ApiResponse.success(data=status.to_dict())
+        status = await service.get_monitoring_status()
+        return ApiResponse.success(data=status)
 
     except Exception as e:
         return ApiResponse.error(
@@ -413,16 +223,13 @@ async def get_monitoring_status(
 )
 async def get_worker_status(
     _: str = Depends(get_current_user_id),
+    service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[dict]:
     """Get worker heartbeat status."""
-    from src.modules.agent.application.monitoring_service import MonitoringService
 
     try:
-        redis = get_redis_client()
-        monitoring = MonitoringService(redis)
-        workers_result = await monitoring.get_worker_heartbeats()
-
-        return ApiResponse.success(data={"workers": workers_result.to_dict()})
+        workers_result = await service.get_worker_status()
+        return ApiResponse.success(data=workers_result)
 
     except Exception as e:
         return ApiResponse.error(
@@ -439,17 +246,13 @@ async def get_worker_status(
 )
 async def reset_budget(
     _: str = Depends(get_current_user_id),
+    service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[dict]:
     """Reset daily budget."""
-    from src.modules.items.application.budget_service import BudgetService
-
     try:
-        redis = get_redis_client()
-        budget_service = BudgetService(redis)
-        await budget_service.reset_daily_budget()
-
+        result = await service.reset_budget()
         return ApiResponse.success(
-            data={"reset": True},
+            data=result,
             message="Daily budget has been reset",
         )
 
@@ -469,29 +272,17 @@ async def reset_budget(
 async def enable_feature(
     feature: str,
     _: str = Depends(get_current_user_id),
+    service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[dict]:
     """Enable a feature (lift circuit breaker)."""
-    allowed_features = {"llm", "embedding", "immediate", "email"}
-
-    if feature.lower() not in allowed_features:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "VALIDATION_ERROR",
-                "message": f"Unknown feature: {feature}",
-            },
-        )
-
     try:
-        redis = get_redis_client()
-        config_key = f"config:{feature.upper()}_ENABLED"
-        await redis.set(config_key, "true")
-
+        result = await service.enable_feature(feature)
         return ApiResponse.success(
-            data={"feature": feature, "enabled": True},
+            data=result,
             message=f"Feature {feature} has been enabled",
         )
-
+    except ValidationError:
+        raise
     except Exception as e:
         return ApiResponse.error(
             message=f"Failed to enable feature: {str(e)}",
@@ -508,29 +299,17 @@ async def enable_feature(
 async def disable_feature(
     feature: str,
     _: str = Depends(get_current_user_id),
+    service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[dict]:
     """Disable a feature (manual circuit breaker)."""
-    allowed_features = {"llm", "embedding", "immediate", "email"}
-
-    if feature.lower() not in allowed_features:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "VALIDATION_ERROR",
-                "message": f"Unknown feature: {feature}",
-            },
-        )
-
     try:
-        redis = get_redis_client()
-        config_key = f"config:{feature.upper()}_ENABLED"
-        await redis.set(config_key, "false")
-
+        result = await service.disable_feature(feature)
         return ApiResponse.success(
-            data={"feature": feature, "enabled": False},
+            data=result,
             message=f"Feature {feature} has been disabled",
         )
-
+    except ValidationError:
+        raise
     except Exception as e:
         return ApiResponse.error(
             message=f"Failed to disable feature: {str(e)}",

@@ -12,7 +12,7 @@ from typing import Any
 from loguru import logger
 
 from src.core.config import settings
-from src.core.infrastructure.redis.client import RedisClient
+from src.core.domain.ports.kv import KVClient
 
 
 class BudgetStatus:
@@ -72,7 +72,7 @@ class BudgetService:
     # Redis key 前缀
     BUDGET_KEY_PREFIX = "budget:daily"
 
-    def __init__(self, redis_client: RedisClient):
+    def __init__(self, redis_client: KVClient):
         self.redis = redis_client
 
     def _get_today_key(self) -> str:

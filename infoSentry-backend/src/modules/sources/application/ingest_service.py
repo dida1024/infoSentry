@@ -14,17 +14,13 @@ from src.core.domain.events import EventBus
 from src.modules.items.domain.entities import EmbeddingStatus, Item
 from src.modules.items.domain.events import ItemIngestedEvent
 from src.modules.items.domain.repository import ItemRepository
-from src.modules.sources.domain.entities import Source
+from src.modules.sources.domain.entities import IngestStatus, Source
 from src.modules.sources.domain.events import (
     SourceFetchErrorEvent,
     SourceFetchSuccessEvent,
 )
+from src.modules.sources.domain.fetcher import FetchedItem, FetcherFactory
 from src.modules.sources.domain.repository import SourceRepository
-from src.modules.sources.infrastructure.fetchers import (
-    FetchedItem,
-    FetcherFactory,
-)
-from src.modules.sources.infrastructure.models import IngestStatus
 
 
 class IngestResult:
@@ -72,10 +68,12 @@ class IngestService:
         source_repository: SourceRepository,
         item_repository: ItemRepository,
         event_bus: EventBus,
+        fetcher_factory: FetcherFactory,
     ):
         self.source_repository = source_repository
         self.item_repository = item_repository
         self.event_bus = event_bus
+        self.fetcher_factory = fetcher_factory
 
     async def ingest_source(self, source: Source) -> IngestResult:
         """执行单个源的抓取流程。
@@ -91,7 +89,7 @@ class IngestService:
 
         try:
             # 1. 创建抓取器并执行抓取
-            fetcher = FetcherFactory.create(
+            fetcher = self.fetcher_factory.create(
                 source_type=source.type,
                 config=source.config,
                 max_items=settings.ITEMS_PER_SOURCE_PER_FETCH,

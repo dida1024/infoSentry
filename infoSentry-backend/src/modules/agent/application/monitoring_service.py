@@ -15,7 +15,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 from src.core.config import settings
-from src.core.infrastructure.redis.client import RedisClient
+from src.core.domain.ports.kv import KVClient
 
 
 class WorkerHeartbeat(BaseModel):
@@ -118,7 +118,7 @@ class MonitoringService:
     SMTP_ERROR_STREAK_KEY = "monitor:smtp:error_streak"
     LAST_HEALTH_CHECK_KEY = "monitor:health:last_check"
 
-    def __init__(self, redis_client: RedisClient):
+    def __init__(self, redis_client: KVClient):
         self.redis = redis_client
 
     async def check_all(self) -> HealthStatus:
@@ -158,7 +158,7 @@ class MonitoringService:
 
     async def _check_queues(self, status: HealthStatus) -> None:
         """检查 Celery 队列积压。"""
-        from src.core.infrastructure.celery.queues import Queues
+        from src.core.domain.queues import Queues
 
         queues = [
             Queues.INGEST,

@@ -8,6 +8,7 @@ from loguru import logger
 from src.modules.goals.application.commands import (
     ArchiveGoalCommand,
     CreateGoalCommand,
+    DeleteGoalCommand,
     PauseGoalCommand,
     ResumeGoalCommand,
     UpdateGoalCommand,
@@ -179,7 +180,6 @@ class UpdateGoalHandler:
                 await self.push_config_repository.update(push_config)
 
         # Update terms if provided
-        terms_updated = False
         if command.priority_terms is not None or command.negative_terms is not None:
             await self.term_repository.delete_all_for_goal(goal.id)
 
@@ -212,7 +212,6 @@ class UpdateGoalHandler:
             if terms_to_create:
                 await self.term_repository.bulk_create(terms_to_create)
 
-            terms_updated = True
             priority_count = len(
                 [t for t in terms_to_create if t.term_type == TermType.MUST]
             )
@@ -306,9 +305,7 @@ class DeleteGoalHandler:
         self.goal_repository = goal_repository
         self.logger = logger
 
-    async def handle(self, command: "DeleteGoalCommand") -> bool:
-        from src.modules.goals.application.commands import DeleteGoalCommand
-
+    async def handle(self, command: DeleteGoalCommand) -> bool:
         goal = await self.goal_repository.get_by_id(command.goal_id)
         if not goal:
             raise GoalNotFoundError(command.goal_id)

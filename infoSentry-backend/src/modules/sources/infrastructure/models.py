@@ -1,21 +1,12 @@
 """Source database models."""
 
 from datetime import datetime
-from enum import StrEnum
 
 from sqlalchemy import JSON, DateTime, Enum, Text
 from sqlmodel import Field
 
 from src.core.infrastructure.database.base_model import BaseModel
-from src.modules.sources.domain.entities import SourceType
-
-
-class IngestStatus(StrEnum):
-    """抓取状态枚举。"""
-
-    SUCCESS = "success"  # 完全成功
-    PARTIAL = "partial"  # 部分成功（有错误但也有结果）
-    FAILED = "failed"  # 完全失败
+from src.modules.sources.domain.entities import IngestStatus, SourceType
 
 
 class SourceModel(BaseModel, table=True):

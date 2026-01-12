@@ -20,7 +20,7 @@ from src.core.infrastructure.celery.queues import Queues
     max_retries=0,  # 调度任务不重试
     queue=Queues.INGEST,
 )
-def check_and_dispatch_fetches(self):
+def check_and_dispatch_fetches(_self: object) -> None:
     """检查并调度需要抓取的源。
 
     由 Celery Beat 每分钟调用一次。
@@ -80,7 +80,7 @@ async def _check_and_dispatch_fetches_async():
     retry_backoff_max=600,
     queue=Queues.INGEST,
 )
-def ingest_source(self, source_id: str):
+def ingest_source(_self: object, source_id: str) -> None:
     """执行单个源的抓取任务。
 
     Args:
@@ -98,6 +98,9 @@ async def _ingest_source_async(source_id: str):
     from src.modules.items.infrastructure.mappers import ItemMapper
     from src.modules.items.infrastructure.repositories import PostgreSQLItemRepository
     from src.modules.sources.application.ingest_service import IngestService
+    from src.modules.sources.infrastructure.fetchers.factory import (
+        InfrastructureFetcherFactory,
+    )
     from src.modules.sources.infrastructure.ingest_log_repository import (
         IngestLogRepository,
     )
@@ -124,6 +127,7 @@ async def _ingest_source_async(source_id: str):
                 source_repository=source_repo,
                 item_repository=item_repo,
                 event_bus=event_bus,
+                fetcher_factory=InfrastructureFetcherFactory(),
             )
 
             # 执行抓取
@@ -160,7 +164,7 @@ async def _ingest_source_async(source_id: str):
     bind=True,
     queue=Queues.EMBED,
 )
-def enqueue_embed_task(self, item_id: str):
+def enqueue_embed_task(_self: object, item_id: str) -> None:
     """将条目投递到 embed 队列。
 
     调用 items 模块的 embed_item 任务进行实际的 embedding。
@@ -180,7 +184,7 @@ def enqueue_embed_task(self, item_id: str):
     bind=True,
     queue=Queues.INGEST,
 )
-def force_ingest_all(self, source_type: str | None = None):
+def force_ingest_all(_self: object, source_type: str | None = None) -> None:
     """强制抓取所有启用的源（忽略调度时间）。
 
     Args:

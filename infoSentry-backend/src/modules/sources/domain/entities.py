@@ -1,7 +1,7 @@
 """Source domain entities."""
 
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 
 from pydantic import Field
@@ -15,6 +15,14 @@ class SourceType(str, Enum):
     NEWSNOW = "NEWSNOW"
     RSS = "RSS"
     SITE = "SITE"
+
+
+class IngestStatus(StrEnum):
+    """抓取状态枚举。"""
+
+    SUCCESS = "success"
+    PARTIAL = "partial"
+    FAILED = "failed"
 
 
 class Source(AggregateRoot):

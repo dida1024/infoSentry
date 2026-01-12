@@ -4,13 +4,21 @@ from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from src.core.application.security import get_current_user_id
 from src.core.config import settings
-from src.core.infrastructure.security.jwt import get_current_user_id
 from src.core.interfaces.http.response import ApiResponse
+from src.modules.users.application.budget_service import UserBudgetUsageService
 from src.modules.users.application.commands import (
     ConsumeMagicLinkCommand,
     RequestMagicLinkCommand,
     UpdateProfileCommand,
+)
+from src.modules.users.application.dependencies import (
+    get_consume_magic_link_handler,
+    get_request_magic_link_handler,
+    get_update_profile_handler,
+    get_user_budget_usage_service,
+    get_user_repository,
 )
 from src.modules.users.application.handlers import (
     ConsumeMagicLinkHandler,
@@ -18,25 +26,17 @@ from src.modules.users.application.handlers import (
     UpdateProfileHandler,
 )
 from src.modules.users.domain.exceptions import UserNotFoundError
-from src.modules.users.infrastructure.dependencies import (
-    get_consume_magic_link_handler,
-    get_request_magic_link_handler,
-    get_update_profile_handler,
-    get_user_budget_usage_service,
-    get_user_repository,
-)
-from src.modules.users.infrastructure.repositories import PostgreSQLUserRepository
+from src.modules.users.domain.repository import UserRepository
 from src.modules.users.interfaces.schemas import (
     ConsumeTokenResponse,
     MagicLinkResponse,
     RequestMagicLinkRequest,
     SessionResponse,
     UpdateProfileRequest,
-    UserResponse,
-    UserBudgetUsageResponse,
     UserBudgetUsageDay,
+    UserBudgetUsageResponse,
+    UserResponse,
 )
-from src.modules.users.application.budget_service import UserBudgetUsageService
 
 router = APIRouter(tags=["auth"])
 
@@ -99,7 +99,7 @@ async def consume_magic_link(
 )
 async def get_current_user(
     user_id: str = Depends(get_current_user_id),
-    user_repository: PostgreSQLUserRepository = Depends(get_user_repository),
+    user_repository: UserRepository = Depends(get_user_repository),
 ) -> ApiResponse[UserResponse]:
     """Get current user info."""
     user = await user_repository.get_by_id(user_id)
