@@ -3,6 +3,8 @@
 import base64
 from datetime import datetime
 
+from loguru import logger
+
 from src.core.domain.exceptions import EntityNotFoundError
 from src.modules.goals.domain.exceptions import GoalNotFoundError
 from src.modules.goals.domain.repository import GoalRepository
@@ -38,7 +40,8 @@ def _decode_cursor(cursor: str | None) -> tuple[int, int]:
         decoded = base64.b64decode(cursor).decode()
         page, page_size = decoded.split(":")
         return int(page), int(page_size)
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Failed to decode cursor '{cursor}', using defaults: {e}")
         return 1, 20
 
 

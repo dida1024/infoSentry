@@ -4,6 +4,8 @@ import base64
 from datetime import UTC, datetime
 from typing import Any
 
+from loguru import logger
+
 from src.core.config import settings
 from src.core.domain.exceptions import EntityNotFoundError, ValidationError
 from src.core.domain.ports.kv import KVClient
@@ -32,7 +34,8 @@ def _decode_cursor(cursor: str | None) -> tuple[int, int]:
         decoded = base64.b64decode(cursor).decode()
         page, page_size = decoded.split(":")
         return int(page), int(page_size)
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Failed to decode cursor '{cursor}', using defaults: {e}")
         return 1, 20
 
 

@@ -284,8 +284,8 @@ class NewsNowFetcher(BaseFetcher):
                 except ValueError:
                     continue
 
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Failed to parse time string '{time_str}': {e}")
 
         return None
 

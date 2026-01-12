@@ -303,8 +303,8 @@ class RSSFetcher(BaseFetcher):
             if parsed:
                 try:
                     return datetime(*parsed[:6], tzinfo=UTC)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Failed to parse {field}: {e}")
 
         # 尝试原始字符串
         for field in ("published", "updated", "created"):
@@ -322,14 +322,16 @@ class RSSFetcher(BaseFetcher):
         """解析 RFC 2822 日期格式。"""
         try:
             return parsedate_to_datetime(date_str)
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Failed to parse RFC 2822 date '{date_str}': {e}")
             return None
 
     def _parse_iso_date(self, date_str: str) -> datetime | None:
         """解析 ISO 8601 日期格式。"""
         try:
             return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Failed to parse ISO date '{date_str}': {e}")
             return None
 
     def _strip_html(self, text: str) -> str:

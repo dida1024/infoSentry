@@ -222,8 +222,8 @@ class MonitoringService:
         try:
             count_str = await self.redis.get(error_key)
             error_count = int(count_str) if count_str else 0
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to get LLM error count from Redis: {e}")
 
         llm_status = {
             "error_count_hour": error_count,
@@ -273,8 +273,8 @@ class MonitoringService:
         try:
             streak_str = await self.redis.get(self.SMTP_ERROR_STREAK_KEY)
             error_streak = int(streak_str) if streak_str else 0
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to get SMTP error streak from Redis: {e}")
 
         smtp_status = {
             "error_streak": error_streak,
@@ -326,8 +326,8 @@ class MonitoringService:
                 redis_value = await self.redis.get(f"config:{key}")
                 if redis_value is not None:
                     flags[f"{key}_override"] = redis_value.lower() == "true"
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to get config override for {key}: {e}")
 
         status.components["feature_flags"] = flags
 

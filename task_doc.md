@@ -71,7 +71,7 @@
   - 无 `# type: ignore`。
   - 公共函数/方法具备完整注解。
 
-### T5. 消除静默吞异常
+### ✅ T5. 消除静默吞异常
 - 目标：明确处理异常并记录日志/抛出。
 - 影响范围：
   - infoSentry-backend/src/modules/agent/application/monitoring_service.py

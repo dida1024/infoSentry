@@ -234,7 +234,8 @@ async def _check_and_trigger_batch_windows_async():
 
                 tz = pytz.timezone("Asia/Shanghai")
                 now_local = now.astimezone(tz)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Failed to convert timezone, using UTC: {e}")
                 now_local = now
 
             current_time = now_local.strftime("%H:%M")
@@ -399,7 +400,8 @@ async def _check_and_send_digest_async():
 
                 tz = pytz.timezone("Asia/Shanghai")
                 now_local = now.astimezone(tz)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Failed to convert timezone, using UTC: {e}")
                 now_local = now
 
             current_time = now_local.strftime("%H:%M")
