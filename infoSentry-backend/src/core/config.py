@@ -167,6 +167,29 @@ class Settings(BaseSettings):
     WORKER_AGENT_CONCURRENCY: int = 1
     WORKER_EMAIL_CONCURRENCY: int = 1
 
+    # Fetcher Settings
+    FETCHER_TIMEOUT_SEC: float = 30.0  # HTTP 请求超时
+    FETCHER_USER_AGENT: str = (
+        "Mozilla/5.0 (compatible; InfoSentry/1.0; +https://infosentry.app)"
+    )
+
+    # Embedding Settings
+    EMBED_MAX_CHARS: int = 8000  # 约 2000 tokens
+
+    # API Pricing (USD per 1K tokens) - 用于预算估算
+    EMBED_PRICE_PER_1K: float = 0.00002  # text-embedding-3-small
+    JUDGE_PRICE_PER_1K: float = 0.00015  # gpt-4o-mini
+
+    # Monitoring Thresholds
+    QUEUE_BACKLOG_WARNING: int = 50  # 队列积压警告阈值
+    QUEUE_BACKLOG_CRITICAL: int = 100  # 队列积压严重阈值
+    LLM_ERROR_RATE_WARNING: int = 5  # LLM 错误率警告阈值（每小时）
+    LLM_ERROR_RATE_CRITICAL: int = 10  # LLM 错误率严重阈值（每小时）
+    SMTP_ERROR_STREAK_WARNING: int = 2  # SMTP 连续失败警告阈值
+    SMTP_ERROR_STREAK_CRITICAL: int = 3  # SMTP 连续失败严重阈值
+    WORKER_HEARTBEAT_STALE_SEC: int = 120  # Worker 心跳过期秒数
+    WORKER_HEARTBEAT_TTL_SEC: int = 300  # Worker 心跳 Redis TTL
+
     @computed_field
     @property
     def celery_broker_url(self) -> str:
