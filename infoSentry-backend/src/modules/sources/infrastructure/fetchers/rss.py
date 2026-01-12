@@ -11,6 +11,7 @@ from typing import Any
 import httpx
 from loguru import logger
 
+from src.core.config import settings
 from src.modules.sources.infrastructure.fetchers.base import (
     BaseFetcher,
     FetchedItem,
@@ -26,10 +27,6 @@ class RSSFetcher(BaseFetcher):
         "feed_url": "https://example.com/feed.xml"
     }
     """
-
-    TIMEOUT = 30.0
-
-    USER_AGENT = "Mozilla/5.0 (compatible; InfoSentry/1.0; +https://infosentry.app)"
 
     def validate_config(self) -> tuple[bool, str | None]:
         """验证配置。"""
@@ -52,13 +49,13 @@ class RSSFetcher(BaseFetcher):
 
         try:
             async with httpx.AsyncClient(
-                timeout=self.TIMEOUT,
+                timeout=settings.FETCHER_TIMEOUT_SEC,
                 follow_redirects=True,
             ) as client:
                 response = await client.get(
                     feed_url,
                     headers={
-                        "User-Agent": self.USER_AGENT,
+                        "User-Agent": settings.FETCHER_USER_AGENT,
                         "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
                     },
                 )

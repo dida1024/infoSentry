@@ -12,6 +12,7 @@ from urllib.parse import urljoin
 import httpx
 from loguru import logger
 
+from src.core.config import settings
 from src.modules.sources.infrastructure.fetchers.base import (
     BaseFetcher,
     FetchedItem,
@@ -29,16 +30,6 @@ class NewsNowFetcher(BaseFetcher):
         "category_path": "/h/Technology"  # 分类路径
     }
     """
-
-    # 请求超时设置
-    TIMEOUT = 30.0
-
-    # 默认 User-Agent
-    USER_AGENT = (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    )
 
     def validate_config(self) -> tuple[bool, str | None]:
         """验证配置。"""
@@ -102,13 +93,13 @@ class NewsNowFetcher(BaseFetcher):
         url = urljoin(base_url, category_path)
 
         async with httpx.AsyncClient(
-            timeout=self.TIMEOUT,
+            timeout=settings.FETCHER_TIMEOUT_SEC,
             follow_redirects=True,
         ) as client:
             response = await client.get(
                 url,
                 headers={
-                    "User-Agent": self.USER_AGENT,
+                    "User-Agent": settings.FETCHER_USER_AGENT,
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                     "Accept-Language": "en-US,en;q=0.5",
                 },
