@@ -15,7 +15,9 @@ from typing import Any
 
 from loguru import logger
 
+from src.core.config import settings
 from src.core.domain.events import EventBus
+from src.core.infrastructure.logging import BusinessEvents
 from src.modules.goals.domain.entities import (
     Goal,
     GoalPriorityTerm,
@@ -536,6 +538,21 @@ class MatchService:
             f"Saved match: goal={result.goal_id}, item={result.item_id}, "
             f"score={result.score:.4f}"
         )
+
+        # 记录高分匹配的业务事件
+        if result.score >= settings.BATCH_THRESHOLD:
+            decision = (
+                "immediate"
+                if result.score >= settings.IMMEDIATE_THRESHOLD
+                else "batch"
+            )
+            BusinessEvents.item_matched(
+                item_id=result.item_id,
+                goal_id=result.goal_id,
+                score=result.score,
+                decision=decision,
+                reason=result.reasons.summary,
+            )
 
     async def match_item_by_id(self, item_id: str) -> list[MatchResult]:
         """根据 Item ID 执行匹配。"""

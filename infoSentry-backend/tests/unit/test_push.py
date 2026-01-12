@@ -298,7 +298,7 @@ class TestEmailTemplates:
         """测试纯文本回退。"""
         email_data = self._make_email_data()
 
-        plain_text = render_plain_text_fallback(email_data, "immediate")
+        plain_text = render_plain_text_fallback(email_data)
 
         assert "AI 动态" in plain_text
         assert "Test News" in plain_text

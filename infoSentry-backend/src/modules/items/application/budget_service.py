@@ -65,10 +65,6 @@ class BudgetService:
     - 触发熔断
     """
 
-    # 价格估算（美元/1K tokens）
-    EMBED_PRICE_PER_1K = 0.00002  # text-embedding-3-small
-    JUDGE_PRICE_PER_1K = 0.00015  # gpt-4o-mini
-
     # Redis key 前缀
     BUDGET_KEY_PREFIX = "budget:daily"
 
@@ -172,7 +168,7 @@ class BudgetService:
         status.embedding_tokens += tokens
 
         # 更新费用估算
-        cost = (tokens / 1000) * self.EMBED_PRICE_PER_1K
+        cost = (tokens / 1000) * settings.EMBED_PRICE_PER_1K
         status.usd_est += cost
 
         await self._save_status(status)
@@ -189,7 +185,7 @@ class BudgetService:
         status.judge_tokens += tokens
 
         # 更新费用估算
-        cost = (tokens / 1000) * self.JUDGE_PRICE_PER_1K
+        cost = (tokens / 1000) * settings.JUDGE_PRICE_PER_1K
         status.usd_est += cost
 
         await self._save_status(status)

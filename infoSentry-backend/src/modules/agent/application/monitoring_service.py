@@ -105,14 +105,6 @@ class MonitoringService:
     - 自动降级
     """
 
-    # 阈值配置
-    QUEUE_BACKLOG_WARNING = 50  # 队列积压警告阈值
-    QUEUE_BACKLOG_CRITICAL = 100  # 队列积压严重阈值
-    LLM_ERROR_RATE_WARNING = 5  # LLM 错误率警告阈值（每小时）
-    LLM_ERROR_RATE_CRITICAL = 10  # LLM 错误率严重阈值（每小时）
-    SMTP_ERROR_STREAK_WARNING = 2  # SMTP 连续失败警告阈值
-    SMTP_ERROR_STREAK_CRITICAL = 3  # SMTP 连续失败严重阈值
-
     # Redis keys
     LLM_ERROR_COUNT_KEY = "monitor:llm:errors"
     SMTP_ERROR_STREAK_KEY = "monitor:smtp:error_streak"
@@ -179,7 +171,7 @@ class MonitoringService:
                     "status": "ok",
                 }
 
-                if length >= self.QUEUE_BACKLOG_CRITICAL:
+                if length >= settings.QUEUE_BACKLOG_CRITICAL:
                     queue_status[queue]["status"] = "critical"
                     status.alerts.append(
                         Alert(
@@ -191,7 +183,7 @@ class MonitoringService:
                     )
                     logger.error(f"Critical queue backlog: {queue}={length}")
 
-                elif length >= self.QUEUE_BACKLOG_WARNING:
+                elif length >= settings.QUEUE_BACKLOG_WARNING:
                     queue_status[queue]["status"] = "warning"
                     status.alerts.append(
                         Alert(
@@ -231,7 +223,7 @@ class MonitoringService:
             "llm_enabled": settings.LLM_ENABLED,
         }
 
-        if error_count >= self.LLM_ERROR_RATE_CRITICAL:
+        if error_count >= settings.LLM_ERROR_RATE_CRITICAL:
             llm_status["status"] = "critical"
             status.alerts.append(
                 Alert(
@@ -240,7 +232,7 @@ class MonitoringService:
                     message=f"LLM error rate critical: {error_count}/hour",
                     details={
                         "error_count": error_count,
-                        "threshold": self.LLM_ERROR_RATE_CRITICAL,
+                        "threshold": settings.LLM_ERROR_RATE_CRITICAL,
                     },
                 )
             )
@@ -250,7 +242,7 @@ class MonitoringService:
                 f"LLM auto-disabled due to high error rate: {error_count}/hour"
             )
 
-        elif error_count >= self.LLM_ERROR_RATE_WARNING:
+        elif error_count >= settings.LLM_ERROR_RATE_WARNING:
             llm_status["status"] = "warning"
             status.alerts.append(
                 Alert(
@@ -259,7 +251,7 @@ class MonitoringService:
                     message=f"LLM error rate elevated: {error_count}/hour",
                     details={
                         "error_count": error_count,
-                        "threshold": self.LLM_ERROR_RATE_WARNING,
+                        "threshold": settings.LLM_ERROR_RATE_WARNING,
                     },
                 )
             )
@@ -283,7 +275,7 @@ class MonitoringService:
             "smtp_configured": bool(settings.SMTP_HOST),
         }
 
-        if error_streak >= self.SMTP_ERROR_STREAK_CRITICAL:
+        if error_streak >= settings.SMTP_ERROR_STREAK_CRITICAL:
             smtp_status["status"] = "critical"
             status.alerts.append(
                 Alert(
@@ -297,7 +289,7 @@ class MonitoringService:
             await self._auto_disable_email()
             logger.error(f"Email auto-disabled due to SMTP failures: {error_streak}")
 
-        elif error_streak >= self.SMTP_ERROR_STREAK_WARNING:
+        elif error_streak >= settings.SMTP_ERROR_STREAK_WARNING:
             smtp_status["status"] = "warning"
             status.alerts.append(
                 Alert(
@@ -444,7 +436,7 @@ class MonitoringService:
                     last_beat_time = datetime.fromisoformat(last_beat)
                     age_seconds = (datetime.now(UTC) - last_beat_time).total_seconds()
                     result.workers[worker_type] = WorkerHeartbeat(
-                        status="ok" if age_seconds < 120 else "stale",
+                        status="ok" if age_seconds < settings.WORKER_HEARTBEAT_STALE_SEC else "stale",
                         last_heartbeat=last_beat,
                         age_seconds=int(age_seconds),
                     )
@@ -471,5 +463,5 @@ class MonitoringService:
         await self.redis.set(
             heartbeat_key,
             datetime.now(UTC).isoformat(),
-            ex=300,  # 5 分钟过期
+            ex=settings.WORKER_HEARTBEAT_TTL_SEC,
         )

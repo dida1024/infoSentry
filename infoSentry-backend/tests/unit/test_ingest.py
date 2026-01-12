@@ -377,12 +377,19 @@ class TestIngestService:
         return bus
 
     @pytest.fixture
-    def ingest_service(self, mock_source_repo, mock_item_repo, mock_event_bus):
+    def mock_fetcher_factory(self):
+        """Mock 抓取器工厂。"""
+        factory = AsyncMock()
+        return factory
+
+    @pytest.fixture
+    def ingest_service(self, mock_source_repo, mock_item_repo, mock_event_bus, mock_fetcher_factory):
         """创建 IngestService 实例。"""
         return IngestService(
             source_repository=mock_source_repo,
             item_repository=mock_item_repo,
             event_bus=mock_event_bus,
+            fetcher_factory=mock_fetcher_factory,
         )
 
     @pytest.fixture

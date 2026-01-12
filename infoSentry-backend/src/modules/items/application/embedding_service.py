@@ -8,6 +8,8 @@
 
 from loguru import logger
 from openai import AsyncOpenAI
+
+from src.core.infrastructure.logging import BusinessEvents
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -125,6 +127,13 @@ class EmbeddingService:
                 await self.budget_service.record_embedding_usage(tokens_used)
 
             logger.info(f"Embedded item {item.id}, tokens: {tokens_used}")
+
+            # 记录业务事件
+            BusinessEvents.item_embedded(
+                item_id=item.id,
+                tokens_used=tokens_used,
+                model=settings.OPENAI_EMBED_MODEL,
+            )
 
             return EmbeddingResult(
                 item_id=item.id,
@@ -261,9 +270,8 @@ class EmbeddingService:
         text = " ".join(parts).strip()
 
         # 限制长度（OpenAI 有 token 限制）
-        max_chars = 8000  # 约 2000 tokens
-        if len(text) > max_chars:
-            text = text[:max_chars]
+        if len(text) > settings.EMBED_MAX_CHARS:
+            text = text[: settings.EMBED_MAX_CHARS]
 
         return text
 

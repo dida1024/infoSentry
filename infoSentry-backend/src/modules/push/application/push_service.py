@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from loguru import logger
 
 from src.core.config import settings
+from src.core.infrastructure.logging import BusinessEvents
 from src.core.infrastructure.redis.client import RedisClient
 from src.core.infrastructure.redis.keys import RedisKeys
 from src.modules.push.application.email_service import EmailService, get_email_service
@@ -283,6 +284,14 @@ class PushService:
                 sent_at=datetime.now(UTC),
             )
             logger.info(f"Immediate email sent to {user.email} for goal {goal_id}")
+            # 记录业务事件
+            BusinessEvents.email_sent(
+                goal_id=goal_id,
+                to_email=user.email,
+                email_type="immediate",
+                success=True,
+                item_count=len(email_items),
+            )
         else:
             # Mark as failed
             await self.decision_repo.batch_update_status(
@@ -290,6 +299,14 @@ class PushService:
                 status=PushStatus.FAILED,
             )
             logger.error(f"Failed to send immediate email: {result.error}")
+            # 记录业务事件
+            BusinessEvents.email_sent(
+                goal_id=goal_id,
+                to_email=user.email,
+                email_type="immediate",
+                success=False,
+                error=result.error,
+            )
 
         return result.success
 

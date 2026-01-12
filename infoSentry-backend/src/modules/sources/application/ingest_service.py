@@ -11,6 +11,7 @@ from loguru import logger
 
 from src.core.config import settings
 from src.core.domain.events import EventBus
+from src.core.infrastructure.logging import BusinessEvents
 from src.modules.items.domain.entities import EmbeddingStatus, Item
 from src.modules.items.domain.events import ItemIngestedEvent
 from src.modules.items.domain.repository import ItemRepository
@@ -111,6 +112,12 @@ class IngestService:
                         error_streak=source.error_streak,
                     )
                 )
+                # 记录业务事件
+                BusinessEvents.source_fetch_failed(
+                    source_id=source.id,
+                    error=fetch_result.error_message or "Unknown error",
+                    error_streak=source.error_streak,
+                )
 
                 duration_ms = int((time.time() - start_time) * 1000)
                 return IngestResult(
@@ -146,6 +153,13 @@ class IngestService:
                         source_id=item.source_id,
                         url=item.url,
                     )
+                )
+                # 记录业务事件
+                BusinessEvents.item_ingested(
+                    source_id=source.id,
+                    item_id=item.id,
+                    url=item.url,
+                    source_name=source.name,
                 )
 
             duration_ms = int((time.time() - start_time) * 1000)
