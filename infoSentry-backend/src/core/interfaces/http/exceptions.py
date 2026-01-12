@@ -29,7 +29,7 @@ class BizException(Exception):
         super().__init__(message)
 
 
-async def biz_exception_handler(request: Request, exc: BizException) -> JSONResponse:
+async def biz_exception_handler(_request: Request, exc: BizException) -> JSONResponse:
     """Handle business exceptions."""
     return JSONResponse(
         status_code=exc.code,
@@ -43,7 +43,7 @@ async def biz_exception_handler(request: Request, exc: BizException) -> JSONResp
 
 
 async def domain_exception_handler(
-    request: Request, exc: DomainException
+    _request: Request, exc: DomainException
 ) -> JSONResponse:
     """Handle domain exceptions."""
     status_code = status.HTTP_400_BAD_REQUEST
@@ -76,7 +76,7 @@ async def domain_exception_handler(
     )
 
 
-async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+async def global_exception_handler(_request: Request, exc: Exception) -> JSONResponse:
     """Handle all unhandled exceptions."""
     logger.exception(f"Unhandled exception: {exc}")
     return JSONResponse(

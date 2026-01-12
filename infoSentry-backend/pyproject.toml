@@ -70,6 +70,21 @@ build-backend = "hatchling.build"
 [tool.mypy]
 strict = true
 exclude = ["venv", ".venv", "alembic"]
+# Disable known incompatibilities with third-party libs
+disable_error_code = [
+    "prop-decorator",   # pydantic @computed_field + @property
+]
+
+[[tool.mypy.overrides]]
+module = "celery.*"
+ignore_missing_imports = true
+# Celery decorators lack type stubs
+disable_error_code = ["misc", "untyped-decorator"]
+
+[[tool.mypy.overrides]]
+module = "src.modules.*.tasks"
+# Allow untyped decorators for Celery tasks
+disable_error_code = ["untyped-decorator"]
 
 [tool.ruff]
 target-version = "py312"

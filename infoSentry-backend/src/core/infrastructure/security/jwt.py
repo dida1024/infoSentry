@@ -162,3 +162,18 @@ def decode_magic_link_token(token: str) -> str:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid magic link token",
         )
+
+
+class JWTTokenService:
+    """Token service implementation using JWT."""
+
+    def create_access_token(self, subject: str, extra_claims: dict | None = None) -> str:
+        return create_access_token(subject=subject, extra_claims=extra_claims)
+
+    def create_magic_link_token(self, email: str) -> str:
+        return create_magic_link_token(email)
+
+
+def get_token_service() -> JWTTokenService:
+    """Get token service instance."""
+    return JWTTokenService()

@@ -9,7 +9,6 @@ from pydantic import (
     BeforeValidator,
     EmailStr,
     HttpUrl,
-    PostgresDsn,
     computed_field,
     model_validator,
 )
@@ -70,7 +69,7 @@ class Settings(BaseSettings):
 
     @computed_field
     @property
-    def database_url_object(self) -> PostgresDsn:
+    def database_url_object(self) -> MultiHostUrl:
         return MultiHostUrl.build(
             scheme="postgresql+psycopg",
             username=self.POSTGRES_USER,
@@ -197,4 +196,4 @@ class Settings(BaseSettings):
         return self
 
 
-settings = Settings()  # type: ignore
+settings = Settings()

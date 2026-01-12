@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class BaseEntity(BaseModel):
     """Base entity class for all domain entities."""
 
-    id: str | None = None
+    id: str = Field(default_factory=lambda: str(UUID()))
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     is_deleted: bool = Field(default=False)

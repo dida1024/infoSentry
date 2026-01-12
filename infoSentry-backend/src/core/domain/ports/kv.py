@@ -1,0 +1,29 @@
+"""Key-value storage port."""
+
+from typing import Any, Protocol
+
+
+class KVClient(Protocol):
+    async def get(self, key: str) -> str | None: ...
+
+    async def set(
+        self,
+        key: str,
+        value: str,
+        ex: int | None = None,
+        nx: bool = False,
+    ) -> bool: ...
+
+    async def delete(self, *keys: str) -> int: ...
+
+    async def get_json(self, key: str) -> Any | None: ...
+
+    async def set_json(self, key: str, value: Any, ex: int | None = None) -> bool: ...
+
+    async def incr(self, key: str, amount: int = 1) -> int: ...
+
+    async def expire(self, key: str, seconds: int) -> bool: ...
+
+    async def ping(self) -> bool: ...
+
+    async def llen(self, key: str) -> int: ...

@@ -8,23 +8,7 @@
 - q_email: 邮件发送任务
 """
 
-from enum import StrEnum
-
-
-class Queues(StrEnum):
-    """Celery 队列枚举。"""
-
-    INGEST = "q_ingest"
-    EMBED = "q_embed"
-    MATCH = "q_match"
-    AGENT = "q_agent"
-    EMAIL = "q_email"
-
-    @classmethod
-    def all_queues(cls) -> list[str]:
-        """返回所有队列名称列表。"""
-        return [q.value for q in cls]
-
+from src.core.domain.queues import Queues
 
 # 队列路由配置
 # 任务名称模式 -> 队列
