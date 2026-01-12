@@ -83,7 +83,7 @@
 - 验收标准：
   - 无异常处理中的静默 `pass`。
 
-### T6. 配置化硬编码参数
+### ✅ T6. 配置化硬编码参数
 - 目标：将常量迁移至配置（settings/env）。
 - 影响范围：
   - infoSentry-backend/src/core/config.py
@@ -97,7 +97,7 @@
 - 验收标准：
   - 运行路径不新增硬编码业务/运维常量。
 
-### T7. 日志标准化（structlog）
+### ✅ T7. 日志标准化（structlog）
 - 目标：关键业务事件使用 structlog。
 - 影响范围：
   - infoSentry-backend/src/core/infrastructure/logging.py
@@ -108,7 +108,7 @@
 - 验收标准：
   - 关键业务事件以 structlog 输出。
 
-### T8. 测试与迁移对齐
+### ✅ T8. 测试与迁移对齐
 - 目标：确保重构后行为一致。
 - 影响范围：
   - infoSentry-backend/tests/*
