@@ -214,7 +214,7 @@ class EmbeddingService:
 
             tokens_per_item = tokens_used // len(texts) if texts else 0
 
-            for (item, _), embedding in zip(texts_with_items, embeddings):
+            for (item, _), embedding in zip(texts_with_items, embeddings, strict=True):
                 item.mark_embedding_done(embedding, settings.OPENAI_EMBED_MODEL)
                 await self.item_repository.update(item)
                 results.append(

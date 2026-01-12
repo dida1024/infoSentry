@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import col, select
 
 from src.modules.sources.application.ingest_service import IngestResult
 from src.modules.sources.infrastructure.models import IngestLogModel, IngestStatus
@@ -57,7 +57,7 @@ class IngestLogRepository:
         """根据 ID 获取日志。"""
         statement = select(IngestLogModel).where(
             IngestLogModel.id == log_id,
-            IngestLogModel.is_deleted.is_(False),
+            col(IngestLogModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
@@ -76,7 +76,7 @@ class IngestLogRepository:
             )
             .where(
                 IngestLogModel.source_id == source_id,
-                IngestLogModel.is_deleted.is_(False),
+                col(IngestLogModel.is_deleted).is_(False),
             )
             .order_by(IngestLogModel.started_at.desc())
             .offset((page - 1) * page_size)
@@ -102,7 +102,7 @@ class IngestLogRepository:
             select(IngestLogModel)
             .where(
                 IngestLogModel.status == IngestStatus.FAILED,
-                IngestLogModel.is_deleted.is_(False),
+                col(IngestLogModel.is_deleted).is_(False),
             )
             .order_by(IngestLogModel.started_at.desc())
             .limit(limit)
@@ -124,7 +124,7 @@ class IngestLogRepository:
             func.avg(IngestLogModel.duration_ms).label("avg_duration_ms"),
         ).where(
             IngestLogModel.source_id == source_id,
-            IngestLogModel.is_deleted.is_(False),
+            col(IngestLogModel.is_deleted).is_(False),
         )
 
         if since:
@@ -150,7 +150,7 @@ class IngestLogRepository:
             IngestLogModel.source_id == source_id,
             IngestLogModel.status == IngestStatus.FAILED,
             IngestLogModel.started_at >= since,
-            IngestLogModel.is_deleted.is_(False),
+            col(IngestLogModel.is_deleted).is_(False),
         )
 
         result = await self.session.execute(statement)

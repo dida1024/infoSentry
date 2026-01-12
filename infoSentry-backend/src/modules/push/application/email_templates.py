@@ -276,15 +276,11 @@ def render_digest_email(
     return subject, html_body
 
 
-def render_plain_text_fallback(
-    data: EmailData,
-    email_type: str = "immediate",
-) -> str:
+def render_plain_text_fallback(data: EmailData) -> str:
     """Render plain text fallback for email clients that don't support HTML.
 
     Args:
         data: Email data
-        email_type: Type of email (immediate/batch/digest)
 
     Returns:
         Plain text body

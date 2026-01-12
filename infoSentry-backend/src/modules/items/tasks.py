@@ -13,7 +13,7 @@ from celery import shared_task
 from loguru import logger
 
 from src.core.config import settings
-from src.core.infrastructure.celery.queues import Queues
+from src.core.domain.queues import Queues
 
 
 @shared_task(
@@ -26,7 +26,7 @@ from src.core.infrastructure.celery.queues import Queues
     retry_backoff_max=600,
     queue=Queues.EMBED,
 )
-def embed_item(self, item_id: str):
+def embed_item(_self: object, item_id: str) -> None:
     """为单个 Item 生成嵌入向量。
 
     Args:
@@ -37,7 +37,7 @@ def embed_item(self, item_id: str):
     asyncio.run(_embed_item_async(item_id))
 
 
-async def _embed_item_async(item_id: str):
+async def _embed_item_async(item_id: str) -> None:
     """异步版本的嵌入任务。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
@@ -91,7 +91,7 @@ async def _embed_item_async(item_id: str):
     max_retries=0,
     queue=Queues.EMBED,
 )
-def embed_pending_items(self, limit: int = 100):
+def embed_pending_items(_self: object, limit: int = 100) -> None:
     """批量处理待嵌入的 Items。
 
     由 Celery Beat 定期调用或手动触发。
@@ -104,7 +104,7 @@ def embed_pending_items(self, limit: int = 100):
     asyncio.run(_embed_pending_items_async(limit))
 
 
-async def _embed_pending_items_async(limit: int):
+async def _embed_pending_items_async(limit: int) -> None:
     """异步版本的批量嵌入任务。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
@@ -166,7 +166,7 @@ async def _embed_pending_items_async(limit: int):
     retry_backoff=True,
     queue=Queues.MATCH,
 )
-def match_item(self, item_id: str):
+def match_item(_self: object, item_id: str) -> None:
     """计算单个 Item 与所有活跃 Goals 的匹配。
 
     Args:
@@ -177,7 +177,7 @@ def match_item(self, item_id: str):
     asyncio.run(_match_item_async(item_id))
 
 
-async def _match_item_async(item_id: str):
+async def _match_item_async(item_id: str) -> None:
     """异步版本的匹配任务。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
@@ -250,7 +250,7 @@ async def _match_item_async(item_id: str):
     max_retries=0,
     queue=Queues.MATCH,
 )
-def match_items_for_goal(self, goal_id: str, hours_back: int = 24):
+def match_items_for_goal(_self: object, goal_id: str, hours_back: int = 24) -> None:
     """为特定 Goal 重新计算最近 Items 的匹配。
 
     用于 Goal 创建或更新后的重新匹配。
@@ -264,7 +264,7 @@ def match_items_for_goal(self, goal_id: str, hours_back: int = 24):
     asyncio.run(_match_items_for_goal_async(goal_id, hours_back))
 
 
-async def _match_items_for_goal_async(goal_id: str, hours_back: int):
+async def _match_items_for_goal_async(goal_id: str, hours_back: int) -> None:
     """异步版本的 Goal 匹配任务。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session

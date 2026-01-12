@@ -5,7 +5,7 @@ from datetime import datetime
 from loguru import logger
 from sqlalchemy import func, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import col, select
 
 from src.core.domain.events import EventBus
 from src.core.infrastructure.database.event_aware_repository import EventAwareRepository
@@ -32,7 +32,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
     async def get_by_id(self, item_id: str) -> Item | None:
         statement = select(ItemModel).where(
             ItemModel.id == item_id,
-            ItemModel.is_deleted.is_(False),
+            col(ItemModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -41,7 +41,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
     async def get_by_url_hash(self, url_hash: str) -> Item | None:
         statement = select(ItemModel).where(
             ItemModel.url_hash == url_hash,
-            ItemModel.is_deleted.is_(False),
+            col(ItemModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -50,7 +50,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
     async def exists_by_url_hash(self, url_hash: str) -> bool:
         statement = select(ItemModel).where(
             ItemModel.url_hash == url_hash,
-            ItemModel.is_deleted.is_(False),
+            col(ItemModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none() is not None
@@ -65,7 +65,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
             select(ItemModel, func.count(ItemModel.id).over().label("total_count"))
             .where(
                 ItemModel.source_id == source_id,
-                ItemModel.is_deleted.is_(False),
+                col(ItemModel.is_deleted).is_(False),
             )
             .order_by(ItemModel.published_at.desc().nullslast())
         )
@@ -87,7 +87,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
             select(ItemModel)
             .where(
                 ItemModel.embedding_status == EmbeddingStatus.PENDING,
-                ItemModel.is_deleted.is_(False),
+                col(ItemModel.is_deleted).is_(False),
             )
             .order_by(ItemModel.ingested_at.asc())
             .limit(limit)
@@ -105,7 +105,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
     ) -> tuple[list[Item], int]:
         statement = select(
             ItemModel, func.count(ItemModel.id).over().label("total_count")
-        ).where(ItemModel.is_deleted.is_(False))
+        ).where(col(ItemModel.is_deleted).is_(False))
 
         if since:
             statement = statement.where(ItemModel.ingested_at >= since)
@@ -215,7 +215,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
         item_id = item.id if isinstance(item, Item) else item
         statement = select(ItemModel).where(
             ItemModel.id == item_id,
-            ItemModel.is_deleted.is_(False),
+            col(ItemModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -254,7 +254,7 @@ class PostgreSQLGoalItemMatchRepository(
     async def get_by_id(self, match_id: str) -> GoalItemMatch | None:
         statement = select(GoalItemMatchModel).where(
             GoalItemMatchModel.id == match_id,
-            GoalItemMatchModel.is_deleted.is_(False),
+            col(GoalItemMatchModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -266,7 +266,7 @@ class PostgreSQLGoalItemMatchRepository(
         statement = select(GoalItemMatchModel).where(
             GoalItemMatchModel.goal_id == goal_id,
             GoalItemMatchModel.item_id == item_id,
-            GoalItemMatchModel.is_deleted.is_(False),
+            col(GoalItemMatchModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -284,7 +284,7 @@ class PostgreSQLGoalItemMatchRepository(
             func.count(GoalItemMatchModel.id).over().label("total_count"),
         ).where(
             GoalItemMatchModel.goal_id == goal_id,
-            GoalItemMatchModel.is_deleted.is_(False),
+            col(GoalItemMatchModel.is_deleted).is_(False),
         )
 
         if min_score is not None:
@@ -312,7 +312,7 @@ class PostgreSQLGoalItemMatchRepository(
     async def list_by_item(self, item_id: str) -> list[GoalItemMatch]:
         statement = select(GoalItemMatchModel).where(
             GoalItemMatchModel.item_id == item_id,
-            GoalItemMatchModel.is_deleted.is_(False),
+            col(GoalItemMatchModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         models = result.scalars().all()
@@ -397,7 +397,7 @@ class PostgreSQLGoalItemMatchRepository(
         statement = select(GoalItemMatchModel).where(
             GoalItemMatchModel.goal_id == goal_id,
             GoalItemMatchModel.match_score >= min_score,
-            GoalItemMatchModel.is_deleted.is_(False),
+            col(GoalItemMatchModel.is_deleted).is_(False),
         )
 
         if since:

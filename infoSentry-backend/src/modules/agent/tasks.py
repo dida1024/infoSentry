@@ -25,7 +25,7 @@ from src.core.infrastructure.celery.queues import Queues
     queue=Queues.AGENT,
 )
 def handle_match_computed(
-    self,
+    _self: object,
     goal_id: str,
     item_id: str,
     match_score: float,
@@ -82,7 +82,9 @@ async def _handle_match_computed_async(
     from src.modules.items.infrastructure.mappers import ItemMapper
     from src.modules.items.infrastructure.repositories import PostgreSQLItemRepository
     from src.modules.push.infrastructure.mappers import PushDecisionMapper
-    from src.modules.push.infrastructure.repositories import PostgreSQLPushDecisionRepository
+    from src.modules.push.infrastructure.repositories import (
+        PostgreSQLPushDecisionRepository,
+    )
     from src.modules.users.application.budget_service import UserBudgetUsageService
     from src.modules.users.infrastructure.mappers import UserBudgetDailyMapper
     from src.modules.users.infrastructure.repositories import (
@@ -193,7 +195,7 @@ async def _handle_match_computed_async(
     max_retries=0,
     queue=Queues.AGENT,
 )
-def check_and_trigger_batch_windows(self):
+def check_and_trigger_batch_windows(_self: object) -> None:
     """检查并触发 Batch 窗口。
 
     由 Celery Beat 每分钟调用。
@@ -266,7 +268,7 @@ async def _check_and_trigger_batch_windows_async():
     max_retries=2,
     queue=Queues.AGENT,
 )
-def trigger_batch_for_goal(self, goal_id: str, window_time: str):
+def trigger_batch_for_goal(_self: object, goal_id: str, window_time: str) -> None:
     """为特定 Goal 触发 Batch 推送。
 
     Args:
@@ -358,7 +360,7 @@ async def _trigger_batch_for_goal_async(goal_id: str, window_time: str):
     max_retries=0,
     queue=Queues.AGENT,
 )
-def check_and_send_digest(self):
+def check_and_send_digest(_self: object) -> None:
     """检查并发送 Digest。
 
     由 Celery Beat 每 5 分钟调用。
@@ -425,7 +427,7 @@ async def _check_and_send_digest_async():
     max_retries=2,
     queue=Queues.AGENT,
 )
-def trigger_digest_for_goal(self, goal_id: str):
+def trigger_digest_for_goal(_self: object, goal_id: str) -> None:
     """为特定 Goal 触发 Digest 推送。
 
     Args:
@@ -515,7 +517,7 @@ async def _trigger_digest_for_goal_async(goal_id: str):
     max_retries=0,
     queue=Queues.AGENT,
 )
-def check_and_update_budget(self):
+def check_and_update_budget(_self: object) -> None:
     """检查并更新预算状态。
 
     由 Celery Beat 每小时调用。
@@ -532,7 +534,7 @@ def check_and_update_budget(self):
     max_retries=0,
     queue=Queues.AGENT,
 )
-def run_health_check(self):
+def run_health_check(_self: object) -> None:
     """执行健康检查。
 
     由 Celery Beat 每 5 分钟调用。
@@ -575,7 +577,7 @@ async def _run_health_check_async():
     bind=True,
     max_retries=0,
 )
-def record_worker_heartbeat(self, worker_type: str):
+def record_worker_heartbeat(_self: object, worker_type: str) -> None:
     """记录 Worker 心跳。
 
     Args:

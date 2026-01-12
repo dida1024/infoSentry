@@ -5,7 +5,7 @@ from datetime import datetime
 from loguru import logger
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import col, select
 
 from src.core.domain.events import EventBus
 from src.core.infrastructure.database.event_aware_repository import EventAwareRepository
@@ -32,7 +32,7 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
     async def get_by_id(self, source_id: str) -> Source | None:
         statement = select(SourceModel).where(
             SourceModel.id == source_id,
-            SourceModel.is_deleted.is_(False),
+            col(SourceModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -41,7 +41,7 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
     async def get_by_name(self, name: str) -> Source | None:
         statement = select(SourceModel).where(
             SourceModel.name == name,
-            SourceModel.is_deleted.is_(False),
+            col(SourceModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -50,7 +50,7 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
     async def exists_by_name(self, name: str, exclude_id: str | None = None) -> bool:
         statement = select(SourceModel).where(
             SourceModel.name == name,
-            SourceModel.is_deleted.is_(False),
+            col(SourceModel.is_deleted).is_(False),
         )
         if exclude_id:
             statement = statement.where(SourceModel.id != exclude_id)
@@ -66,13 +66,13 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
     ) -> tuple[list[Source], int]:
         statement = select(
             SourceModel, func.count(SourceModel.id).over().label("total_count")
-        ).where(SourceModel.is_deleted.is_(False))
+        ).where(col(SourceModel.is_deleted).is_(False))
 
         if source_type:
             statement = statement.where(SourceModel.type == source_type)
 
         if enabled_only:
-            statement = statement.where(SourceModel.enabled.is_(True))
+            statement = statement.where(col(SourceModel.enabled).is_(True))
 
         statement = (
             statement.offset((page - 1) * page_size)
@@ -101,11 +101,11 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
         statement = (
             select(SourceModel)
             .where(
-                SourceModel.is_deleted.is_(False),
-                SourceModel.enabled.is_(True),
+                col(SourceModel.is_deleted).is_(False),
+                col(SourceModel.enabled).is_(True),
             )
             .where(
-                (SourceModel.next_fetch_at.is_(None))
+                (col(SourceModel.next_fetch_at).is_(None))
                 | (SourceModel.next_fetch_at <= before_time)
             )
             .order_by(SourceModel.next_fetch_at.asc().nullsfirst())
@@ -153,7 +153,7 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
         source_id = source.id if isinstance(source, Source) else source
         statement = select(SourceModel).where(
             SourceModel.id == source_id,
-            SourceModel.is_deleted.is_(False),
+            col(SourceModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()

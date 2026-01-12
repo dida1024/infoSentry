@@ -5,7 +5,7 @@ from datetime import datetime
 from loguru import logger
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import col, select
 
 from src.core.domain.events import EventBus
 from src.core.infrastructure.database.event_aware_repository import EventAwareRepository
@@ -44,7 +44,7 @@ class PostgreSQLUserRepository(EventAwareRepository[User], UserRepository):
     async def get_by_id(self, user_id: str) -> User | None:
         statement = select(UserModel).where(
             UserModel.id == user_id,
-            UserModel.is_deleted.is_(False),
+            col(UserModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -53,7 +53,7 @@ class PostgreSQLUserRepository(EventAwareRepository[User], UserRepository):
     async def get_by_email(self, email: str) -> User | None:
         statement = select(UserModel).where(
             UserModel.email == email,
-            UserModel.is_deleted.is_(False),
+            col(UserModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -62,7 +62,7 @@ class PostgreSQLUserRepository(EventAwareRepository[User], UserRepository):
     async def exists_by_email(self, email: str) -> bool:
         statement = select(UserModel).where(
             UserModel.email == email,
-            UserModel.is_deleted.is_(False),
+            col(UserModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         return result.scalar_one_or_none() is not None
@@ -101,7 +101,7 @@ class PostgreSQLUserRepository(EventAwareRepository[User], UserRepository):
         user_id = user.id if isinstance(user, User) else user
         statement = select(UserModel).where(
             UserModel.id == user_id,
-            UserModel.is_deleted.is_(False),
+            col(UserModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -124,7 +124,7 @@ class PostgreSQLUserRepository(EventAwareRepository[User], UserRepository):
         )
 
         if not include_deleted:
-            statement = statement.where(UserModel.is_deleted.is_(False))
+            statement = statement.where(col(UserModel.is_deleted).is_(False))
 
         statement = (
             statement.offset((page - 1) * page_size)
@@ -163,7 +163,7 @@ class PostgreSQLMagicLinkRepository(
     async def get_by_id(self, magic_link_id: str) -> MagicLink | None:
         statement = select(MagicLinkModel).where(
             MagicLinkModel.id == magic_link_id,
-            MagicLinkModel.is_deleted.is_(False),
+            col(MagicLinkModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -172,7 +172,7 @@ class PostgreSQLMagicLinkRepository(
     async def get_by_token(self, token: str) -> MagicLink | None:
         statement = select(MagicLinkModel).where(
             MagicLinkModel.token == token,
-            MagicLinkModel.is_deleted.is_(False),
+            col(MagicLinkModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -181,9 +181,9 @@ class PostgreSQLMagicLinkRepository(
     async def get_valid_by_email(self, email: str) -> MagicLink | None:
         statement = select(MagicLinkModel).where(
             MagicLinkModel.email == email,
-            MagicLinkModel.is_used.is_(False),
+            col(MagicLinkModel.is_used).is_(False),
             MagicLinkModel.expires_at > datetime.now(),
-            MagicLinkModel.is_deleted.is_(False),
+            col(MagicLinkModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -192,8 +192,8 @@ class PostgreSQLMagicLinkRepository(
     async def invalidate_all_for_email(self, email: str) -> int:
         statement = select(MagicLinkModel).where(
             MagicLinkModel.email == email,
-            MagicLinkModel.is_used.is_(False),
-            MagicLinkModel.is_deleted.is_(False),
+            col(MagicLinkModel.is_used).is_(False),
+            col(MagicLinkModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         models = result.scalars().all()
@@ -238,7 +238,7 @@ class PostgreSQLMagicLinkRepository(
         link_id = magic_link.id if isinstance(magic_link, MagicLink) else magic_link
         statement = select(MagicLinkModel).where(
             MagicLinkModel.id == link_id,
-            MagicLinkModel.is_deleted.is_(False),
+            col(MagicLinkModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -261,7 +261,7 @@ class PostgreSQLMagicLinkRepository(
         )
 
         if not include_deleted:
-            statement = statement.where(MagicLinkModel.is_deleted.is_(False))
+            statement = statement.where(col(MagicLinkModel.is_deleted).is_(False))
 
         statement = (
             statement.offset((page - 1) * page_size)
@@ -299,7 +299,7 @@ class PostgreSQLUserBudgetDailyRepository(
     async def get_by_id(self, budget_id: str) -> UserBudgetDaily | None:
         statement = select(UserBudgetDailyModel).where(
             UserBudgetDailyModel.id == budget_id,
-            UserBudgetDailyModel.is_deleted.is_(False),
+            col(UserBudgetDailyModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -311,7 +311,7 @@ class PostgreSQLUserBudgetDailyRepository(
         statement = select(UserBudgetDailyModel).where(
             UserBudgetDailyModel.user_id == user_id,
             UserBudgetDailyModel.date == date,
-            UserBudgetDailyModel.is_deleted.is_(False),
+            col(UserBudgetDailyModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -334,7 +334,7 @@ class PostgreSQLUserBudgetDailyRepository(
                 UserBudgetDailyModel.user_id == user_id,
                 UserBudgetDailyModel.date >= start_date,
                 UserBudgetDailyModel.date <= end_date,
-                UserBudgetDailyModel.is_deleted.is_(False),
+                col(UserBudgetDailyModel.is_deleted).is_(False),
             )
             .order_by(UserBudgetDailyModel.date.asc())
         )
@@ -375,7 +375,7 @@ class PostgreSQLUserBudgetDailyRepository(
         budget_id = budget.id if isinstance(budget, UserBudgetDaily) else budget
         statement = select(UserBudgetDailyModel).where(
             UserBudgetDailyModel.id == budget_id,
-            UserBudgetDailyModel.is_deleted.is_(False),
+            col(UserBudgetDailyModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -399,7 +399,7 @@ class PostgreSQLUserBudgetDailyRepository(
         )
 
         if not include_deleted:
-            statement = statement.where(UserBudgetDailyModel.is_deleted.is_(False))
+            statement = statement.where(col(UserBudgetDailyModel.is_deleted).is_(False))
 
         statement = (
             statement.order_by(UserBudgetDailyModel.date.desc())

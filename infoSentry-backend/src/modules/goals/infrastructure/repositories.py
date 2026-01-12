@@ -3,7 +3,7 @@
 from loguru import logger
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import col, select
 
 from src.core.domain.events import EventBus
 from src.core.infrastructure.database.event_aware_repository import EventAwareRepository
@@ -48,7 +48,7 @@ class PostgreSQLGoalRepository(EventAwareRepository[Goal], GoalRepository):
     async def get_by_id(self, goal_id: str) -> Goal | None:
         statement = select(GoalModel).where(
             GoalModel.id == goal_id,
-            GoalModel.is_deleted.is_(False),
+            col(GoalModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -65,7 +65,7 @@ class PostgreSQLGoalRepository(EventAwareRepository[Goal], GoalRepository):
             GoalModel, func.count(GoalModel.id).over().label("total_count")
         ).where(
             GoalModel.user_id == user_id,
-            GoalModel.is_deleted.is_(False),
+            col(GoalModel.is_deleted).is_(False),
         )
 
         if status:
@@ -90,7 +90,7 @@ class PostgreSQLGoalRepository(EventAwareRepository[Goal], GoalRepository):
     async def get_active_goals(self) -> list[Goal]:
         statement = select(GoalModel).where(
             GoalModel.status == GoalStatus.ACTIVE,
-            GoalModel.is_deleted.is_(False),
+            col(GoalModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         models = result.scalars().all()
@@ -129,7 +129,7 @@ class PostgreSQLGoalRepository(EventAwareRepository[Goal], GoalRepository):
         goal_id = goal.id if isinstance(goal, Goal) else goal
         statement = select(GoalModel).where(
             GoalModel.id == goal_id,
-            GoalModel.is_deleted.is_(False),
+            col(GoalModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -152,7 +152,7 @@ class PostgreSQLGoalRepository(EventAwareRepository[Goal], GoalRepository):
         )
 
         if not include_deleted:
-            statement = statement.where(GoalModel.is_deleted.is_(False))
+            statement = statement.where(col(GoalModel.is_deleted).is_(False))
 
         statement = (
             statement.offset((page - 1) * page_size)
@@ -189,7 +189,7 @@ class PostgreSQLGoalPushConfigRepository(
     async def get_by_id(self, config_id: str) -> GoalPushConfig | None:
         statement = select(GoalPushConfigModel).where(
             GoalPushConfigModel.id == config_id,
-            GoalPushConfigModel.is_deleted.is_(False),
+            col(GoalPushConfigModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -198,7 +198,7 @@ class PostgreSQLGoalPushConfigRepository(
     async def get_by_goal_id(self, goal_id: str) -> GoalPushConfig | None:
         statement = select(GoalPushConfigModel).where(
             GoalPushConfigModel.goal_id == goal_id,
-            GoalPushConfigModel.is_deleted.is_(False),
+            col(GoalPushConfigModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -273,7 +273,7 @@ class PostgreSQLGoalPriorityTermRepository(
     async def get_by_id(self, term_id: str) -> GoalPriorityTerm | None:
         statement = select(GoalPriorityTermModel).where(
             GoalPriorityTermModel.id == term_id,
-            GoalPriorityTermModel.is_deleted.is_(False),
+            col(GoalPriorityTermModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -286,7 +286,7 @@ class PostgreSQLGoalPriorityTermRepository(
     ) -> list[GoalPriorityTerm]:
         statement = select(GoalPriorityTermModel).where(
             GoalPriorityTermModel.goal_id == goal_id,
-            GoalPriorityTermModel.is_deleted.is_(False),
+            col(GoalPriorityTermModel.is_deleted).is_(False),
         )
 
         if term_type:
@@ -299,7 +299,7 @@ class PostgreSQLGoalPriorityTermRepository(
     async def delete_all_for_goal(self, goal_id: str) -> int:
         statement = select(GoalPriorityTermModel).where(
             GoalPriorityTermModel.goal_id == goal_id,
-            GoalPriorityTermModel.is_deleted.is_(False),
+            col(GoalPriorityTermModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         models = result.scalars().all()

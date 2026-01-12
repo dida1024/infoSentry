@@ -542,7 +542,7 @@ class AgentOrchestrator:
             )
 
         # 比较每个动作
-        for i, (orig, repl) in enumerate(zip(original, replayed)):
+        for i, (orig, repl) in enumerate(zip(original, replayed, strict=True)):
             if orig.get("decision") != repl.get("decision"):
                 diff.append(
                     {

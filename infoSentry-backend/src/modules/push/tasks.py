@@ -26,7 +26,7 @@ from src.core.infrastructure.celery.queues import Queues
     max_retries=0,
     queue=Queues.EMAIL,
 )
-def check_and_coalesce_immediate(self):
+def check_and_coalesce_immediate(_self: object) -> None:
     """Check and flush immediate coalesce buffers.
 
     Called by Celery Beat every minute.
@@ -104,7 +104,7 @@ async def _check_and_coalesce_immediate_async():
     retry_backoff=True,
     queue=Queues.EMAIL,
 )
-def send_immediate_email(self, goal_id: str, decision_ids: list[str]):
+def send_immediate_email(_self: object, goal_id: str, decision_ids: list[str]) -> None:
     """Send immediate email for a goal.
 
     Args:
@@ -185,7 +185,7 @@ async def _send_immediate_email_async(goal_id: str, decision_ids: list[str]):
     retry_backoff=True,
     queue=Queues.EMAIL,
 )
-def send_batch_email(self, goal_id: str, window_time: str):
+def send_batch_email(_self: object, goal_id: str, window_time: str) -> None:
     """Send batch email for a goal.
 
     Args:
@@ -266,7 +266,7 @@ async def _send_batch_email_async(goal_id: str, window_time: str):
     retry_backoff=True,
     queue=Queues.EMAIL,
 )
-def send_digest_email(self, goal_id: str):
+def send_digest_email(_self: object, goal_id: str) -> None:
     """Send digest email for a goal.
 
     Args:
@@ -343,7 +343,7 @@ async def _send_digest_email_async(goal_id: str):
     max_retries=2,
     queue=Queues.EMAIL,
 )
-def add_to_immediate_buffer(self, goal_id: str, decision_id: str):
+def add_to_immediate_buffer(_self: object, goal_id: str, decision_id: str) -> None:
     """Add a decision to the immediate buffer.
 
     Called after a decision is made.

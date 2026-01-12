@@ -265,7 +265,7 @@ class PushService:
 
         # Render email
         subject, html_body = render_immediate_email(email_data, settings.BACKEND_HOST)
-        plain_body = render_plain_text_fallback(email_data, "immediate")
+        plain_body = render_plain_text_fallback(email_data)
 
         # Send email
         result = await self.email_service.send_email(
@@ -391,7 +391,7 @@ class PushService:
         subject, html_body = render_batch_email(
             email_data, window_time, settings.BACKEND_HOST
         )
-        plain_body = render_plain_text_fallback(email_data, "batch")
+        plain_body = render_plain_text_fallback(email_data)
 
         # Send email
         result = await self.email_service.send_email(
@@ -512,7 +512,7 @@ class PushService:
         subject, html_body = render_digest_email(
             email_data, date_str, settings.BACKEND_HOST
         )
-        plain_body = render_plain_text_fallback(email_data, "digest")
+        plain_body = render_plain_text_fallback(email_data)
 
         # Send email
         result = await self.email_service.send_email(

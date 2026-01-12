@@ -357,6 +357,8 @@ class EmitDecisionTool(BaseTool):
         """执行发出决策。"""
         from src.modules.push.domain.entities import (
             PushDecision as PushDecisionEnum,
+        )
+        from src.modules.push.domain.entities import (
             PushDecisionRecord,
         )
 
@@ -454,7 +456,6 @@ def create_default_registry(
     blocked_source_repo=None,
     click_repository=None,
     feedback_repository=None,
-    **kwargs,
 ) -> ToolRegistry:
     """创建默认工具注册表。"""
     registry = ToolRegistry()

@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from loguru import logger
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import col, select
 
 from src.core.domain.events import EventBus
 from src.core.infrastructure.database.event_aware_repository import EventAwareRepository
@@ -54,7 +54,7 @@ class PostgreSQLAgentRunRepository(EventAwareRepository[AgentRun], AgentRunRepos
     async def get_by_id(self, run_id: str) -> AgentRun | None:
         statement = select(AgentRunModel).where(
             AgentRunModel.id == run_id,
-            AgentRunModel.is_deleted.is_(False),
+            col(AgentRunModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -72,7 +72,7 @@ class PostgreSQLAgentRunRepository(EventAwareRepository[AgentRun], AgentRunRepos
             AgentRunModel, func.count(AgentRunModel.id).over().label("total_count")
         ).where(
             AgentRunModel.goal_id == goal_id,
-            AgentRunModel.is_deleted.is_(False),
+            col(AgentRunModel.is_deleted).is_(False),
         )
 
         if status:
@@ -104,7 +104,7 @@ class PostgreSQLAgentRunRepository(EventAwareRepository[AgentRun], AgentRunRepos
     ) -> tuple[list[AgentRun], int]:
         statement = select(
             AgentRunModel, func.count(AgentRunModel.id).over().label("total_count")
-        ).where(AgentRunModel.is_deleted.is_(False))
+        ).where(col(AgentRunModel.is_deleted).is_(False))
 
         if since:
             statement = statement.where(AgentRunModel.created_at >= since)
@@ -194,7 +194,7 @@ class PostgreSQLAgentToolCallRepository(
     async def get_by_id(self, call_id: str) -> AgentToolCall | None:
         statement = select(AgentToolCallModel).where(
             AgentToolCallModel.id == call_id,
-            AgentToolCallModel.is_deleted.is_(False),
+            col(AgentToolCallModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -205,7 +205,7 @@ class PostgreSQLAgentToolCallRepository(
             select(AgentToolCallModel)
             .where(
                 AgentToolCallModel.run_id == run_id,
-                AgentToolCallModel.is_deleted.is_(False),
+                col(AgentToolCallModel.is_deleted).is_(False),
             )
             .order_by(AgentToolCallModel.created_at.asc())
         )
@@ -263,7 +263,7 @@ class PostgreSQLAgentActionLedgerRepository(
     async def get_by_id(self, ledger_id: str) -> AgentActionLedger | None:
         statement = select(AgentActionLedgerModel).where(
             AgentActionLedgerModel.id == ledger_id,
-            AgentActionLedgerModel.is_deleted.is_(False),
+            col(AgentActionLedgerModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -274,7 +274,7 @@ class PostgreSQLAgentActionLedgerRepository(
             select(AgentActionLedgerModel)
             .where(
                 AgentActionLedgerModel.run_id == run_id,
-                AgentActionLedgerModel.is_deleted.is_(False),
+                col(AgentActionLedgerModel.is_deleted).is_(False),
             )
             .order_by(AgentActionLedgerModel.created_at.asc())
         )
@@ -324,7 +324,7 @@ class PostgreSQLBudgetDailyRepository(
     async def get_by_id(self, budget_id: str) -> BudgetDaily | None:
         statement = select(BudgetDailyModel).where(
             BudgetDailyModel.id == budget_id,
-            BudgetDailyModel.is_deleted.is_(False),
+            col(BudgetDailyModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -333,7 +333,7 @@ class PostgreSQLBudgetDailyRepository(
     async def get_by_date(self, date: str) -> BudgetDaily | None:
         statement = select(BudgetDailyModel).where(
             BudgetDailyModel.date == date,
-            BudgetDailyModel.is_deleted.is_(False),
+            col(BudgetDailyModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
@@ -398,7 +398,7 @@ class PostgreSQLBudgetDailyRepository(
         )
 
         if not include_deleted:
-            statement = statement.where(BudgetDailyModel.is_deleted.is_(False))
+            statement = statement.where(col(BudgetDailyModel.is_deleted).is_(False))
 
         statement = (
             statement.order_by(BudgetDailyModel.date.desc())

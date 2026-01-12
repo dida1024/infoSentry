@@ -5,6 +5,7 @@ from typing import Any
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from src.core.domain.events import EventBus
 from src.modules.push.domain.entities import (
@@ -583,7 +584,7 @@ class PostgreSQLBlockedSourceRepository(BlockedSourceRepository):
             conditions.append(
                 or_(
                     BlockedSourceModel.goal_id == goal_id,
-                    BlockedSourceModel.goal_id.is_(None),
+                    col(BlockedSourceModel.goal_id).is_(None),
                 )
             )
 
@@ -604,7 +605,7 @@ class PostgreSQLBlockedSourceRepository(BlockedSourceRepository):
             conditions.append(
                 or_(
                     BlockedSourceModel.goal_id == goal_id,
-                    BlockedSourceModel.goal_id.is_(None),
+                    col(BlockedSourceModel.goal_id).is_(None),
                 )
             )
 
