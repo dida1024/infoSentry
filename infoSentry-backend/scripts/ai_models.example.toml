@@ -1,0 +1,56 @@
+[run]
+# 全局默认参数（可被 CLI 或单个模型覆盖）
+temperature = 0.2
+max_tokens = 1024
+timeout_seconds = 60
+concurrency = 4
+save_raw = false
+
+# 输出目录（相对 infoSentry-backend 根目录）
+out_dir = "results/ai_model_compare"
+
+#
+# 配置说明：
+# - 你可以直接写 api_key（从 TOML 读取）
+# - 注意：这个文件包含密钥，务必不要提交到公开仓库/日志系统
+# - provider 支持：
+#   - "openai_compatible"：OpenAI 兼容 /v1/chat/completions
+#   - "anthropic"：Anthropic /v1/messages
+#   - "gemini"：Google Generative Language API /v1beta/models/*:generateContent
+#
+
+[[models]]
+name = "openai-gpt-4o-mini"
+provider = "openai_compatible"
+model = "gpt-4o-mini"
+base_url = "https://api.openai.com/v1"
+api_key = "YOUR_OPENAI_API_KEY"
+
+[[models]]
+name = "deepseek-chat"
+provider = "openai_compatible"
+model = "deepseek-chat"
+base_url = "https://api.deepseek.com/v1"
+api_key = "YOUR_DEEPSEEK_API_KEY"
+
+[[models]]
+name = "anthropic-claude"
+provider = "anthropic"
+model = "claude-3-5-sonnet-20241022"
+base_url = "https://api.anthropic.com"
+api_key = "YOUR_ANTHROPIC_API_KEY"
+
+[[models]]
+name = "gemini"
+provider = "gemini"
+model = "gemini-1.5-pro-latest"
+base_url = "https://generativelanguage.googleapis.com/v1beta"
+api_key = "YOUR_GOOGLE_API_KEY"
+
+[[models]]
+name = "ollama-local"
+provider = "openai_compatible"
+model = "llama3.1"
+base_url = "http://localhost:11434/v1"
+api_key_optional = true
+

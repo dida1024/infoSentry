@@ -1,4 +1,4 @@
-.PHONY: format format-check lint test
+.PHONY: format format-check lint test dev-infra dev dev-stop
 
 format:
 	cd infoSentry-backend && uv run ruff format .
@@ -15,4 +15,17 @@ lint:
 
 test:
 	cd infoSentry-backend && uv run pytest
+
+# ============================================
+# 开发环境启动
+# ============================================
+
+dev-infra:  ## 启动 PostgreSQL + Redis (docker)
+	docker-compose -f docker-compose.dev.yml up -d postgres redis
+
+dev:  ## 一键启动所有应用服务 (需先运行 dev-infra)
+	cd infoSentry-backend && uv run honcho start -f ../Procfile.dev
+
+dev-stop:  ## 停止所有 docker 服务
+	docker-compose -f docker-compose.dev.yml down
 

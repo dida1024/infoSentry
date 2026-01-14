@@ -1,0 +1,4 @@
+api: uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+web: npm --prefix ../infosentry-web run dev -- -p 3000
+worker: uv run celery -A src.core.infrastructure.celery.app worker -Q q_ingest,q_embed,q_match,q_agent,q_email -c 2 -l INFO
+beat: uv run celery -A src.core.infrastructure.celery.app beat -l INFO
