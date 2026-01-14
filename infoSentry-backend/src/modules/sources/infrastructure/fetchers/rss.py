@@ -26,6 +26,12 @@ class RSSFetcher(BaseFetcher):
     {
         "feed_url": "https://example.com/feed.xml"
     }
+
+    支持 RSSHub 协议：
+    {
+        "feed_url": "rsshub://v2ex/topics/latest"
+    }
+    将被转换为：{RSSHUB_BASE_URL}/v2ex/topics/latest
     """
 
     def validate_config(self) -> tuple[bool, str | None]:
@@ -33,9 +39,32 @@ class RSSFetcher(BaseFetcher):
         feed_url = self.config.get("feed_url")
         if not feed_url:
             return False, "Missing feed_url in config"
-        if not feed_url.startswith(("http://", "https://")):
-            return False, "feed_url must be a valid HTTP(S) URL"
+        # 支持 http://, https://, rsshub:// 三种协议
+        if not feed_url.startswith(("http://", "https://", "rsshub://")):
+            return False, "feed_url must be a valid HTTP(S) or rsshub:// URL"
         return True, None
+
+    def _resolve_feed_url(self, feed_url: str) -> str:
+        """解析 feed URL，将 rsshub:// 协议转换为实际的 HTTP URL。
+
+        Args:
+            feed_url: 原始 feed URL
+
+        Returns:
+            解析后的 HTTP URL
+        """
+        if feed_url.startswith("rsshub://"):
+            # 提取 rsshub:// 后的路径
+            path = feed_url[len("rsshub://") :]
+            # 确保路径以 / 开头
+            if not path.startswith("/"):
+                path = "/" + path
+            # 使用配置的 RSSHub 基础 URL
+            base_url = settings.RSSHUB_BASE_URL.rstrip("/")
+            resolved_url = f"{base_url}{path}"
+            logger.debug(f"Resolved rsshub URL: {feed_url} -> {resolved_url}")
+            return resolved_url
+        return feed_url
 
     async def fetch(self) -> FetchResult:
         """执行抓取。"""
@@ -45,7 +74,9 @@ class RSSFetcher(BaseFetcher):
         if not valid:
             return FetchResult.failed(error or "Invalid config")
 
-        feed_url = self.config["feed_url"]
+        # 解析 feed URL（支持 rsshub:// 协议）
+        original_url = self.config["feed_url"]
+        feed_url = self._resolve_feed_url(original_url)
 
         try:
             async with httpx.AsyncClient(
@@ -69,6 +100,7 @@ class RSSFetcher(BaseFetcher):
                     duration_ms=duration_ms,
                     metadata={
                         "feed_url": feed_url,
+                        "original_url": original_url,
                         "total_found": len(items),
                         "content_type": response.headers.get("content-type", ""),
                     },

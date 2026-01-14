@@ -177,6 +177,8 @@ class Settings(BaseSettings):
     FETCHER_USER_AGENT: str = (
         "Mozilla/5.0 (compatible; InfoSentry/1.0; +https://infosentry.app)"
     )
+    # RSSHub 配置 - 支持 rsshub:// 协议的 URL 转换
+    RSSHUB_BASE_URL: str = "https://rsshub.app"  # 默认使用官方实例，可配置私有实例
 
     # Embedding Settings
     EMBED_MAX_CHARS: int = 8000  # 约 2000 tokens
