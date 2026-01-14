@@ -8,6 +8,7 @@
 """
 
 import json
+from collections.abc import Sequence
 from typing import Any
 
 from loguru import logger
@@ -21,6 +22,7 @@ from tenacity import (
 )
 
 from src.core.config import settings
+from src.core.domain.ports.prompt_store import PromptStore
 from src.modules.items.application.budget_service import BudgetService
 from src.modules.users.application.budget_service import UserBudgetUsageService
 
@@ -74,10 +76,12 @@ class LLMJudgeService:
         self,
         budget_service: BudgetService | None = None,
         user_budget_service: UserBudgetUsageService | None = None,
+        prompt_store: PromptStore | None = None,
         openai_client: AsyncOpenAI | None = None,
     ):
         self.budget_service = budget_service
         self.user_budget_service = user_budget_service
+        self._prompt_store = prompt_store
         self._client = openai_client
 
     @property
@@ -120,18 +124,17 @@ class LLMJudgeService:
                 logger.warning(f"Judge budget exhausted: {reason}")
                 return None
 
-        # 构建用户 prompt
-        if not prompt:
-            prompt = self._build_user_prompt(
-                goal_description,
-                item_title,
-                item_snippet,
-                match_score,
-                match_reasons,
-            )
+        messages = self._build_messages(
+            prompt=prompt,
+            goal_description=goal_description,
+            item_title=item_title,
+            item_snippet=item_snippet,
+            match_score=match_score,
+            match_reasons=match_reasons,
+        )
 
         try:
-            result, tokens_used = await self._call_llm(prompt)
+            result, tokens_used = await self._call_llm(messages)
 
             # 记录 token 使用
             if self.budget_service and tokens_used > 0:
@@ -182,20 +185,78 @@ class LLMJudgeService:
 
 请根据以上信息判断这条新闻应该 IMMEDIATE（立即推送）还是 BATCH（批量推送）。"""
 
+    def _build_messages(
+        self,
+        *,
+        prompt: str | None,
+        goal_description: str,
+        item_title: str,
+        item_snippet: str,
+        match_score: float,
+        match_reasons: dict[str, Any] | None,
+    ) -> list[dict[str, str]]:
+        """构建 messages（支持文件化 prompt）。"""
+        if settings.PROMPTS_ENABLED:
+            if not self._prompt_store:
+                raise RuntimeError("PromptStore is required when PROMPTS_ENABLED=true")
+
+            # 允许外部覆盖 prompt（主要用于调试/对齐），此时仍复用文件化 system prompt。
+            if prompt and prompt.strip():
+                prompt_def = self._prompt_store.get(name="agent.boundary_judge")
+                system = next(
+                    (m.content_template for m in prompt_def.messages if m.role == "system"),
+                    None,
+                )
+                messages: list[dict[str, str]] = []
+                if system:
+                    messages.append({"role": "system", "content": system})
+                messages.append({"role": "user", "content": prompt})
+                return messages
+
+            summary = ""
+            if match_reasons:
+                s = match_reasons.get("summary", "")
+                if isinstance(s, str) and s.strip():
+                    summary = f"\n匹配原因：{s.strip()}"
+
+            snippet = item_snippet.strip() if item_snippet.strip() else "无"
+
+            rendered = self._prompt_store.render_messages(
+                name="agent.boundary_judge",
+                variables={
+                    "goal_description": goal_description,
+                    "item_title": item_title,
+                    "item_snippet": snippet,
+                    "match_score": f"{match_score:.2f}",
+                    "match_reason_summary": summary,
+                },
+            )
+            return [{"role": m.role, "content": m.content} for m in rendered]
+
+        # 回退：使用代码内 prompt（仅用于紧急回滚）
+        user_prompt = prompt if (prompt and prompt.strip()) else self._build_user_prompt(
+            goal_description,
+            item_title,
+            item_snippet,
+            match_score,
+            match_reasons,
+        )
+        return [
+            {"role": "system", "content": self.SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt},
+        ]
+
     @retry(
         retry=retry_if_exception_type((Exception,)),
         stop=stop_after_attempt(2),
         wait=wait_exponential(multiplier=1, min=1, max=5),
         reraise=True,
     )
-    async def _call_llm(self, user_prompt: str) -> tuple[str, int]:
+    async def _call_llm(self, messages: Sequence[dict[str, str]]) -> tuple[str, int]:
         """调用 LLM API。"""
         response = await self.client.chat.completions.create(
             model=settings.OPENAI_JUDGE_MODEL,
-            messages=[
-                {"role": "system", "content": self.SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
+            messages=list(messages),
             temperature=0.3,
             max_tokens=500,
             response_format={"type": "json_object"},

@@ -41,18 +41,20 @@ async def _embed_item_async(item_id: str) -> None:
     """异步版本的嵌入任务。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
-    from src.core.infrastructure.redis.client import RedisClient
+    from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.items.application.budget_service import BudgetService
     from src.modules.items.application.embedding_service import EmbeddingService
     from src.modules.items.infrastructure.mappers import ItemMapper
     from src.modules.items.infrastructure.repositories import PostgreSQLItemRepository
 
-    async with get_async_session() as session:
+    async with (
+        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_session() as session,
+    ):
         try:
             # 创建依赖
             event_bus = SimpleEventBus()
             item_mapper = ItemMapper()
-            redis_client = RedisClient()
 
             item_repo = PostgreSQLItemRepository(session, item_mapper, event_bus)
             budget_service = BudgetService(redis_client)
@@ -108,18 +110,20 @@ async def _embed_pending_items_async(limit: int) -> None:
     """异步版本的批量嵌入任务。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
-    from src.core.infrastructure.redis.client import RedisClient
+    from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.items.application.budget_service import BudgetService
     from src.modules.items.application.embedding_service import EmbeddingService
     from src.modules.items.infrastructure.mappers import ItemMapper
     from src.modules.items.infrastructure.repositories import PostgreSQLItemRepository
 
-    async with get_async_session() as session:
+    async with (
+        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_session() as session,
+    ):
         try:
             # 创建依赖
             event_bus = SimpleEventBus()
             item_mapper = ItemMapper()
-            redis_client = RedisClient()
 
             item_repo = PostgreSQLItemRepository(session, item_mapper, event_bus)
             budget_service = BudgetService(redis_client)
@@ -181,6 +185,7 @@ async def _match_item_async(item_id: str) -> None:
     """异步版本的匹配任务。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
+    from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.goals.infrastructure.mappers import (
         GoalMapper,
         GoalPriorityTermMapper,
@@ -196,7 +201,10 @@ async def _match_item_async(item_id: str) -> None:
         PostgreSQLItemRepository,
     )
 
-    async with get_async_session() as session:
+    async with (
+        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_session() as session,
+    ):
         try:
             # 创建依赖
             event_bus = SimpleEventBus()
@@ -216,6 +224,7 @@ async def _match_item_async(item_id: str) -> None:
                 item_repository=item_repo,
                 match_repository=match_repo,
                 event_bus=event_bus,
+                redis_client=redis_client,
             )
 
             # 执行匹配
@@ -268,6 +277,7 @@ async def _match_items_for_goal_async(goal_id: str, hours_back: int) -> None:
     """异步版本的 Goal 匹配任务。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
+    from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.goals.infrastructure.mappers import (
         GoalMapper,
         GoalPriorityTermMapper,
@@ -283,7 +293,10 @@ async def _match_items_for_goal_async(goal_id: str, hours_back: int) -> None:
         PostgreSQLItemRepository,
     )
 
-    async with get_async_session() as session:
+    async with (
+        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_session() as session,
+    ):
         try:
             # 创建依赖
             event_bus = SimpleEventBus()
@@ -313,6 +326,7 @@ async def _match_items_for_goal_async(goal_id: str, hours_back: int) -> None:
                 item_repository=item_repo,
                 match_repository=match_repo,
                 event_bus=event_bus,
+                redis_client=redis_client,
             )
 
             # 获取最近的 Items

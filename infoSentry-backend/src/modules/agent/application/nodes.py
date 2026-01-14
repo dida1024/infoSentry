@@ -290,12 +290,9 @@ class BoundaryJudgeNode(BaseNode):
         if not self.llm_service:
             return None
 
-        # 构建 prompt
-        prompt = self._build_prompt(state)
-
-        # 调用 LLM
+        # 调用 LLM（prompt 由 LLMJudgeService 统一构建，避免重复/分散）
         result = await self.llm_service.judge_boundary(
-            prompt=prompt,
+            prompt=None,
             goal_description=state.goal.description if state.goal else "",
             item_title=state.item.title if state.item else "",
             item_snippet=state.item.snippet if state.item else "",
@@ -305,34 +302,6 @@ class BoundaryJudgeNode(BaseNode):
         )
 
         return result
-
-    def _build_prompt(self, state: AgentState) -> str:
-        """构建 LLM 提示。"""
-        goal = state.goal
-        item = state.item
-        match = state.match
-
-        prompt = f"""判断这条新闻是否应该立即推送给用户。
-
-用户目标：{goal.description if goal else "未知"}
-
-新闻标题：{item.title if item else "未知"}
-新闻摘要：{item.snippet if item else "无"}
-
-匹配分数：{match.score if match else 0}
-匹配原因：{match.reasons if match else {}}
-
-请判断这条新闻是否值得立即推送（IMMEDIATE）还是稍后批量推送（BATCH）。
-
-输出 JSON 格式：
-{{
-  "label": "IMMEDIATE" 或 "BATCH",
-  "confidence": 0.0-1.0,
-  "reason": "判断理由",
-  "evidence": []
-}}
-"""
-        return prompt
 
 
 class CoalesceNode(BaseNode):

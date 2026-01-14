@@ -54,8 +54,11 @@ async def _handle_match_computed_async(
 ):
     """异步版本的 MatchComputed 处理。"""
     from src.core.domain.events import SimpleEventBus
+    from src.core.infrastructure.ai.prompting.dependencies import (
+        get_prompt_store as get_prompt_store_infra,
+    )
     from src.core.infrastructure.database.session import get_async_session
-    from src.core.infrastructure.redis.client import RedisClient
+    from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.agent.application.llm_service import LLMJudgeService
     from src.modules.agent.application.nodes import create_immediate_pipeline
     from src.modules.agent.application.orchestrator import AgentOrchestrator
@@ -91,10 +94,12 @@ async def _handle_match_computed_async(
         PostgreSQLUserBudgetDailyRepository,
     )
 
-    async with get_async_session() as session:
+    async with (
+        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_session() as session,
+    ):
         try:
             event_bus = SimpleEventBus()
-            redis_client = RedisClient()
 
             # 创建 repositories
             run_repo = PostgreSQLAgentRunRepository(
@@ -121,9 +126,11 @@ async def _handle_match_computed_async(
             # 创建服务
             budget_service = BudgetService(redis_client)
             user_budget_service = UserBudgetUsageService(user_budget_repo)
+            prompt_store = get_prompt_store_infra()
             llm_service = LLMJudgeService(
                 budget_service=budget_service,
                 user_budget_service=user_budget_service,
+                prompt_store=prompt_store,
             )
 
             # 创建工具注册表
@@ -548,27 +555,29 @@ def run_health_check(_self: object) -> None:
 
 async def _run_health_check_async():
     """异步版本的健康检查。"""
-    from src.core.infrastructure.redis.client import RedisClient
+    from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.agent.application.monitoring_service import MonitoringService
 
     try:
-        redis_client = RedisClient()
-        monitoring = MonitoringService(redis_client)
+        async with get_async_redis_client(timeout=5.0) as redis_client:
+            monitoring = MonitoringService(redis_client)
 
-        status = await monitoring.check_all()
+            status = await monitoring.check_all()
 
-        # 记录状态
-        if status.healthy:
-            logger.info(f"Health check passed: {len(status.components)} components OK")
-        else:
-            logger.warning(
-                f"Health check failed: status={status.status}, "
-                f"alerts={len(status.alerts)}"
-            )
-            for alert in status.alerts:
-                logger.warning(
-                    f"  - [{alert.level.value}] {alert.source}: {alert.message}"
+            # 记录状态
+            if status.healthy:
+                logger.info(
+                    f"Health check passed: {len(status.components)} components OK"
                 )
+            else:
+                logger.warning(
+                    f"Health check failed: status={status.status}, "
+                    f"alerts={len(status.alerts)}"
+                )
+                for alert in status.alerts:
+                    logger.warning(
+                        f"  - [{alert.level.value}] {alert.source}: {alert.message}"
+                    )
 
     except Exception as e:
         logger.exception(f"Error in health check: {e}")
@@ -592,14 +601,14 @@ def record_worker_heartbeat(_self: object, worker_type: str) -> None:
 
 async def _record_worker_heartbeat_async(worker_type: str):
     """异步版本的心跳记录。"""
-    from src.core.infrastructure.redis.client import RedisClient
+    from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.agent.application.monitoring_service import MonitoringService
 
     try:
-        redis_client = RedisClient()
-        monitoring = MonitoringService(redis_client)
-        await monitoring.record_worker_heartbeat(worker_type)
-        logger.debug(f"Heartbeat recorded for worker: {worker_type}")
+        async with get_async_redis_client(timeout=5.0) as redis_client:
+            monitoring = MonitoringService(redis_client)
+            await monitoring.record_worker_heartbeat(worker_type)
+            logger.debug(f"Heartbeat recorded for worker: {worker_type}")
     except Exception as e:
         logger.warning(f"Failed to record heartbeat: {e}")
 
@@ -608,17 +617,19 @@ async def _check_and_update_budget_async():
     """异步版本的预算检查。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
-    from src.core.infrastructure.redis.client import RedisClient
+    from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.agent.infrastructure.mappers import BudgetDailyMapper
     from src.modules.agent.infrastructure.repositories import (
         PostgreSQLBudgetDailyRepository,
     )
     from src.modules.items.application.budget_service import BudgetService
 
-    async with get_async_session() as session:
+    async with (
+        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_session() as session,
+    ):
         try:
             event_bus = SimpleEventBus()
-            redis_client = RedisClient()
 
             budget_service = BudgetService(redis_client)
             budget_repo = PostgreSQLBudgetDailyRepository(

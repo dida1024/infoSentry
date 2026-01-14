@@ -8,7 +8,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -21,6 +24,10 @@ if TYPE_CHECKING:
 from src.core.config import settings
 from src.core.infrastructure.health import HealthStatus, RedisHealthResult
 from src.core.infrastructure.redis.keys import RedisKeys
+
+
+class RedisUnavailableError(RuntimeError):
+    """Redis 不可用（连接失败/超时等）。"""
 
 
 class RedisClient:
@@ -43,6 +50,9 @@ class RedisClient:
                 self._url,
                 encoding="utf-8",
                 decode_responses=True,
+                socket_timeout=10.0,  # 读写超时 10 秒
+                socket_connect_timeout=5.0,  # 连接超时 5 秒
+                retry_on_timeout=True,  # 超时后重试
             )
         return self._client
 
@@ -63,6 +73,51 @@ class RedisClient:
         except Exception as e:
             logger.warning(f"Redis ping failed: {e}")
             return False
+
+    @asynccontextmanager
+    async def ensure_available(
+        self,
+        *,
+        timeout: float = 5.0,
+        close_on_exit: bool = False,
+    ) -> AsyncGenerator[RedisClient, None]:
+        """确保进入上下文时 Redis 连接可用。
+
+        适用于需要在执行一段逻辑前先做连通性检查的场景（如 Celery 定时任务）。
+
+        Usage:
+            redis_client = RedisClient()
+            try:
+                async with redis_client.ensure_available(timeout=5.0, close_on_exit=True):
+                    # Redis 操作...
+                    ...
+            except RedisUnavailableError:
+                # Redis 不可用，按需降级/跳过
+                ...
+        """
+        try:
+            # 这里直接调用底层 client.ping()，避免与 self.ping() 的日志重复。
+            ok = await asyncio.wait_for(self.client.ping(), timeout=timeout)
+            if not ok:
+                raise RedisUnavailableError("Redis ping returned falsy result")
+        except TimeoutError as e:
+            if close_on_exit:
+                await self.close()
+            raise RedisUnavailableError("Redis ping timeout") from e
+        except RedisUnavailableError:
+            if close_on_exit:
+                await self.close()
+            raise
+        except Exception as e:
+            if close_on_exit:
+                await self.close()
+            raise RedisUnavailableError(f"Redis ping failed: {e}") from e
+
+        try:
+            yield self
+        finally:
+            if close_on_exit:
+                await self.close()
 
     async def health_check(self) -> RedisHealthResult:
         """执行 Redis 健康检查。
@@ -265,6 +320,29 @@ class RedisClient:
         """释放分布式锁。"""
         key = RedisKeys.lock(resource)
         return await self.delete(key) > 0
+
+
+@asynccontextmanager
+async def get_async_redis_client(
+    *,
+    timeout: float = 5.0,
+    url: str | None = None,
+) -> AsyncGenerator[RedisClient, None]:
+    """获取可用的 RedisClient（上下文管理器）。
+
+    - 进入上下文时会执行 ping 校验，并带超时控制
+    - 退出上下文时自动关闭连接（避免 Celery 的 asyncio.run() 跨事件循环复用问题）
+
+    Usage:
+        try:
+            async with get_async_redis_client(timeout=5.0) as redis_client:
+                await redis_client.set("k", "v")
+        except RedisUnavailableError:
+            ...
+    """
+    client = RedisClient(url=url)
+    async with client.ensure_available(timeout=timeout, close_on_exit=True):
+        yield client
 
 
 # 全局 Redis 客户端实例

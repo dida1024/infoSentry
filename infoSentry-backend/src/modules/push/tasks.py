@@ -41,7 +41,10 @@ async def _check_and_coalesce_immediate_async():
     """Async implementation of immediate buffer check."""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
-    from src.core.infrastructure.redis.client import RedisClient
+    from src.core.infrastructure.redis.client import (
+        RedisUnavailableError,
+        get_async_redis_client,
+    )
     from src.modules.goals.infrastructure.mappers import GoalMapper
     from src.modules.goals.infrastructure.repositories import PostgreSQLGoalRepository
     from src.modules.items.infrastructure.mappers import ItemMapper
@@ -58,41 +61,49 @@ async def _check_and_coalesce_immediate_async():
     from src.modules.users.infrastructure.mappers import UserMapper
     from src.modules.users.infrastructure.repositories import PostgreSQLUserRepository
 
-    async with get_async_session() as session:
-        try:
-            event_bus = SimpleEventBus()
-            redis_client = RedisClient()
+    try:
+        async with (
+            get_async_redis_client(timeout=5.0) as redis_client,
+            get_async_session() as session,
+        ):
+            try:
+                event_bus = SimpleEventBus()
 
-            # Create repositories
-            decision_repo = PostgreSQLPushDecisionRepository(
-                session, PushDecisionMapper(), event_bus
-            )
-            goal_repo = PostgreSQLGoalRepository(session, GoalMapper(), event_bus)
-            item_repo = PostgreSQLItemRepository(session, ItemMapper(), event_bus)
-            source_repo = PostgreSQLSourceRepository(session, SourceMapper(), event_bus)
-            user_repo = PostgreSQLUserRepository(session, UserMapper(), event_bus)
+                # Create repositories
+                decision_repo = PostgreSQLPushDecisionRepository(
+                    session, PushDecisionMapper(), event_bus
+                )
+                goal_repo = PostgreSQLGoalRepository(session, GoalMapper(), event_bus)
+                item_repo = PostgreSQLItemRepository(session, ItemMapper(), event_bus)
+                source_repo = PostgreSQLSourceRepository(session, SourceMapper(), event_bus)
+                user_repo = PostgreSQLUserRepository(session, UserMapper(), event_bus)
 
-            # Create push service
-            push_service = PushService(
-                decision_repository=decision_repo,
-                goal_repository=goal_repo,
-                item_repository=item_repo,
-                source_repository=source_repo,
-                user_repository=user_repo,
-                redis_client=redis_client,
-            )
+                # Create push service
+                push_service = PushService(
+                    decision_repository=decision_repo,
+                    goal_repository=goal_repo,
+                    item_repository=item_repo,
+                    source_repository=source_repo,
+                    user_repository=user_repo,
+                    redis_client=redis_client,
+                )
 
-            # Check and flush buffers
-            flushed_goals = await push_service.check_and_flush_immediate_buffers()
+                # Check and flush buffers
+                flushed_goals = await push_service.check_and_flush_immediate_buffers()
 
-            if flushed_goals:
-                logger.info(f"Flushed immediate buffers for {len(flushed_goals)} goals")
+                if flushed_goals:
+                    logger.info(
+                        f"Flushed immediate buffers for {len(flushed_goals)} goals"
+                    )
 
-            await session.commit()
+                await session.commit()
 
-        except Exception as e:
-            logger.exception(f"Error in check_and_coalesce_immediate: {e}")
-            await session.rollback()
+            except Exception as e:
+                logger.exception(f"Error in check_and_coalesce_immediate: {e}")
+                await session.rollback()
+    except RedisUnavailableError as e:
+        logger.warning(f"{e}, skipping immediate buffer check")
+        return
 
 
 @shared_task(
@@ -118,7 +129,7 @@ async def _send_immediate_email_async(goal_id: str, decision_ids: list[str]):
     """Async implementation of immediate email sending."""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
-    from src.core.infrastructure.redis.client import RedisClient
+    from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.goals.infrastructure.mappers import GoalMapper
     from src.modules.goals.infrastructure.repositories import PostgreSQLGoalRepository
     from src.modules.items.infrastructure.mappers import ItemMapper
@@ -135,10 +146,12 @@ async def _send_immediate_email_async(goal_id: str, decision_ids: list[str]):
     from src.modules.users.infrastructure.mappers import UserMapper
     from src.modules.users.infrastructure.repositories import PostgreSQLUserRepository
 
-    async with get_async_session() as session:
+    async with (
+        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_session() as session,
+    ):
         try:
             event_bus = SimpleEventBus()
-            redis_client = RedisClient()
 
             # Create repositories
             decision_repo = PostgreSQLPushDecisionRepository(
@@ -199,7 +212,7 @@ async def _send_batch_email_async(goal_id: str, window_time: str):
     """Async implementation of batch email sending."""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
-    from src.core.infrastructure.redis.client import RedisClient
+    from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.goals.infrastructure.mappers import GoalMapper
     from src.modules.goals.infrastructure.repositories import PostgreSQLGoalRepository
     from src.modules.items.infrastructure.mappers import ItemMapper
@@ -216,10 +229,12 @@ async def _send_batch_email_async(goal_id: str, window_time: str):
     from src.modules.users.infrastructure.mappers import UserMapper
     from src.modules.users.infrastructure.repositories import PostgreSQLUserRepository
 
-    async with get_async_session() as session:
+    async with (
+        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_session() as session,
+    ):
         try:
             event_bus = SimpleEventBus()
-            redis_client = RedisClient()
 
             # Create repositories
             decision_repo = PostgreSQLPushDecisionRepository(
@@ -279,7 +294,7 @@ async def _send_digest_email_async(goal_id: str):
     """Async implementation of digest email sending."""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
-    from src.core.infrastructure.redis.client import RedisClient
+    from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.goals.infrastructure.mappers import GoalMapper
     from src.modules.goals.infrastructure.repositories import PostgreSQLGoalRepository
     from src.modules.items.infrastructure.mappers import ItemMapper
@@ -296,10 +311,12 @@ async def _send_digest_email_async(goal_id: str):
     from src.modules.users.infrastructure.mappers import UserMapper
     from src.modules.users.infrastructure.repositories import PostgreSQLUserRepository
 
-    async with get_async_session() as session:
+    async with (
+        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_session() as session,
+    ):
         try:
             event_bus = SimpleEventBus()
-            redis_client = RedisClient()
 
             # Create repositories
             decision_repo = PostgreSQLPushDecisionRepository(
@@ -359,21 +376,22 @@ def add_to_immediate_buffer(_self: object, goal_id: str, decision_id: str) -> No
 async def _add_to_immediate_buffer_async(goal_id: str, decision_id: str):
     """Async implementation of adding to immediate buffer."""
     from src.core.config import settings
-    from src.core.infrastructure.redis.client import RedisClient
+    from src.core.infrastructure.redis.client import get_async_redis_client
     from src.core.infrastructure.redis.keys import RedisKeys
-
-    redis_client = RedisClient()
 
     now = datetime.now(UTC)
     time_bucket = now.strftime("%Y%m%d%H") + str(now.minute // 5)
     buffer_key = RedisKeys.immediate_buffer(goal_id, time_bucket)
 
-    current_size = await redis_client.llen(buffer_key)
-    if current_size >= settings.IMMEDIATE_MAX_ITEMS:
-        logger.info(f"Immediate buffer full for goal {goal_id}")
-        return False
+    async with get_async_redis_client(timeout=5.0) as redis_client:
+        current_size = await redis_client.llen(buffer_key)
+        if current_size >= settings.IMMEDIATE_MAX_ITEMS:
+            logger.info(f"Immediate buffer full for goal {goal_id}")
+            return False
 
-    await redis_client.rpush(buffer_key, decision_id)
-    await redis_client.expire(buffer_key, 600)
-    logger.debug(f"Added decision {decision_id} to immediate buffer for goal {goal_id}")
-    return True
+        await redis_client.rpush(buffer_key, decision_id)
+        await redis_client.expire(buffer_key, 600)
+        logger.debug(
+            f"Added decision {decision_id} to immediate buffer for goal {goal_id}"
+        )
+        return True
