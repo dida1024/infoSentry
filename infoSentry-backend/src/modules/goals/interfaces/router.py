@@ -3,6 +3,8 @@
 from fastapi import APIRouter, Depends, Query, status
 
 from src.core.application.security import get_current_user_id
+from src.core.infrastructure.logging import get_business_logger
+from src.core.interfaces.http.exceptions import BizException
 from src.core.interfaces.http.response import ApiResponse, PaginatedResponse
 from src.modules.goals.application.commands import (
     CreateGoalCommand,
@@ -14,12 +16,20 @@ from src.modules.goals.application.commands import (
 from src.modules.goals.application.dependencies import (
     get_create_goal_handler,
     get_delete_goal_handler,
+    get_goal_draft_service,
+    get_goal_match_query_service,
     get_goal_repository,
+    get_keyword_suggestion_service,
     get_pause_goal_handler,
     get_push_config_repository,
     get_resume_goal_handler,
     get_term_repository,
     get_update_goal_handler,
+)
+from src.modules.goals.application.goal_draft_service import (
+    GoalDraftGenerationError,
+    GoalDraftNotAvailableError,
+    GoalDraftService,
 )
 from src.modules.goals.application.handlers import (
     CreateGoalHandler,
@@ -28,6 +38,8 @@ from src.modules.goals.application.handlers import (
     ResumeGoalHandler,
     UpdateGoalHandler,
 )
+from src.modules.goals.application.keyword_service import KeywordSuggestionService
+from src.modules.goals.application.services import GoalMatchQueryService
 from src.modules.goals.domain.entities import Goal, TermType
 from src.modules.goals.domain.exceptions import GoalNotFoundError
 from src.modules.goals.domain.repository import (
@@ -37,8 +49,14 @@ from src.modules.goals.domain.repository import (
 )
 from src.modules.goals.interfaces.schemas import (
     CreateGoalRequest,
+    GenerateGoalDraftRequest,
+    GenerateGoalDraftResponse,
+    GoalItemMatchResponse,
     GoalResponse,
     GoalStatusResponse,
+    ItemResponse,
+    SuggestKeywordsRequest,
+    SuggestKeywordsResponse,
     UpdateGoalRequest,
 )
 
@@ -143,6 +161,79 @@ async def create_goal(
     response = await _build_goal_response(goal, push_config_repository, term_repository)
 
     return ApiResponse.success(data=response, message="Goal created successfully")
+
+
+@router.post(
+    "/suggest-keywords",
+    response_model=ApiResponse[SuggestKeywordsResponse],
+    summary="生成建议关键词",
+    description="根据目标描述使用 AI 生成建议的优选关键词",
+)
+async def suggest_keywords(
+    request: SuggestKeywordsRequest,
+    user_id: str = Depends(get_current_user_id),
+    service: KeywordSuggestionService = Depends(get_keyword_suggestion_service),
+) -> ApiResponse[SuggestKeywordsResponse]:
+    """Suggest keywords based on goal description using LLM."""
+    keywords = await service.suggest_keywords(
+        description=request.description,
+        max_keywords=request.max_keywords,
+    )
+    get_business_logger().info(
+        "goal_keywords_suggested",
+        event_type="goal_keywords",
+        user_id=user_id,
+        description_len=len(request.description),
+        keywords_count=len(keywords),
+    )
+    response = SuggestKeywordsResponse(keywords=keywords)
+    return ApiResponse.success(data=response)
+
+
+@router.post(
+    "/generate-draft",
+    response_model=ApiResponse[GenerateGoalDraftResponse],
+    summary="AI 生成目标草稿",
+    description="根据用户意图生成目标名称、描述和关键词（用于新建目标时快速填充）",
+)
+async def generate_goal_draft(
+    request: GenerateGoalDraftRequest,
+    user_id: str = Depends(get_current_user_id),
+    service: GoalDraftService = Depends(get_goal_draft_service),
+) -> ApiResponse[GenerateGoalDraftResponse]:
+    """Generate a short goal draft based on user intent."""
+    try:
+        draft = await service.generate_draft(
+            intent=request.intent,
+            max_keywords=request.max_keywords,
+        )
+    except GoalDraftNotAvailableError as e:
+        raise BizException(
+            message="AI 功能暂不可用，请检查配置或稍后重试",
+            code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            error_code="AI_NOT_AVAILABLE",
+        ) from e
+    except GoalDraftGenerationError as e:
+        raise BizException(
+            message="AI 生成失败，请稍后重试",
+            code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            error_code="AI_GENERATION_FAILED",
+        ) from e
+
+    get_business_logger().info(
+        "goal_draft_generated",
+        event_type="goal_draft",
+        user_id=user_id,
+        intent_len=len(request.intent),
+        keywords_count=len(draft.keywords),
+    )
+
+    response = GenerateGoalDraftResponse(
+        name=draft.name,
+        description=draft.description,
+        keywords=draft.keywords,
+    )
+    return ApiResponse.success(data=response)
 
 
 @router.get(
@@ -257,3 +348,65 @@ async def resume_goal(
     command = ResumeGoalCommand(goal_id=goal_id, user_id=user_id)
     goal = await handler.handle(command)
     return GoalStatusResponse(status=goal.status)
+
+
+class GoalMatchListResponse(PaginatedResponse[GoalItemMatchResponse]):
+    """Goal match list response with pagination."""
+
+    pass
+
+
+@router.get(
+    "/{goal_id}/matches",
+    response_model=GoalMatchListResponse,
+    summary="获取Goal的匹配Items",
+    description="获取指定Goal匹配到的信息条目列表",
+)
+async def get_goal_matches(
+    goal_id: str,
+    min_score: float = Query(0.0, ge=0, le=1, description="最小匹配分数"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+    user_id: str = Depends(get_current_user_id),
+    service: GoalMatchQueryService = Depends(get_goal_match_query_service),
+) -> GoalMatchListResponse:
+    """Get goal's matched items."""
+    result = await service.list_matches(
+        goal_id=goal_id,
+        user_id=user_id,
+        min_score=min_score if min_score > 0 else None,
+        page=page,
+        page_size=page_size,
+    )
+
+    responses = [
+        GoalItemMatchResponse(
+            id=item.id,
+            goal_id=item.goal_id,
+            item_id=item.item_id,
+            match_score=item.match_score,
+            features_json=item.features_json,
+            reasons_json=item.reasons_json,
+            computed_at=item.computed_at,
+            item=ItemResponse(
+                id=item.item.id,
+                url=item.item.url,
+                title=item.item.title,
+                snippet=item.item.snippet,
+                summary=item.item.summary,
+                published_at=item.item.published_at,
+                ingested_at=item.item.ingested_at,
+                source_name=item.item.source_name,
+            )
+            if item.item
+            else None,
+        )
+        for item in result.items
+    ]
+
+    return GoalMatchListResponse.create(
+        items=responses,
+        total=result.total,
+        page=result.page,
+        page_size=result.page_size,
+    )

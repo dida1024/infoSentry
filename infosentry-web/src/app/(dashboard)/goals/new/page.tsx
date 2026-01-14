@@ -1,10 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout";
 import {
@@ -16,7 +17,11 @@ import {
   CardFooter,
   Alert,
 } from "@/components/ui";
-import { useCreateGoal } from "@/hooks/use-goals";
+import {
+  useCreateGoal,
+  useGenerateGoalDraft,
+  useSuggestKeywords,
+} from "@/hooks/use-goals";
 
 const schema = z.object({
   name: z.string().min(1, "请输入目标名称").max(100, "名称不能超过 100 字符"),
@@ -33,10 +38,15 @@ type FormData = z.infer<typeof schema>;
 export default function NewGoalPage() {
   const router = useRouter();
   const createGoal = useCreateGoal();
+  const suggestKeywords = useSuggestKeywords();
+  const generateGoalDraft = useGenerateGoalDraft();
+  const [aiIntent, setAiIntent] = useState("");
 
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -45,19 +55,85 @@ export default function NewGoalPage() {
     },
   });
 
+  const description = watch("description");
+
+  const handleGenerateDraft = async () => {
+    if (generateGoalDraft.isPending) return;
+    const intent = aiIntent.trim();
+    if (intent.length < 3) return;
+
+    try {
+      const result = await generateGoalDraft.mutateAsync({
+        intent,
+        max_keywords: 5,
+      });
+
+      if (result.name) {
+        setValue("name", result.name, { shouldDirty: true, shouldValidate: true });
+      }
+      if (result.description) {
+        setValue("description", result.description, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+      if (result.keywords?.length) {
+        setValue("priority_terms", result.keywords.join("\n"), {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+    } catch {
+      // Error handled by mutation
+    }
+  };
+
+  const handleSuggestKeywords = async () => {
+    if (!description || description.trim().length < 10) {
+      return;
+    }
+
+    try {
+      const result = await suggestKeywords.mutateAsync({
+        description: description.trim(),
+        max_keywords: 5,
+      });
+
+      if (result.keywords.length > 0) {
+        setValue("priority_terms", result.keywords.join("\n"));
+      }
+    } catch {
+      // Error handled by mutation
+    }
+  };
+
   const onSubmit = async (data: FormData) => {
     try {
-      // 将多行字符串转换为数组
-      const priority_terms = data.priority_terms
-        ?.split("\n")
-        .map((term) => term.trim())
-        .filter(Boolean);
+      // 将多行字符串转换为数组（前缀 - 表示排除词）
+      const lines =
+        data.priority_terms
+          ?.split("\n")
+          .map((term) => term.trim())
+          .filter(Boolean) ?? [];
+
+      const priority_terms: string[] = [];
+      const negative_terms: string[] = [];
+
+      for (const line of lines) {
+        if (line.startsWith("-")) {
+          const t = line.slice(1).trim();
+          if (t) negative_terms.push(t);
+        } else {
+          priority_terms.push(line);
+        }
+      }
 
       const goal = await createGoal.mutateAsync({
         name: data.name,
         description: data.description,
         priority_mode: data.priority_mode,
-        priority_terms: priority_terms?.length ? priority_terms : undefined,
+        priority_terms: priority_terms.length ? priority_terms : undefined,
+        negative_terms: negative_terms.length ? negative_terms : undefined,
       });
       router.push(`/goals/${goal.id}`);
     } catch {
@@ -91,6 +167,55 @@ export default function NewGoalPage() {
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card>
           <CardContent className="space-y-6">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="goal-intent"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  AI 帮写（可选）
+                </label>
+                <button
+                  type="button"
+                  onClick={handleGenerateDraft}
+                  disabled={
+                    !aiIntent ||
+                    aiIntent.trim().length < 3 ||
+                    generateGoalDraft.isPending
+                  }
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title={
+                    !aiIntent || aiIntent.trim().length < 3
+                      ? "请先用一句话描述你想关注什么（至少3个字符）"
+                      : "AI 生成目标名称/描述/关键词"
+                  }
+                >
+                  <Sparkles className="h-3 w-3" />
+                  {generateGoalDraft.isPending ? "生成中..." : "AI 生成"}
+                </button>
+              </div>
+              <input
+                id="goal-intent"
+                value={aiIntent}
+                onChange={(e) => setAiIntent(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleGenerateDraft();
+                  }
+                }}
+                placeholder="用一句话告诉 AI 你想关注什么，例如：关注 AI 行业投融资、模型发布与监管政策"
+                maxLength={300}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              />
+              <p className="text-xs text-gray-500">
+                生成后会自动填充目标名称、描述和关键词，你可以再手动微调
+              </p>
+              {generateGoalDraft.isError && (
+                <p className="text-xs text-red-600">AI 生成失败，请稍后重试</p>
+              )}
+            </div>
+
             <Input
               label="目标名称"
               placeholder="例如：AI 行业动态追踪"
@@ -107,13 +232,40 @@ export default function NewGoalPage() {
               {...register("description")}
             />
 
-            <Textarea
-              label="优先关键词（可选）"
-              placeholder="每行一个关键词，例如：&#10;OpenAI&#10;Claude&#10;GPT-4"
-              hint="包含这些关键词的信息将获得更高的匹配分数"
-              rows={4}
-              {...register("priority_terms")}
-            />
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700">
+                  优先关键词（可选）
+                </label>
+                <button
+                  type="button"
+                  onClick={handleSuggestKeywords}
+                  disabled={
+                    !description ||
+                    description.trim().length < 10 ||
+                    suggestKeywords.isPending
+                  }
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title={
+                    !description || description.trim().length < 10
+                      ? "请先填写目标描述（至少10个字符）"
+                      : "AI 生成建议关键词"
+                  }
+                >
+                  <Sparkles className="h-3 w-3" />
+                  {suggestKeywords.isPending ? "生成中..." : "AI 生成"}
+                </button>
+              </div>
+              <textarea
+                placeholder="每行一个关键词（前缀 - 表示排除词），例如：&#10;OpenAI&#10;Claude&#10;-广告"
+                rows={4}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors resize-y min-h-[80px]"
+                {...register("priority_terms")}
+              />
+              <p className="text-xs text-gray-500">
+                包含这些关键词的信息将获得更高的匹配分数
+              </p>
+            </div>
 
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-gray-700">

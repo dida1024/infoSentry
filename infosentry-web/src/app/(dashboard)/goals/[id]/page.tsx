@@ -102,6 +102,9 @@ export default function GoalDetailPage({
   const { data: matches, isLoading: matchesLoading } = useGoalMatches(id);
   const deleteGoal = useDeleteGoal();
 
+  const priorityTerms = goal?.priority_terms ?? [];
+  const negativeTerms = goal?.negative_terms ?? [];
+
   const handleDelete = async () => {
     if (!confirm("确定要删除这个目标吗？此操作不可恢复。")) {
       return;
@@ -200,8 +203,10 @@ export default function GoalDetailPage({
               </p>
             </div>
             <div>
-              <span className="text-gray-500">时间窗口</span>
-              <p className="font-medium">{goal.time_window_days} 天</p>
+              <span className="text-gray-500">批量窗口</span>
+              <p className="font-medium">
+                {goal.batch_windows?.length ? goal.batch_windows.join("、") : "—"}
+              </p>
             </div>
             <div>
               <span className="text-gray-500">创建时间</span>
@@ -217,16 +222,20 @@ export default function GoalDetailPage({
             </div>
           </div>
 
-          {goal.priority_terms && goal.priority_terms.length > 0 && (
+          {(priorityTerms.length > 0 || negativeTerms.length > 0) && (
             <div className="mt-4 pt-4 border-t border-gray-100">
               <span className="text-sm text-gray-500 block mb-2">
-                优先关键词
+                关键词
               </span>
               <div className="flex flex-wrap gap-2">
-                {goal.priority_terms.map((term) => (
-                  <Badge key={term.id} variant="default">
-                    {term.term_type === "negative" && "- "}
-                    {term.term}
+                {priorityTerms.map((term, idx) => (
+                  <Badge key={`p:${term}:${idx}`} variant="default">
+                    {term}
+                  </Badge>
+                ))}
+                {negativeTerms.map((term, idx) => (
+                  <Badge key={`n:${term}:${idx}`} variant="error">
+                    - {term}
                   </Badge>
                 ))}
               </div>

@@ -30,42 +30,35 @@ export interface User {
 }
 
 // Goal
+export type GoalStatus = "active" | "paused" | "archived";
+export type PriorityMode = "STRICT" | "SOFT";
+
+export interface GoalStats {
+  total_matches: number;
+  immediate_count: number;
+  batch_count: number;
+  digest_count: number;
+}
+
+/**
+ * 后端 GoalResponse（GET /goals, GET /goals/{id} 的 data 单项）
+ */
 export interface Goal {
   id: string;
-  user_id: string;
   name: string;
   description: string;
-  status: "active" | "paused" | "archived";
-  priority_mode: "STRICT" | "SOFT";
-  time_window_days: number;
+  status: GoalStatus;
+  priority_mode: PriorityMode;
+  priority_terms: string[] | null;
+  negative_terms: string[] | null;
+  batch_windows: string[] | null;
+  digest_send_time: string | null;
+  stats: GoalStats | null;
   created_at: string;
   updated_at: string;
 }
 
-// Goal 配置
-export interface GoalPushConfig {
-  id: string;
-  goal_id: string;
-  batch_windows: string[];
-  digest_send_time: string;
-  immediate_enabled: boolean;
-  batch_enabled: boolean;
-  digest_enabled: boolean;
-}
-
-// Goal 优先词
-export interface GoalPriorityTerm {
-  id: string;
-  goal_id: string;
-  term: string;
-  term_type: "must" | "negative";
-}
-
-// Goal 详情（包含配置和词条）
-export interface GoalDetail extends Goal {
-  push_config?: GoalPushConfig;
-  priority_terms: GoalPriorityTerm[];
-}
+export type GoalDetail = Goal;
 
 // Source
 export interface Source {

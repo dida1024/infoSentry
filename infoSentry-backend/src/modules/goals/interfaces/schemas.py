@@ -86,3 +86,86 @@ class GoalStatusResponse(BaseModel):
 
     ok: bool = True
     status: GoalStatus
+
+
+class ItemResponse(BaseModel):
+    """Item response for match results."""
+
+    id: str = Field(..., description="Item ID")
+    url: str = Field(..., description="原文URL")
+    title: str = Field(..., description="标题")
+    snippet: str | None = Field(None, description="摘要片段")
+    summary: str | None = Field(None, description="AI生成的摘要")
+    published_at: datetime | None = Field(None, description="发布时间")
+    ingested_at: datetime = Field(..., description="入库时间")
+    source_name: str | None = Field(None, description="来源名称")
+
+    class Config:
+        from_attributes = True
+
+
+class GoalItemMatchResponse(BaseModel):
+    """Goal-Item match response."""
+
+    id: str = Field(..., description="Match ID")
+    goal_id: str = Field(..., description="Goal ID")
+    item_id: str = Field(..., description="Item ID")
+    match_score: float = Field(..., description="匹配分数")
+    features_json: dict = Field(default_factory=dict, description="特征值")
+    reasons_json: dict = Field(default_factory=dict, description="匹配原因")
+    computed_at: datetime = Field(..., description="计算时间")
+    item: ItemResponse | None = Field(None, description="关联的Item")
+
+    class Config:
+        from_attributes = True
+
+
+class SuggestKeywordsRequest(BaseModel):
+    """关键词建议请求。"""
+
+    description: str = Field(
+        ..., min_length=10, max_length=2000, description="目标描述"
+    )
+    max_keywords: int = Field(5, ge=1, le=10, description="最大关键词数量")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "description": "追踪 AI 领域的重要新闻和技术突破，包括大语言模型、AI 芯片、自动驾驶等方向",
+                "max_keywords": 5,
+            }
+        }
+
+
+class SuggestKeywordsResponse(BaseModel):
+    """关键词建议响应。"""
+
+    keywords: list[str] = Field(..., description="建议的关键词列表")
+
+
+class GenerateGoalDraftRequest(BaseModel):
+    """目标草稿生成请求。"""
+
+    intent: str = Field(
+        ...,
+        min_length=3,
+        max_length=300,
+        description="用户意图（想关注什么）",
+    )
+    max_keywords: int = Field(5, ge=1, le=10, description="最大关键词数量")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "intent": "关注 AI 行业投融资、模型发布和监管政策，优先看头部公司动态",
+                "max_keywords": 5,
+            }
+        }
+
+
+class GenerateGoalDraftResponse(BaseModel):
+    """目标草稿生成响应。"""
+
+    name: str = Field(..., description="建议的目标名称")
+    description: str = Field(..., description="建议的目标描述")
+    keywords: list[str] = Field(default_factory=list, description="建议关键词列表")

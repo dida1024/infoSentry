@@ -1,5 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { goalsApi, type CreateGoalRequest, type UpdateGoalRequest } from "@/lib/api/goals";
+import {
+  goalsApi,
+  type CreateGoalRequest,
+  type GenerateGoalDraftRequest,
+  type UpdateGoalRequest,
+  type SuggestKeywordsRequest,
+} from "@/lib/api/goals";
 
 /**
  * Goals 相关 React Query Hooks
@@ -125,6 +131,24 @@ export function useResumeGoal() {
       queryClient.invalidateQueries({ queryKey: goalKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() });
     },
+  });
+}
+
+/**
+ * AI 生成建议关键词
+ */
+export function useSuggestKeywords() {
+  return useMutation({
+    mutationFn: (data: SuggestKeywordsRequest) => goalsApi.suggestKeywords(data),
+  });
+}
+
+/**
+ * AI 生成目标草稿（名称/描述/关键词）
+ */
+export function useGenerateGoalDraft() {
+  return useMutation({
+    mutationFn: (data: GenerateGoalDraftRequest) => goalsApi.generateDraft(data),
   });
 }
 

@@ -58,7 +58,9 @@ function GoalCard({ goal }: { goal: Goal }) {
             <span>
               模式: {goal.priority_mode === "STRICT" ? "严格" : "宽松"}
             </span>
-            <span>窗口: {goal.time_window_days} 天</span>
+            <span>
+              窗口: {goal.batch_windows?.length ? goal.batch_windows.join("、") : "—"}
+            </span>
           </div>
         </div>
 

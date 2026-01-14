@@ -55,30 +55,45 @@ export default function EditGoalPage({
 
   useEffect(() => {
     if (goal) {
+      const priorityLines = goal.priority_terms ?? [];
+      const negativeLines = (goal.negative_terms ?? []).map((t) => `-${t}`);
+
       reset({
         name: goal.name,
         description: goal.description,
         priority_mode: goal.priority_mode,
-        priority_terms: goal.priority_terms
-          ?.map((t) => (t.term_type === "negative" ? `-${t.term}` : t.term))
-          .join("\n") || "",
+        priority_terms: [...priorityLines, ...negativeLines].join("\n"),
       });
     }
   }, [goal, reset]);
 
   const onSubmit = async (data: FormData) => {
     try {
-      // 将多行字符串转换为数组
-      const priority_terms = data.priority_terms
-        ?.split("\n")
-        .map((term) => term.trim())
-        .filter(Boolean);
+      // 将多行字符串转换为数组（前缀 - 表示排除词）
+      const lines =
+        data.priority_terms
+          ?.split("\n")
+          .map((term) => term.trim())
+          .filter(Boolean) ?? [];
+
+      const priority_terms: string[] = [];
+      const negative_terms: string[] = [];
+
+      for (const line of lines) {
+        if (line.startsWith("-")) {
+          const t = line.slice(1).trim();
+          if (t) negative_terms.push(t);
+        } else {
+          priority_terms.push(line);
+        }
+      }
 
       await updateGoal.mutateAsync({
         name: data.name,
         description: data.description,
         priority_mode: data.priority_mode,
-        priority_terms: priority_terms?.length ? priority_terms : undefined,
+        priority_terms: priority_terms.length ? priority_terms : undefined,
+        negative_terms: negative_terms.length ? negative_terms : undefined,
       });
 
       // 等待缓存刷新完成后再跳转
