@@ -15,6 +15,10 @@ notes.md
 !.env.example
 !.env.*.example
 
+# ---- Local AI tooling ----
+infoSentry-backend/scripts/ai_models.toml
+infoSentry-backend/results/
+
 # ---- Python ----
 __pycache__/
 *.py[cod]
