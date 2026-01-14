@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class BaseEntity(BaseModel):
     """Base entity class for all domain entities."""
 
-    id: str = Field(default_factory=lambda: str(UUID()))
+    id: str = Field(default_factory=lambda: str(uuid4()))
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     is_deleted: bool = Field(default=False)
