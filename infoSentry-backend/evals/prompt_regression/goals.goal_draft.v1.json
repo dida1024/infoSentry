@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "prompt": {
+    "name": "goals.goal_draft",
+    "language": "zh-CN"
+  },
+  "cases": [
+    {
+      "name": "goal_draft_should_require_strict_json_output",
+      "vars": {
+        "intent": "关注 AI 行业投融资",
+        "max_keywords": 5
+      },
+      "assertions": {
+        "rendered": {
+          "must_contain": ["输出必须是严格 JSON", "\"name\":", "用户意图：", "关键词数量不超过"],
+          "must_not_contain": ["{{ intent }}", "{{ max_keywords }}"]
+        }
+      }
+    }
+  ]
+}
+

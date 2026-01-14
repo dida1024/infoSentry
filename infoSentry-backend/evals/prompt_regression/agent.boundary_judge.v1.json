@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "prompt": {
+    "name": "agent.boundary_judge",
+    "language": "zh-CN"
+  },
+  "cases": [
+    {
+      "name": "boundary_judge_should_include_labels_and_uncertainty_rule",
+      "vars": {
+        "goal_description": "关注 AI 行业投融资与头部公司动态",
+        "item_title": "OpenAI 发布新一代模型",
+        "item_snippet": "OpenAI 今日发布…",
+        "match_score": "0.90",
+        "match_reason_summary": "\n匹配原因：标题命中优先词 OpenAI"
+      },
+      "assertions": {
+        "rendered": {
+          "must_contain": [
+            "\"label\": \"IMMEDIATE\" 或 \"BATCH\"",
+            "如果不确定，设置 uncertain=true",
+            "用户目标：",
+            "新闻标题：",
+            "匹配分数："
+          ],
+          "must_not_contain": ["{{ goal_description }}", "{{ item_title }}", "{{ match_score }}"]
+        }
+      }
+    }
+  ]
+}
+

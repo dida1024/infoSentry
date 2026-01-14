@@ -117,6 +117,11 @@ class Settings(BaseSettings):
     OPENAI_JUDGE_MODEL: str = "gpt-4o-mini"
     EMBEDDING_DIMENSION: int = 1536
 
+    # Prompts (file-based prompt assets)
+    PROMPTS_ENABLED: bool = True
+    PROMPTS_DIR: str = "prompts"
+    PROMPTS_DEFAULT_LANGUAGE: str = "zh-CN"
+
     # Feature Flags（降级开关）
     LLM_ENABLED: bool = True  # 关闭后边界判别全部降级 Batch
     EMBEDDING_ENABLED: bool = True  # 关闭后 embedding 跳过

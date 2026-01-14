@@ -7,13 +7,15 @@ from fastapi.routing import APIRoute
 from loguru import logger
 from starlette.middleware.cors import CORSMiddleware
 
+from src.core.application import dependencies as core_app_deps
 from src.core.application import security as app_security
 from src.core.config import settings
 from src.core.domain.exceptions import DomainException
 from src.core.infrastructure.ai import check_ai_service_health
-from src.core.infrastructure.database.session import init_db, check_db_health
-from src.core.infrastructure.redis import get_redis_client, redis_client
+from src.core.infrastructure.ai.prompting import dependencies as prompting_infra_deps
+from src.core.infrastructure.database.session import check_db_health, init_db
 from src.core.infrastructure.logging import setup_logging
+from src.core.infrastructure.redis import get_redis_client, redis_client
 from src.core.infrastructure.security import jwt as infra_jwt
 from src.core.interfaces.http.exceptions import (
     BizException,
@@ -86,6 +88,10 @@ app = FastAPI(
 # Dependency overrides (application -> infrastructure)
 app.dependency_overrides[app_security.get_current_user_id] = (
     infra_jwt.get_current_user_id
+)
+
+app.dependency_overrides[core_app_deps.get_prompt_store] = (
+    prompting_infra_deps.get_prompt_store
 )
 
 app.dependency_overrides[agent_app_deps.get_agent_run_repository] = (

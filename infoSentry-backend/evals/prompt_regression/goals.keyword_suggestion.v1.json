@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "prompt": {
+    "name": "goals.keyword_suggestion",
+    "language": "zh-CN"
+  },
+  "cases": [
+    {
+      "name": "broad_ai_news_should_render_and_have_guardrails",
+      "vars": {
+        "description": "给我推送最新的AI信息，包括各种模型的内容，以及一些AI的使用技巧和相关应用",
+        "max_keywords": 5
+      },
+      "assertions": {
+        "rendered": {
+          "must_contain": ["只输出 JSON", "目标描述：", "请提取关键词"],
+          "must_not_contain": ["{{ description }}", "{{ max_keywords }}"]
+        }
+      }
+    }
+  ]
+}
+
