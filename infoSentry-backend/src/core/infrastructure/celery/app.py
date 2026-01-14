@@ -44,21 +44,21 @@ celery_app.conf.update(
     worker_concurrency=1,  # 默认并发数，实际由启动参数控制
 )
 
-# 队列配置
+# 队列配置 - 使用字符串值
 default_exchange = Exchange("default", type="direct")
 celery_app.conf.task_queues = (
-    Queue(Queues.INGEST, default_exchange, routing_key=Queues.INGEST),
-    Queue(Queues.EMBED, default_exchange, routing_key=Queues.EMBED),
-    Queue(Queues.MATCH, default_exchange, routing_key=Queues.MATCH),
-    Queue(Queues.AGENT, default_exchange, routing_key=Queues.AGENT),
-    Queue(Queues.EMAIL, default_exchange, routing_key=Queues.EMAIL),
+    Queue(Queues.INGEST.value, default_exchange, routing_key=Queues.INGEST.value),
+    Queue(Queues.EMBED.value, default_exchange, routing_key=Queues.EMBED.value),
+    Queue(Queues.MATCH.value, default_exchange, routing_key=Queues.MATCH.value),
+    Queue(Queues.AGENT.value, default_exchange, routing_key=Queues.AGENT.value),
+    Queue(Queues.EMAIL.value, default_exchange, routing_key=Queues.EMAIL.value),
 )
 
 # 任务路由
 celery_app.conf.task_routes = TASK_ROUTES
 
 # 默认队列
-celery_app.conf.task_default_queue = Queues.INGEST
+celery_app.conf.task_default_queue = Queues.INGEST.value
 
 # 定时任务配置（Celery Beat）
 # 这里只定义调度配置，具体任务在各模块中注册
@@ -67,44 +67,44 @@ celery_app.conf.beat_schedule = {
     "check-sources-to-fetch": {
         "task": "src.modules.sources.tasks.check_and_dispatch_fetches",
         "schedule": 60.0,  # 每分钟
-        "options": {"queue": Queues.INGEST},
+        "options": {"queue": Queues.INGEST.value},
     },
     # Digest 调度：每日检查是否需要发送 Digest
     "check-digest-send": {
         "task": "src.modules.agent.tasks.check_and_send_digest",
         "schedule": 300.0,  # 每 5 分钟检查
-        "options": {"queue": Queues.AGENT},
+        "options": {"queue": Queues.AGENT.value},
     },
     # Batch 窗口调度：每分钟检查是否有窗口触发
     "check-batch-windows": {
         "task": "src.modules.agent.tasks.check_and_trigger_batch_windows",
         "schedule": 60.0,  # 每分钟
-        "options": {"queue": Queues.AGENT},
+        "options": {"queue": Queues.AGENT.value},
     },
     # Immediate 合并检查：每分钟检查合并缓冲区
     "check-immediate-coalesce": {
         "task": "src.modules.push.tasks.check_and_coalesce_immediate",
         "schedule": 60.0,  # 每分钟
-        "options": {"queue": Queues.EMAIL},
+        "options": {"queue": Queues.EMAIL.value},
     },
     # 预算检查：每小时检查并更新预算状态
     "check-daily-budget": {
         "task": "src.modules.agent.tasks.check_and_update_budget",
         "schedule": 3600.0,  # 每小时
-        "options": {"queue": Queues.AGENT},
+        "options": {"queue": Queues.AGENT.value},
     },
     # 嵌入调度：每分钟处理待嵌入的 Items
     "process-pending-embeddings": {
         "task": "src.modules.items.tasks.embed_pending_items",
         "schedule": 60.0,  # 每分钟
-        "options": {"queue": Queues.EMBED},
+        "options": {"queue": Queues.EMBED.value},
         "args": (50,),  # 每次处理 50 条
     },
     # 健康检查：每 5 分钟执行一次
     "run-health-check": {
         "task": "src.modules.agent.tasks.run_health_check",
         "schedule": 300.0,  # 每 5 分钟
-        "options": {"queue": Queues.AGENT},
+        "options": {"queue": Queues.AGENT.value},
     },
 }
 

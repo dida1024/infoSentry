@@ -11,23 +11,23 @@
 from src.core.domain.queues import Queues
 
 # 队列路由配置
-# 任务名称模式 -> 队列
+# 任务名称模式 -> 队列（使用字符串值）
 TASK_ROUTES = {
     # 抓取相关任务
-    "src.modules.*.tasks.ingest_*": {"queue": Queues.INGEST},
-    "src.modules.sources.tasks.*": {"queue": Queues.INGEST},
+    "src.modules.*.tasks.ingest_*": {"queue": Queues.INGEST.value},
+    "src.modules.sources.tasks.*": {"queue": Queues.INGEST.value},
     # 向量化任务
-    "src.modules.*.tasks.embed_*": {"queue": Queues.EMBED},
-    "src.modules.items.tasks.embed_*": {"queue": Queues.EMBED},
+    "src.modules.*.tasks.embed_*": {"queue": Queues.EMBED.value},
+    "src.modules.items.tasks.embed_*": {"queue": Queues.EMBED.value},
     # 匹配任务
-    "src.modules.*.tasks.match_*": {"queue": Queues.MATCH},
-    "src.modules.items.tasks.match_*": {"queue": Queues.MATCH},
+    "src.modules.*.tasks.match_*": {"queue": Queues.MATCH.value},
+    "src.modules.items.tasks.match_*": {"queue": Queues.MATCH.value},
     # Agent 决策任务
-    "src.modules.agent.tasks.*": {"queue": Queues.AGENT},
-    "src.modules.*.tasks.agent_*": {"queue": Queues.AGENT},
+    "src.modules.agent.tasks.*": {"queue": Queues.AGENT.value},
+    "src.modules.*.tasks.agent_*": {"queue": Queues.AGENT.value},
     # 邮件发送任务
-    "src.modules.*.tasks.email_*": {"queue": Queues.EMAIL},
-    "src.modules.push.tasks.send_*": {"queue": Queues.EMAIL},
+    "src.modules.*.tasks.email_*": {"queue": Queues.EMAIL.value},
+    "src.modules.push.tasks.send_*": {"queue": Queues.EMAIL.value},
 }
 
 
