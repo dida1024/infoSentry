@@ -1,6 +1,6 @@
 """User domain entities."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 
 from pydantic import EmailStr, Field
@@ -31,7 +31,7 @@ class User(AggregateRoot):
 
     def update_last_login(self) -> None:
         """Update last login timestamp."""
-        self.last_login_at = datetime.now()
+        self.last_login_at = datetime.now(UTC)
         self._update_timestamp()
 
         from src.modules.users.domain.events import UserLoggedInEvent
@@ -103,12 +103,12 @@ class MagicLink(AggregateRoot):
 
     def is_valid(self) -> bool:
         """Check if the magic link is still valid."""
-        return not self.is_used and datetime.now() < self.expires_at
+        return not self.is_used and datetime.now(UTC) < self.expires_at
 
     def mark_as_used(self) -> None:
         """Mark the magic link as used."""
         self.is_used = True
-        self.used_at = datetime.now()
+        self.used_at = datetime.now(UTC)
         self._update_timestamp()
 
 

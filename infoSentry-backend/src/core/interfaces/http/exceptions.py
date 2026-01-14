@@ -12,6 +12,11 @@ from src.core.domain.exceptions import (
     EntityNotFoundError,
     ValidationError,
 )
+from src.modules.users.domain.exceptions import (
+    InvalidMagicLinkError,
+    MagicLinkAlreadyUsedError,
+    MagicLinkExpiredError,
+)
 
 
 class BizException(Exception):
@@ -64,6 +69,15 @@ async def domain_exception_handler(
     elif isinstance(exc, BudgetExceededError):
         status_code = status.HTTP_429_TOO_MANY_REQUESTS
         error_code = "BUDGET_EXCEEDED"
+    elif isinstance(exc, InvalidMagicLinkError):
+        status_code = status.HTTP_400_BAD_REQUEST
+        error_code = "INVALID_MAGIC_LINK"
+    elif isinstance(exc, MagicLinkAlreadyUsedError):
+        status_code = status.HTTP_400_BAD_REQUEST
+        error_code = "MAGIC_LINK_ALREADY_USED"
+    elif isinstance(exc, MagicLinkExpiredError):
+        status_code = status.HTTP_400_BAD_REQUEST
+        error_code = "MAGIC_LINK_EXPIRED"
 
     return JSONResponse(
         status_code=status_code,

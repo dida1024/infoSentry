@@ -57,9 +57,9 @@ class RequestMagicLinkHandler:
         # Invalidate existing magic links
         await self.magic_link_repository.invalidate_all_for_email(command.email)
 
-        # Create new magic link
+        # Create new magic link with UTC timezone
         token = self.token_service.create_magic_link_token(command.email)
-        expires_at = datetime.now() + timedelta(
+        expires_at = datetime.now(UTC) + timedelta(
             minutes=settings.MAGIC_LINK_EXPIRE_MINUTES
         )
 
@@ -78,6 +78,11 @@ class RequestMagicLinkHandler:
 
         await self.magic_link_repository.create(magic_link)
         self.logger.info(f"Created magic link for: {command.email}")
+
+        # 本地开发环境：打印登录链接到日志，方便调试
+        if settings.ENVIRONMENT == "local":
+            login_url = f"{settings.FRONTEND_HOST}/auth/callback?token={token}"
+            self.logger.warning(f"[DEV LOGIN] 点击此链接登录: {login_url}")
 
         return magic_link
 
@@ -101,14 +106,24 @@ class ConsumeMagicLinkHandler:
         # Get magic link
         magic_link = await self.magic_link_repository.get_by_token(command.token)
         if not magic_link:
+            self.logger.warning("Magic link not found for token")
             raise InvalidMagicLinkError()
 
         # Check if already used
         if magic_link.is_used:
+            self.logger.warning(
+                f"Magic link already used: email={magic_link.email}, "
+                f"used_at={magic_link.used_at}"
+            )
             raise MagicLinkAlreadyUsedError()
 
         # Check if expired
-        if datetime.now(UTC) > magic_link.expires_at:
+        now = datetime.now(UTC)
+        if now > magic_link.expires_at:
+            self.logger.warning(
+                f"Magic link expired: email={magic_link.email}, "
+                f"expires_at={magic_link.expires_at}, now={now}"
+            )
             raise MagicLinkExpiredError()
 
         # Get user
