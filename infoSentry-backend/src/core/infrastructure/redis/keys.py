@@ -26,6 +26,10 @@ class RedisKeys:
     # lock:{resource}
     LOCK_PREFIX = "lock"
 
+    # Goal Embedding 缓存
+    # embedding:goal:{goal_id}:{hash}
+    GOAL_EMBEDDING_PREFIX = "embedding:goal"
+
     # 健康检查
     HEALTH_CHECK_KEY = "health:ping"
 
@@ -93,3 +97,16 @@ class RedisKeys:
         if goal_id:
             return f"{cls.IMMEDIATE_BUFFER_PREFIX}:{goal_id}:*"
         return f"{cls.IMMEDIATE_BUFFER_PREFIX}:*"
+
+    @classmethod
+    def goal_embedding(cls, goal_id: str, content_hash: str) -> str:
+        """生成 Goal Embedding 缓存 key。
+
+        Args:
+            goal_id: Goal ID
+            content_hash: Goal 描述内容的 hash（用于检测变更）
+
+        Returns:
+            格式化的 Redis key
+        """
+        return f"{cls.GOAL_EMBEDDING_PREFIX}:{goal_id}:{content_hash}"

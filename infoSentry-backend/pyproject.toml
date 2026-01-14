@@ -36,6 +36,8 @@ dependencies = [
     "lxml>=5.0.0,<6.0.0",
     # OpenAI API
     "openai>=1.35.13,<2.0.0",
+    # 数值计算（余弦相似度）
+    "numpy>=1.26.0,<3.0.0",
     # 监控与排程
     "sentry-sdk[fastapi]>=2.9.0,<3.0.0",
     "uvicorn>=0.35.0",

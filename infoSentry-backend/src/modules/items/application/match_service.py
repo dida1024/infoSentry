@@ -8,16 +8,23 @@
 - 可解释的 match_reasons
 """
 
+import hashlib
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+import numpy as np
 from loguru import logger
+from openai import AsyncOpenAI
 
 from src.core.config import settings
 from src.core.domain.events import EventBus
 from src.core.infrastructure.logging import BusinessEvents
+from src.core.infrastructure.redis.keys import RedisKeys
+
+if TYPE_CHECKING:
+    from src.core.infrastructure.redis.client import RedisClient
 from src.modules.goals.domain.entities import (
     Goal,
     GoalPriorityTerm,
@@ -126,6 +133,9 @@ class MatchService:
     RECENCY_HALF_SCORE_HOURS = 48  # 48 小时内半分
     RECENCY_ZERO_SCORE_DAYS = 7  # 7 天后零分
 
+    # Goal embedding 缓存过期时间（秒）- 24小时
+    GOAL_EMBEDDING_CACHE_TTL = 86400
+
     def __init__(
         self,
         goal_repository: GoalRepository,
@@ -135,6 +145,8 @@ class MatchService:
         event_bus: EventBus,
         feedback_repository: ItemFeedbackRepository | None = None,
         blocked_source_repository: BlockedSourceRepository | None = None,
+        redis_client: "RedisClient | None" = None,
+        openai_client: AsyncOpenAI | None = None,
     ):
         self.goal_repository = goal_repository
         self.term_repository = term_repository
@@ -143,6 +155,18 @@ class MatchService:
         self.event_bus = event_bus
         self.feedback_repository = feedback_repository
         self.blocked_source_repository = blocked_source_repository
+        self.redis_client = redis_client
+        self._openai_client = openai_client
+
+    @property
+    def openai_client(self) -> AsyncOpenAI:
+        """获取 OpenAI 客户端（延迟初始化）。"""
+        if self._openai_client is None:
+            self._openai_client = AsyncOpenAI(
+                api_key=settings.OPENAI_API_KEY,
+                base_url=settings.OPENAI_API_BASE,
+            )
+        return self._openai_client
 
     async def match_item_to_goals(self, item: Item) -> list[MatchResult]:
         """将 Item 与所有活跃 Goal 进行匹配。
@@ -313,14 +337,110 @@ class MatchService:
         """计算语义相似度。
 
         使用 Item 的 embedding 与 Goal 描述的 embedding 计算余弦相似度。
+
+        Returns:
+            余弦相似度 [0, 1]（映射后）
         """
         if item.embedding is None:
+            logger.debug(f"Item {item.id} has no embedding, similarity=0")
             return 0.0
 
-        # TODO: 缓存 Goal 描述的 embedding
-        # 暂时使用简化逻辑：如果 Item 有 embedding，给予基础分数
-        # 后续实现时，需要计算 Goal.description 的 embedding 并做余弦相似度
-        return 0.5  # 基础分数，后续需要实际计算
+        # 获取 Goal 的 embedding
+        goal_embedding = await self._get_goal_embedding(goal)
+        if goal_embedding is None:
+            logger.debug(f"Failed to get embedding for goal {goal.id}, using fallback=0.5")
+            return 0.5  # 降级：无法获取 Goal embedding 时返回基础分数
+
+        # 计算余弦相似度
+        try:
+            item_emb = np.array(item.embedding)
+            goal_emb = np.array(goal_embedding)
+
+            dot_product = np.dot(item_emb, goal_emb)
+            norm_product = np.linalg.norm(item_emb) * np.linalg.norm(goal_emb)
+
+            if norm_product == 0:
+                return 0.0
+
+            # 余弦相似度范围是 [-1, 1]，映射到 [0, 1]
+            cosine_sim = float(dot_product / norm_product)
+            normalized_sim = (cosine_sim + 1) / 2  # [-1, 1] -> [0, 1]
+
+            logger.debug(
+                f"Cosine similarity for item={item.id}, goal={goal.id}: "
+                f"raw={cosine_sim:.4f}, normalized={normalized_sim:.4f}"
+            )
+
+            return normalized_sim
+
+        except Exception as e:
+            logger.warning(f"Failed to compute cosine similarity: {e}")
+            return 0.5  # 降级
+
+    async def _get_goal_embedding(self, goal: Goal) -> list[float] | None:
+        """获取 Goal 的 embedding（带缓存）。
+
+        缓存策略：
+        - 使用 Redis 缓存 Goal embedding
+        - Key 包含 Goal 描述的 hash，描述变更时自动失效
+        - TTL 24 小时
+
+        Args:
+            goal: Goal 实体
+
+        Returns:
+            Goal 描述的 embedding 向量，失败返回 None
+        """
+        # 检查是否启用 embedding
+        if not settings.EMBEDDING_ENABLED:
+            logger.debug("Embedding disabled, cannot get goal embedding")
+            return None
+
+        # 准备 Goal 的文本（name + description）
+        goal_text = f"{goal.name}. {goal.description}"
+        content_hash = hashlib.md5(goal_text.encode()).hexdigest()[:8]
+
+        # 尝试从缓存获取
+        if self.redis_client:
+            cache_key = RedisKeys.goal_embedding(goal.id, content_hash)
+            try:
+                cached = await self.redis_client.get_json(cache_key)
+                if cached:
+                    logger.debug(f"Goal embedding cache hit for {goal.id}")
+                    return cached
+            except Exception as e:
+                logger.warning(f"Failed to get goal embedding from cache: {e}")
+
+        # 生成新的 embedding
+        try:
+            response = await self.openai_client.embeddings.create(
+                model=settings.OPENAI_EMBED_MODEL,
+                input=goal_text,
+            )
+            embedding = response.data[0].embedding
+
+            logger.info(
+                f"Generated embedding for goal {goal.id}, "
+                f"tokens={response.usage.total_tokens if response.usage else 0}"
+            )
+
+            # 缓存到 Redis
+            if self.redis_client:
+                try:
+                    await self.redis_client.set_json(
+                        cache_key,
+                        embedding,
+                        ex=self.GOAL_EMBEDDING_CACHE_TTL,
+                    )
+                    logger.debug(f"Cached goal embedding for {goal.id}")
+                except Exception as e:
+                    logger.warning(f"Failed to cache goal embedding: {e}")
+
+            return embedding
+
+        except Exception as e:
+            logger.error(f"Failed to generate embedding for goal {goal.id}: {e}")
+            return None
 
     def _check_term_hits(
         self,
