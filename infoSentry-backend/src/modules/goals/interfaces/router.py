@@ -85,6 +85,7 @@ def _to_goal_response(goal: GoalData) -> GoalResponse:
     description="获取当前用户的所有Goal",
 )
 async def list_goals(
+    status: GoalStatus | None = Query(None, description="状态过滤"),
     page: int = Query(settings.DEFAULT_PAGE, ge=1, description="页码"),
     page_size: int = Query(
         settings.DEFAULT_PAGE_SIZE, ge=1, le=100, description="每页数量"
@@ -93,7 +94,12 @@ async def list_goals(
     service: GoalQueryService = Depends(get_goal_query_service),
 ) -> PaginatedResponse[GoalResponse]:
     """List all goals for current user."""
-    result = await service.list_goals(user_id=user_id, page=page, page_size=page_size)
+    result = await service.list_goals(
+        user_id=user_id,
+        status=status.value if status else None,
+        page=page,
+        page_size=page_size,
+    )
     responses = [_to_goal_response(item) for item in result.items]
 
     return PaginatedResponse.create(

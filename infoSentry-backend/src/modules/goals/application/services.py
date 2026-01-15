@@ -10,7 +10,7 @@ from src.modules.goals.application.models import (
     GoalMatchListData,
     ItemData,
 )
-from src.modules.goals.domain.entities import Goal, TermType
+from src.modules.goals.domain.entities import Goal, GoalStatus, TermType
 from src.modules.goals.domain.exceptions import GoalNotFoundError
 from src.modules.goals.domain.repository import (
     GoalPriorityTermRepository,
@@ -163,11 +163,13 @@ class GoalQueryService:
         )
 
     async def list_goals(
-        self, user_id: str, page: int, page_size: int
+        self, user_id: str, status: str | None, page: int, page_size: int
     ) -> GoalListData:
         """List all goals for a user."""
+        domain_status = GoalStatus(status) if status else None
         goals, total = await self.goal_repo.list_by_user(
             user_id=user_id,
+            status=domain_status,
             page=page,
             page_size=page_size,
         )
