@@ -48,6 +48,8 @@ async def get_goal(self, goal_id):
     ...
 ```
 
+- FastAPI 路由函数必须显式标注返回类型（便于 mypy strict 与接口一致性）。
+
 ### 2.2 使用现代语法
 
 ```python
@@ -121,6 +123,11 @@ logger.info("goal_created", goal_id=goal.id, user_id=user_id)
 | INFO | 业务事件（创建、更新、删除） |
 | WARNING | 可恢复的异常情况 |
 | ERROR | 需要关注的错误 |
+
+### 4.3 关键业务事件必须结构化记录
+
+- 使用 `BusinessEvents` 或 `get_business_logger()` 记录关键业务动作（如通知发送、用户反馈、点击追踪、预算/降级等）。
+- `loguru` 仅用于调试/开发日志，避免用来记录业务事件。
 
 ---
 
@@ -240,4 +247,3 @@ def test_create_goal_without_name_raises_validation_error():
 - [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)
 - [FastAPI Best Practices](https://github.com/zhanymkanov/fastapi-best-practices)
 - [Cosmic Python (DDD with Python)](https://www.cosmicpython.com/)
-

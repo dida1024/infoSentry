@@ -61,6 +61,29 @@ async def create_goal(
 
 ---
 
+### ❌ Interfaces 直接依赖 Domain 仓储/实体
+
+```python
+# ❌ 错误：接口层直接注入 Domain Repository
+from src.modules.goals.domain.repository import GoalRepository
+
+@router.get("/goals/{goal_id}")
+async def get_goal(goal_id: str, repo: GoalRepository = Depends(...)):
+    goal = await repo.get_by_id(goal_id)
+    ...
+```
+
+```python
+# ✅ 正确：接口层调用 Application Service
+from src.modules.goals.application.services import GoalQueryService
+
+@router.get("/goals/{goal_id}")
+async def get_goal(goal_id: str, service: GoalQueryService = Depends(...)):
+    return await service.get_goal_detail(goal_id)
+```
+
+---
+
 ### ❌ 跨模块直接访问数据库
 
 ```python
@@ -118,6 +141,23 @@ except SpecificError as e:
     # 决定是否重新抛出
 ```
 
+```python
+# ❌ 错误：接口层吞掉异常并返回通用错误但不记录日志
+try:
+    ...
+except Exception:
+    return ApiResponse.error(message="Failed", code=500)
+```
+
+```python
+# ✅ 正确：记录异常并返回错误响应
+try:
+    ...
+except Exception as e:
+    logger.exception("Failed to handle request")
+    return ApiResponse.error(message="Failed", code=500)
+```
+
 ---
 
 ### ❌ 硬编码配置值
@@ -134,6 +174,18 @@ from src.core.config import settings
 
 redis_url = settings.REDIS_URL
 api_key = settings.OPENAI_API_KEY
+```
+
+```python
+# ❌ 错误：分页/游标默认值硬编码在服务或路由中
+def _decode_cursor(cursor: str | None) -> tuple[int, int]:
+    return 1, 20
+```
+
+```python
+# ✅ 正确：默认值从配置读取
+def _decode_cursor(cursor: str | None) -> tuple[int, int]:
+    return settings.DEFAULT_PAGE, settings.DEFAULT_PAGE_SIZE
 ```
 
 ---
@@ -292,4 +344,3 @@ def test_update_goal():
 ## 记住
 
 > "如果你不确定某个做法是否正确，问自己：这段代码一年后还容易理解和修改吗？"
-

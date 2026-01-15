@@ -131,6 +131,7 @@ interfaces ──→ application ──→ domain
 - ✅ Application 只依赖 Domain
 - ✅ Infrastructure 实现 Domain 定义的接口
 - ✅ Interfaces 调用 Application
+- ✅ Interfaces 不直接依赖 Domain 仓储/实体（通过 Application 服务或 DTO）
 
 ---
 
@@ -205,4 +206,3 @@ modules/simple/
 
 - [Cosmic Python](https://www.cosmicpython.com/) - Python DDD 最佳实践
 - [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-
