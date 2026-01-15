@@ -101,6 +101,16 @@ export default function GoalsPage() {
     { value: "paused", label: "已暂停" },
     { value: "archived", label: "已归档" },
   ];
+  const activeFilterLabel =
+    filterOptions.find((option) => option.value === statusFilter)?.label ??
+    "全部";
+  const isAllFilter = statusFilter === undefined;
+  const emptyStateTitle = isAllFilter
+    ? "还没有创建任何目标"
+    : `暂无${activeFilterLabel}目标`;
+  const emptyStateDescription = isAllFilter
+    ? "创建一个目标来开始追踪您感兴趣的信息"
+    : "尝试切换其他状态";
 
   return (
     <div>
@@ -151,12 +161,14 @@ export default function GoalsPage() {
       ) : !data?.items?.length ? (
         <EmptyState
           icon={<Target className="h-12 w-12" />}
-          title="还没有创建任何目标"
-          description="创建一个目标来开始追踪您感兴趣的信息"
+          title={emptyStateTitle}
+          description={emptyStateDescription}
           action={
-            <Link href="/goals/new">
-              <Button>创建第一个目标</Button>
-            </Link>
+            isAllFilter ? (
+              <Link href="/goals/new">
+                <Button>创建第一个目标</Button>
+              </Link>
+            ) : undefined
           }
         />
       ) : (
@@ -169,4 +181,3 @@ export default function GoalsPage() {
     </div>
   );
 }
-
