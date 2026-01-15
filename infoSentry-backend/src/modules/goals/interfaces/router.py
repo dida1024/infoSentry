@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, Query, status
 
 from src.core.application.security import get_current_user_id
+from src.core.config import settings
 from src.core.infrastructure.logging import get_business_logger
 from src.core.interfaces.http.exceptions import BizException
 from src.core.interfaces.http.response import ApiResponse, PaginatedResponse
@@ -18,12 +19,10 @@ from src.modules.goals.application.dependencies import (
     get_delete_goal_handler,
     get_goal_draft_service,
     get_goal_match_query_service,
-    get_goal_repository,
+    get_goal_query_service,
     get_keyword_suggestion_service,
     get_pause_goal_handler,
-    get_push_config_repository,
     get_resume_goal_handler,
-    get_term_repository,
     get_update_goal_handler,
 )
 from src.modules.goals.application.goal_draft_service import (
@@ -39,13 +38,9 @@ from src.modules.goals.application.handlers import (
     UpdateGoalHandler,
 )
 from src.modules.goals.application.keyword_service import KeywordSuggestionService
-from src.modules.goals.application.services import GoalMatchQueryService
-from src.modules.goals.domain.entities import Goal, TermType
-from src.modules.goals.domain.exceptions import GoalNotFoundError
-from src.modules.goals.domain.repository import (
-    GoalPriorityTermRepository,
-    GoalPushConfigRepository,
-    GoalRepository,
+from src.modules.goals.application.services import (
+    GoalMatchQueryService,
+    GoalQueryService,
 )
 from src.modules.goals.interfaces.schemas import (
     CreateGoalRequest,
@@ -63,34 +58,6 @@ from src.modules.goals.interfaces.schemas import (
 router = APIRouter(prefix="/goals", tags=["goals"])
 
 
-async def _build_goal_response(
-    goal: Goal,
-    push_config_repo: GoalPushConfigRepository,
-    term_repo: GoalPriorityTermRepository,
-) -> GoalResponse:
-    """Build goal response with config and terms."""
-    push_config = await push_config_repo.get_by_goal_id(goal.id)
-    terms = await term_repo.list_by_goal(goal.id)
-
-    priority_terms = [t.term for t in terms if t.term_type == TermType.MUST]
-    negative_terms = [t.term for t in terms if t.term_type == TermType.NEGATIVE]
-
-    return GoalResponse(
-        id=goal.id,
-        name=goal.name,
-        description=goal.description,
-        priority_mode=goal.priority_mode,
-        status=goal.status,
-        priority_terms=priority_terms if priority_terms else None,
-        negative_terms=negative_terms if negative_terms else None,
-        batch_windows=push_config.batch_windows if push_config else None,
-        digest_send_time=push_config.digest_send_time if push_config else None,
-        stats=None,
-        created_at=goal.created_at,
-        updated_at=goal.updated_at,
-    )
-
-
 @router.get(
     "",
     response_model=PaginatedResponse[GoalResponse],
@@ -98,32 +65,20 @@ async def _build_goal_response(
     description="获取当前用户的所有Goal",
 )
 async def list_goals(
-    page: int = Query(1, ge=1, description="页码"),
-    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    user_id: str = Depends(get_current_user_id),
-    goal_repository: GoalRepository = Depends(get_goal_repository),
-    push_config_repository: GoalPushConfigRepository = Depends(
-        get_push_config_repository
+    page: int = Query(settings.DEFAULT_PAGE, ge=1, description="页码"),
+    page_size: int = Query(
+        settings.DEFAULT_PAGE_SIZE, ge=1, le=100, description="每页数量"
     ),
-    term_repository: GoalPriorityTermRepository = Depends(get_term_repository),
+    user_id: str = Depends(get_current_user_id),
+    service: GoalQueryService = Depends(get_goal_query_service),
 ) -> PaginatedResponse[GoalResponse]:
     """List all goals for current user."""
-    goals, total = await goal_repository.list_by_user(
-        user_id=user_id,
-        page=page,
-        page_size=page_size,
-    )
-
-    responses = []
-    for goal in goals:
-        response = await _build_goal_response(
-            goal, push_config_repository, term_repository
-        )
-        responses.append(response)
+    result = await service.list_goals(user_id=user_id, page=page, page_size=page_size)
+    responses = [GoalResponse(**item.model_dump()) for item in result.items]
 
     return PaginatedResponse.create(
         items=responses,
-        total=total,
+        total=result.total,
         page=page,
         page_size=page_size,
     )
@@ -140,10 +95,7 @@ async def create_goal(
     request: CreateGoalRequest,
     user_id: str = Depends(get_current_user_id),
     handler: CreateGoalHandler = Depends(get_create_goal_handler),
-    push_config_repository: GoalPushConfigRepository = Depends(
-        get_push_config_repository
-    ),
-    term_repository: GoalPriorityTermRepository = Depends(get_term_repository),
+    query_service: GoalQueryService = Depends(get_goal_query_service),
 ) -> ApiResponse[GoalResponse]:
     """Create a new goal."""
     command = CreateGoalCommand(
@@ -158,9 +110,12 @@ async def create_goal(
     )
     goal = await handler.handle(command)
 
-    response = await _build_goal_response(goal, push_config_repository, term_repository)
+    response = await query_service.build_goal_data(goal)
 
-    return ApiResponse.success(data=response, message="Goal created successfully")
+    return ApiResponse.success(
+        data=GoalResponse(**response.model_dump()),
+        message="Goal created successfully",
+    )
 
 
 @router.post(
@@ -245,24 +200,11 @@ async def generate_goal_draft(
 async def get_goal(
     goal_id: str,
     user_id: str = Depends(get_current_user_id),
-    goal_repository: GoalRepository = Depends(get_goal_repository),
-    push_config_repository: GoalPushConfigRepository = Depends(
-        get_push_config_repository
-    ),
-    term_repository: GoalPriorityTermRepository = Depends(get_term_repository),
+    service: GoalQueryService = Depends(get_goal_query_service),
 ) -> ApiResponse[GoalResponse]:
     """Get goal details."""
-    goal = await goal_repository.get_by_id(goal_id)
-    if not goal:
-        raise GoalNotFoundError(goal_id)
-
-    # Access check
-    if goal.user_id != user_id:
-        raise GoalNotFoundError(goal_id)
-
-    response = await _build_goal_response(goal, push_config_repository, term_repository)
-
-    return ApiResponse.success(data=response)
+    response = await service.get_goal(goal_id=goal_id, user_id=user_id)
+    return ApiResponse.success(data=GoalResponse(**response.model_dump()))
 
 
 @router.put(
@@ -276,10 +218,7 @@ async def update_goal(
     request: UpdateGoalRequest,
     user_id: str = Depends(get_current_user_id),
     handler: UpdateGoalHandler = Depends(get_update_goal_handler),
-    push_config_repository: GoalPushConfigRepository = Depends(
-        get_push_config_repository
-    ),
-    term_repository: GoalPriorityTermRepository = Depends(get_term_repository),
+    query_service: GoalQueryService = Depends(get_goal_query_service),
 ) -> ApiResponse[GoalResponse]:
     """Update a goal."""
     command = UpdateGoalCommand(
@@ -295,9 +234,11 @@ async def update_goal(
     )
     goal = await handler.handle(command)
 
-    response = await _build_goal_response(goal, push_config_repository, term_repository)
-
-    return ApiResponse.success(data=response, message="Goal updated successfully")
+    response = await query_service.build_goal_data(goal)
+    return ApiResponse.success(
+        data=GoalResponse(**response.model_dump()),
+        message="Goal updated successfully",
+    )
 
 
 @router.delete(
@@ -365,8 +306,10 @@ class GoalMatchListResponse(PaginatedResponse[GoalItemMatchResponse]):
 async def get_goal_matches(
     goal_id: str,
     min_score: float = Query(0.0, ge=0, le=1, description="最小匹配分数"),
-    page: int = Query(1, ge=1, description="页码"),
-    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+    page: int = Query(settings.DEFAULT_PAGE, ge=1, description="页码"),
+    page_size: int = Query(
+        settings.DEFAULT_PAGE_SIZE, ge=1, le=100, description="每页数量"
+    ),
     user_id: str = Depends(get_current_user_id),
     service: GoalMatchQueryService = Depends(get_goal_match_query_service),
 ) -> GoalMatchListResponse:
@@ -374,7 +317,7 @@ async def get_goal_matches(
     result = await service.list_matches(
         goal_id=goal_id,
         user_id=user_id,
-        min_score=min_score if min_score > 0 else None,
+        min_score=min_score,
         page=page,
         page_size=page_size,
     )

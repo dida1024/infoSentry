@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, Query, status
 
 from src.core.application.security import get_current_user_id
+from src.core.config import settings
 from src.core.interfaces.http.response import ApiResponse, PaginatedResponse
 from src.modules.sources.application.commands import (
     CreateSourceCommand,
@@ -16,7 +17,7 @@ from src.modules.sources.application.dependencies import (
     get_delete_source_handler,
     get_disable_source_handler,
     get_enable_source_handler,
-    get_source_repository,
+    get_source_query_service,
     get_update_source_handler,
 )
 from src.modules.sources.application.handlers import (
@@ -26,9 +27,8 @@ from src.modules.sources.application.handlers import (
     EnableSourceHandler,
     UpdateSourceHandler,
 )
-from src.modules.sources.domain.entities import Source, SourceType
-from src.modules.sources.domain.exceptions import SourceNotFoundError
-from src.modules.sources.domain.repository import SourceRepository
+from src.modules.sources.application.services import SourceQueryService
+from src.modules.sources.domain.entities import SourceType
 from src.modules.sources.interfaces.schemas import (
     CreateSourceRequest,
     SourceResponse,
@@ -36,23 +36,6 @@ from src.modules.sources.interfaces.schemas import (
 )
 
 router = APIRouter(prefix="/sources", tags=["sources"])
-
-
-def _source_to_response(source: Source) -> SourceResponse:
-    """Convert source entity to response."""
-    return SourceResponse(
-        id=source.id,
-        type=source.type,
-        name=source.name,
-        enabled=source.enabled,
-        fetch_interval_sec=source.fetch_interval_sec,
-        next_fetch_at=source.next_fetch_at,
-        last_fetch_at=source.last_fetch_at,
-        error_streak=source.error_streak,
-        config=source.config,
-        created_at=source.created_at,
-        updated_at=source.updated_at,
-    )
 
 
 @router.get(
@@ -63,22 +46,23 @@ def _source_to_response(source: Source) -> SourceResponse:
 )
 async def list_sources(
     type: SourceType | None = Query(None, description="源类型过滤"),
-    page: int = Query(1, ge=1, description="页码"),
-    page_size: int = Query(50, ge=1, le=100, description="每页数量"),
+    page: int = Query(settings.DEFAULT_PAGE, ge=1, description="页码"),
+    page_size: int = Query(
+        settings.SOURCES_PAGE_SIZE, ge=1, le=100, description="每页数量"
+    ),
     _: str = Depends(get_current_user_id),
-    source_repository: SourceRepository = Depends(get_source_repository),
+    service: SourceQueryService = Depends(get_source_query_service),
 ) -> PaginatedResponse[SourceResponse]:
     """List all sources."""
-    sources, total = await source_repository.list_by_type(
+    result = await service.list_sources(
         source_type=type,
-        enabled_only=False,
         page=page,
         page_size=page_size,
     )
 
     return PaginatedResponse.create(
-        items=[_source_to_response(s) for s in sources],
-        total=total,
+        items=[SourceResponse(**item.model_dump()) for item in result.items],
+        total=result.total,
         page=page,
         page_size=page_size,
     )
@@ -95,6 +79,7 @@ async def create_source(
     request: CreateSourceRequest,
     _: str = Depends(get_current_user_id),
     handler: CreateSourceHandler = Depends(get_create_source_handler),
+    query_service: SourceQueryService = Depends(get_source_query_service),
 ) -> ApiResponse[SourceResponse]:
     """Create a new source."""
     command = CreateSourceCommand(
@@ -106,7 +91,7 @@ async def create_source(
     source = await handler.handle(command)
 
     return ApiResponse.success(
-        data=_source_to_response(source),
+        data=SourceResponse(**query_service.build_source_data(source).model_dump()),
         message="Source created successfully",
     )
 
@@ -120,14 +105,11 @@ async def create_source(
 async def get_source(
     source_id: str,
     _: str = Depends(get_current_user_id),
-    source_repository: SourceRepository = Depends(get_source_repository),
+    service: SourceQueryService = Depends(get_source_query_service),
 ) -> ApiResponse[SourceResponse]:
     """Get source by ID."""
-    source = await source_repository.get_by_id(source_id)
-    if not source:
-        raise SourceNotFoundError(source_id=source_id)
-
-    return ApiResponse.success(data=_source_to_response(source))
+    source = await service.get_source(source_id=source_id)
+    return ApiResponse.success(data=SourceResponse(**source.model_dump()))
 
 
 @router.put(
@@ -141,6 +123,7 @@ async def update_source(
     request: UpdateSourceRequest,
     _: str = Depends(get_current_user_id),
     handler: UpdateSourceHandler = Depends(get_update_source_handler),
+    query_service: SourceQueryService = Depends(get_source_query_service),
 ) -> ApiResponse[SourceResponse]:
     """Update a source."""
     command = UpdateSourceCommand(
@@ -152,7 +135,7 @@ async def update_source(
     source = await handler.handle(command)
 
     return ApiResponse.success(
-        data=_source_to_response(source),
+        data=SourceResponse(**query_service.build_source_data(source).model_dump()),
         message="Source updated successfully",
     )
 
@@ -167,13 +150,14 @@ async def enable_source(
     source_id: str,
     _: str = Depends(get_current_user_id),
     handler: EnableSourceHandler = Depends(get_enable_source_handler),
+    query_service: SourceQueryService = Depends(get_source_query_service),
 ) -> ApiResponse[SourceResponse]:
     """Enable a source."""
     command = EnableSourceCommand(source_id=source_id)
     source = await handler.handle(command)
 
     return ApiResponse.success(
-        data=_source_to_response(source),
+        data=SourceResponse(**query_service.build_source_data(source).model_dump()),
         message="Source enabled",
     )
 
@@ -188,13 +172,14 @@ async def disable_source(
     source_id: str,
     _: str = Depends(get_current_user_id),
     handler: DisableSourceHandler = Depends(get_disable_source_handler),
+    query_service: SourceQueryService = Depends(get_source_query_service),
 ) -> ApiResponse[SourceResponse]:
     """Disable a source."""
     command = DisableSourceCommand(source_id=source_id)
     source = await handler.handle(command)
 
     return ApiResponse.success(
-        data=_source_to_response(source),
+        data=SourceResponse(**query_service.build_source_data(source).model_dump()),
         message="Source disabled",
     )
 

@@ -11,6 +11,7 @@ from src.modules.sources.application.handlers import (
     EnableSourceHandler,
     UpdateSourceHandler,
 )
+from src.modules.sources.application.services import SourceQueryService
 from src.modules.sources.domain.repository import SourceRepository
 
 
@@ -50,3 +51,9 @@ async def get_delete_source_handler(
     source_repository: SourceRepository = Depends(get_source_repository),
 ) -> DeleteSourceHandler:
     return DeleteSourceHandler(source_repository)
+
+
+async def get_source_query_service(
+    source_repository: SourceRepository = Depends(get_source_repository),
+) -> SourceQueryService:
+    return SourceQueryService(source_repository)

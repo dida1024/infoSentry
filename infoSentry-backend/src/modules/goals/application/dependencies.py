@@ -19,7 +19,10 @@ from src.modules.goals.application.handlers import (
     UpdateGoalHandler,
 )
 from src.modules.goals.application.keyword_service import KeywordSuggestionService
-from src.modules.goals.application.services import GoalMatchQueryService
+from src.modules.goals.application.services import (
+    GoalMatchQueryService,
+    GoalQueryService,
+)
 from src.modules.goals.domain.repository import (
     GoalPriorityTermRepository,
     GoalPushConfigRepository,
@@ -105,6 +108,20 @@ async def get_goal_match_query_service(
         match_repository=match_repository,
         item_repository=item_repository,
         source_repository=source_repository,
+    )
+
+
+async def get_goal_query_service(
+    goal_repository: GoalRepository = Depends(get_goal_repository),
+    push_config_repository: GoalPushConfigRepository = Depends(
+        get_push_config_repository
+    ),
+    term_repository: GoalPriorityTermRepository = Depends(get_term_repository),
+) -> GoalQueryService:
+    return GoalQueryService(
+        goal_repository=goal_repository,
+        push_config_repository=push_config_repository,
+        term_repository=term_repository,
     )
 
 

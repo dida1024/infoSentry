@@ -2,13 +2,21 @@
 
 from loguru import logger
 
+from src.core.config import settings
 from src.modules.goals.application.models import (
+    GoalData,
+    GoalListData,
     GoalMatchData,
     GoalMatchListData,
     ItemData,
 )
+from src.modules.goals.domain.entities import Goal, TermType
 from src.modules.goals.domain.exceptions import GoalNotFoundError
-from src.modules.goals.domain.repository import GoalRepository
+from src.modules.goals.domain.repository import (
+    GoalPriorityTermRepository,
+    GoalPushConfigRepository,
+    GoalRepository,
+)
 from src.modules.items.domain.repository import GoalItemMatchRepository, ItemRepository
 from src.modules.sources.domain.repository import SourceRepository
 
@@ -34,8 +42,8 @@ class GoalMatchQueryService:
         goal_id: str,
         user_id: str,
         min_score: float | None = None,
-        page: int = 1,
-        page_size: int = 20,
+        page: int = settings.DEFAULT_PAGE,
+        page_size: int = settings.DEFAULT_PAGE_SIZE,
     ) -> GoalMatchListData:
         """List matches for a goal.
 
@@ -57,6 +65,9 @@ class GoalMatchQueryService:
         goal = await self.goal_repo.get_by_id(goal_id)
         if not goal or goal.user_id != user_id:
             raise GoalNotFoundError(goal_id)
+
+        if min_score is not None and min_score <= 0:
+            min_score = None
 
         # Query matches
         matches, total = await self.match_repo.list_by_goal(
@@ -113,3 +124,67 @@ class GoalMatchQueryService:
             page=page,
             page_size=page_size,
         )
+
+
+class GoalQueryService:
+    """Goal query service for list/detail views."""
+
+    def __init__(
+        self,
+        goal_repository: GoalRepository,
+        push_config_repository: GoalPushConfigRepository,
+        term_repository: GoalPriorityTermRepository,
+    ) -> None:
+        self.goal_repo = goal_repository
+        self.push_config_repo = push_config_repository
+        self.term_repo = term_repository
+
+    async def build_goal_data(self, goal: Goal) -> GoalData:
+        """Build goal data with config and terms."""
+        push_config = await self.push_config_repo.get_by_goal_id(goal.id)
+        terms = await self.term_repo.list_by_goal(goal.id)
+
+        priority_terms = [t.term for t in terms if t.term_type == TermType.MUST]
+        negative_terms = [t.term for t in terms if t.term_type == TermType.NEGATIVE]
+
+        return GoalData(
+            id=goal.id,
+            name=goal.name,
+            description=goal.description,
+            priority_mode=goal.priority_mode,
+            status=goal.status,
+            priority_terms=priority_terms if priority_terms else None,
+            negative_terms=negative_terms if negative_terms else None,
+            batch_windows=push_config.batch_windows if push_config else None,
+            digest_send_time=push_config.digest_send_time if push_config else None,
+            stats=None,
+            created_at=goal.created_at,
+            updated_at=goal.updated_at,
+        )
+
+    async def list_goals(
+        self, user_id: str, page: int, page_size: int
+    ) -> GoalListData:
+        """List all goals for a user."""
+        goals, total = await self.goal_repo.list_by_user(
+            user_id=user_id,
+            page=page,
+            page_size=page_size,
+        )
+
+        items = [await self.build_goal_data(goal) for goal in goals]
+
+        return GoalListData(
+            items=items,
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
+
+    async def get_goal(self, goal_id: str, user_id: str) -> GoalData:
+        """Get goal detail with access check."""
+        goal = await self.goal_repo.get_by_id(goal_id)
+        if not goal or goal.user_id != user_id:
+            raise GoalNotFoundError(goal_id)
+
+        return await self.build_goal_data(goal)

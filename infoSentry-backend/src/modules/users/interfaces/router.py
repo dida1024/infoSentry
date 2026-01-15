@@ -2,7 +2,7 @@
 
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 
 from src.core.application.security import get_current_user_id
 from src.core.config import settings
@@ -18,15 +18,14 @@ from src.modules.users.application.dependencies import (
     get_request_magic_link_handler,
     get_update_profile_handler,
     get_user_budget_usage_service,
-    get_user_repository,
+    get_user_query_service,
 )
 from src.modules.users.application.handlers import (
     ConsumeMagicLinkHandler,
     RequestMagicLinkHandler,
     UpdateProfileHandler,
 )
-from src.modules.users.domain.exceptions import UserNotFoundError
-from src.modules.users.domain.repository import UserRepository
+from src.modules.users.application.query_service import UserQueryService
 from src.modules.users.interfaces.schemas import (
     ConsumeTokenResponse,
     MagicLinkResponse,
@@ -99,26 +98,11 @@ async def consume_magic_link(
 )
 async def get_current_user(
     user_id: str = Depends(get_current_user_id),
-    user_repository: UserRepository = Depends(get_user_repository),
+    service: UserQueryService = Depends(get_user_query_service),
 ) -> ApiResponse[UserResponse]:
     """Get current user info."""
-    user = await user_repository.get_by_id(user_id)
-    if not user:
-        raise UserNotFoundError(user_id=user_id)
-
-    return ApiResponse.success(
-        data=UserResponse(
-            id=user.id,
-            email=user.email,
-            is_active=user.is_active,
-            status=user.status.value,
-            display_name=user.display_name,
-            timezone=user.timezone,
-            last_login_at=user.last_login_at,
-            created_at=user.created_at,
-            updated_at=user.updated_at,
-        )
-    )
+    user = await service.get_current_user(user_id=user_id)
+    return ApiResponse.success(data=UserResponse(**user.model_dump()))
 
 
 @router.put(
@@ -169,15 +153,6 @@ async def get_user_budget_usage(
     budget_service: UserBudgetUsageService = Depends(get_user_budget_usage_service),
 ) -> ApiResponse[UserBudgetUsageResponse]:
     """Get current user's AI budget usage."""
-    if end_date < start_date:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "VALIDATION_ERROR",
-                "message": "end_date must be greater than or equal to start_date",
-            },
-        )
-
     summary = await budget_service.get_usage_summary(
         user_id=user_id, start_date=start_date, end_date=end_date
     )

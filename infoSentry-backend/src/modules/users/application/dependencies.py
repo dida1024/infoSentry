@@ -14,6 +14,7 @@ from src.modules.users.application.handlers import (
     RequestMagicLinkHandler,
     UpdateProfileHandler,
 )
+from src.modules.users.application.query_service import UserQueryService
 from src.modules.users.domain.repository import (
     MagicLinkRepository,
     UserBudgetDailyRepository,
@@ -69,3 +70,9 @@ async def get_user_budget_usage_service(
     ),
 ) -> UserBudgetUsageService:
     return UserBudgetUsageService(budget_repository)
+
+
+async def get_user_query_service(
+    user_repository: UserRepository = Depends(get_user_repository),
+) -> UserQueryService:
+    return UserQueryService(user_repository)

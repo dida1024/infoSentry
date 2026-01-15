@@ -4,6 +4,43 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from src.modules.goals.domain.entities import GoalStatus, PriorityMode
+
+
+class GoalStatsData(BaseModel):
+    """Goal statistics data."""
+
+    total_matches: int = 0
+    immediate_count: int = 0
+    batch_count: int = 0
+    digest_count: int = 0
+
+
+class GoalData(BaseModel):
+    """Goal data for queries."""
+
+    id: str
+    name: str
+    description: str
+    priority_mode: PriorityMode
+    status: GoalStatus
+    priority_terms: list[str] | None = None
+    negative_terms: list[str] | None = None
+    batch_windows: list[str] | None = None
+    digest_send_time: str | None = None
+    stats: GoalStatsData | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class GoalListData(BaseModel):
+    """Goal list query result."""
+
+    items: list[GoalData]
+    total: int
+    page: int
+    page_size: int
+
 
 class ItemData(BaseModel):
     """Item data for match results."""

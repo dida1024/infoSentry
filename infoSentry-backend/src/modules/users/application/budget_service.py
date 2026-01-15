@@ -8,6 +8,7 @@ from datetime import UTC, date, datetime, timedelta
 import structlog
 
 from src.core.config import settings
+from src.core.domain.exceptions import ValidationError
 from src.modules.items.application.budget_service import BudgetService
 from src.modules.users.domain.entities import UserBudgetDaily
 from src.modules.users.domain.repository import UserBudgetDailyRepository
@@ -123,6 +124,8 @@ class UserBudgetUsageService:
         self, user_id: str, start_date: date, end_date: date
     ) -> UserBudgetUsageSummary:
         """Get usage summary for a date range."""
+        if end_date < start_date:
+            raise ValidationError("end_date must be greater than or equal to start_date")
         daily_usage = await self.get_daily_usage(
             user_id=user_id, start_date=start_date, end_date=end_date
         )
