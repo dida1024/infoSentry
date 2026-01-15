@@ -48,7 +48,7 @@ async def _embed_item_async(item_id: str) -> None:
     from src.modules.items.infrastructure.repositories import PostgreSQLItemRepository
 
     async with (
-        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_redis_client(timeout=settings.REDIS_CLIENT_TIMEOUT_SEC) as redis_client,
         get_async_session() as session,
     ):
         try:
@@ -117,7 +117,7 @@ async def _embed_pending_items_async(limit: int) -> None:
     from src.modules.items.infrastructure.repositories import PostgreSQLItemRepository
 
     async with (
-        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_redis_client(timeout=settings.REDIS_CLIENT_TIMEOUT_SEC) as redis_client,
         get_async_session() as session,
     ):
         try:
@@ -202,7 +202,7 @@ async def _match_item_async(item_id: str) -> None:
     )
 
     async with (
-        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_redis_client(timeout=settings.REDIS_CLIENT_TIMEOUT_SEC) as redis_client,
         get_async_session() as session,
     ):
         try:
@@ -259,7 +259,9 @@ async def _match_item_async(item_id: str) -> None:
     max_retries=0,
     queue=Queues.MATCH,
 )
-def match_items_for_goal(_self: object, goal_id: str, hours_back: int = 24) -> None:
+def match_items_for_goal(
+    _self: object, goal_id: str, hours_back: int = settings.MATCH_ITEMS_HOURS_BACK_DEFAULT
+) -> None:
     """为特定 Goal 重新计算最近 Items 的匹配。
 
     用于 Goal 创建或更新后的重新匹配。
@@ -294,7 +296,7 @@ async def _match_items_for_goal_async(goal_id: str, hours_back: int) -> None:
     )
 
     async with (
-        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_redis_client(timeout=settings.REDIS_CLIENT_TIMEOUT_SEC) as redis_client,
         get_async_session() as session,
     ):
         try:
@@ -331,7 +333,9 @@ async def _match_items_for_goal_async(goal_id: str, hours_back: int) -> None:
 
             # 获取最近的 Items
             since = datetime.now(UTC) - timedelta(hours=hours_back)
-            items, _ = await item_repo.list_recent(since=since, page_size=500)
+            items, _ = await item_repo.list_recent(
+                since=since, page_size=settings.MATCH_ITEMS_RECENT_PAGE_SIZE
+            )
 
             logger.info(f"Matching {len(items)} items to goal {goal_id}")
 

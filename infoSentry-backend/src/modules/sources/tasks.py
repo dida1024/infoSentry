@@ -31,7 +31,7 @@ def check_and_dispatch_fetches(_self: object) -> None:
     asyncio.run(_check_and_dispatch_fetches_async())
 
 
-async def _check_and_dispatch_fetches_async():
+async def _check_and_dispatch_fetches_async() -> None:
     """异步版本的检查调度逻辑。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
@@ -91,7 +91,7 @@ def ingest_source(_self: object, source_id: str) -> None:
     asyncio.run(_ingest_source_async(source_id))
 
 
-async def _ingest_source_async(source_id: str):
+async def _ingest_source_async(source_id: str) -> None:
     """异步版本的抓取逻辑。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
@@ -195,7 +195,7 @@ def force_ingest_all(_self: object, source_type: str | None = None) -> None:
     asyncio.run(_force_ingest_all_async(source_type))
 
 
-async def _force_ingest_all_async(source_type: str | None):
+async def _force_ingest_all_async(source_type: str | None) -> None:
     """异步版本的强制抓取。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
@@ -220,7 +220,7 @@ async def _force_ingest_all_async(source_type: str | None):
                 source_type=source_type_filter,
                 enabled_only=True,
                 page=1,
-                page_size=1000,
+                page_size=settings.FORCE_INGEST_PAGE_SIZE,
             )
 
             logger.info(f"Force ingesting {len(sources)} sources")

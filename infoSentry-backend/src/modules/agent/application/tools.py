@@ -280,7 +280,9 @@ class GetHistoryTool(BaseTool):
         if self.decision_repo:
             since = datetime.now(UTC) - timedelta(hours=window_hours)
             decisions, _ = await self.decision_repo.list_by_goal(
-                goal_id=goal_id, since=since, page_size=20
+                goal_id=goal_id,
+                since=since,
+                page_size=settings.AGENT_HISTORY_PAGE_SIZE,
             )
             history.recent_decisions = [
                 {
@@ -293,7 +295,9 @@ class GetHistoryTool(BaseTool):
 
         # 获取最近点击
         if self.click_repo:
-            clicks = await self.click_repo.list_by_goal(goal_id, limit=10)
+            clicks = await self.click_repo.list_by_goal(
+                goal_id, limit=settings.AGENT_RECENT_CLICKS_LIMIT
+            )
             history.recent_clicks = [
                 {"item_id": c.item_id, "clicked_at": c.created_at.isoformat()}
                 for c in clicks

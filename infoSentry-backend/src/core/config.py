@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     CURSOR_DEFAULT_PAGE: int = 1
     CURSOR_DEFAULT_PAGE_SIZE: int = 20
     NOTIFICATION_GOAL_LOOKUP_LIMIT: int = 100
+    MATCH_ITEMS_HOURS_BACK_DEFAULT: int = 24
+    MATCH_ITEMS_RECENT_PAGE_SIZE: int = 500
+    MATCH_FEEDBACK_PAGE_SIZE: int = 100
+    FORCE_INGEST_PAGE_SIZE: int = 1000
+    AGENT_HISTORY_PAGE_SIZE: int = 20
+    AGENT_RECENT_CLICKS_LIMIT: int = 10
+    REDIS_CLIENT_TIMEOUT_SEC: float = 5.0
 
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyUrl] | str, BeforeValidator(parse_cors)

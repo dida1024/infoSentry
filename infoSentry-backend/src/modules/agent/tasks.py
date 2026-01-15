@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from celery import shared_task
 from loguru import logger
 
+from src.core.config import settings
 from src.core.infrastructure.celery.queues import Queues
 
 
@@ -95,7 +96,7 @@ async def _handle_match_computed_async(
     )
 
     async with (
-        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_redis_client(timeout=settings.REDIS_CLIENT_TIMEOUT_SEC) as redis_client,
         get_async_session() as session,
     ):
         try:
@@ -212,7 +213,7 @@ def check_and_trigger_batch_windows(_self: object) -> None:
     asyncio.run(_check_and_trigger_batch_windows_async())
 
 
-async def _check_and_trigger_batch_windows_async():
+async def _check_and_trigger_batch_windows_async() -> None:
     """异步版本的 Batch 窗口检查。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
@@ -288,7 +289,7 @@ def trigger_batch_for_goal(_self: object, goal_id: str, window_time: str) -> Non
     asyncio.run(_trigger_batch_for_goal_async(goal_id, window_time))
 
 
-async def _trigger_batch_for_goal_async(goal_id: str, window_time: str):
+async def _trigger_batch_for_goal_async(goal_id: str, window_time: str) -> None:
     """异步版本的 Batch 触发。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
@@ -378,7 +379,7 @@ def check_and_send_digest(_self: object) -> None:
     asyncio.run(_check_and_send_digest_async())
 
 
-async def _check_and_send_digest_async():
+async def _check_and_send_digest_async() -> None:
     """异步版本的 Digest 检查。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
@@ -447,7 +448,7 @@ def trigger_digest_for_goal(_self: object, goal_id: str) -> None:
     asyncio.run(_trigger_digest_for_goal_async(goal_id))
 
 
-async def _trigger_digest_for_goal_async(goal_id: str):
+async def _trigger_digest_for_goal_async(goal_id: str) -> None:
     """异步版本的 Digest 触发。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
@@ -553,13 +554,15 @@ def run_health_check(_self: object) -> None:
     asyncio.run(_run_health_check_async())
 
 
-async def _run_health_check_async():
+async def _run_health_check_async() -> None:
     """异步版本的健康检查。"""
     from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.agent.application.monitoring_service import MonitoringService
 
     try:
-        async with get_async_redis_client(timeout=5.0) as redis_client:
+        async with get_async_redis_client(
+            timeout=settings.REDIS_CLIENT_TIMEOUT_SEC
+        ) as redis_client:
             monitoring = MonitoringService(redis_client)
 
             status = await monitoring.check_all()
@@ -599,13 +602,15 @@ def record_worker_heartbeat(_self: object, worker_type: str) -> None:
     asyncio.run(_record_worker_heartbeat_async(worker_type))
 
 
-async def _record_worker_heartbeat_async(worker_type: str):
+async def _record_worker_heartbeat_async(worker_type: str) -> None:
     """异步版本的心跳记录。"""
     from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.agent.application.monitoring_service import MonitoringService
 
     try:
-        async with get_async_redis_client(timeout=5.0) as redis_client:
+        async with get_async_redis_client(
+            timeout=settings.REDIS_CLIENT_TIMEOUT_SEC
+        ) as redis_client:
             monitoring = MonitoringService(redis_client)
             await monitoring.record_worker_heartbeat(worker_type)
             logger.debug(f"Heartbeat recorded for worker: {worker_type}")
@@ -613,7 +618,7 @@ async def _record_worker_heartbeat_async(worker_type: str):
         logger.warning(f"Failed to record heartbeat: {e}")
 
 
-async def _check_and_update_budget_async():
+async def _check_and_update_budget_async() -> None:
     """异步版本的预算检查。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
@@ -625,7 +630,7 @@ async def _check_and_update_budget_async():
     from src.modules.items.application.budget_service import BudgetService
 
     async with (
-        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_redis_client(timeout=settings.REDIS_CLIENT_TIMEOUT_SEC) as redis_client,
         get_async_session() as session,
     ):
         try:

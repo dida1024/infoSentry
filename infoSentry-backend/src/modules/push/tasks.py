@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from celery import shared_task
 from loguru import logger
 
+from src.core.config import settings
 from src.core.infrastructure.celery.queues import Queues
 
 
@@ -37,7 +38,7 @@ def check_and_coalesce_immediate(_self: object) -> None:
     asyncio.run(_check_and_coalesce_immediate_async())
 
 
-async def _check_and_coalesce_immediate_async():
+async def _check_and_coalesce_immediate_async() -> None:
     """Async implementation of immediate buffer check."""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
@@ -63,7 +64,9 @@ async def _check_and_coalesce_immediate_async():
 
     try:
         async with (
-            get_async_redis_client(timeout=5.0) as redis_client,
+            get_async_redis_client(
+                timeout=settings.REDIS_CLIENT_TIMEOUT_SEC
+            ) as redis_client,
             get_async_session() as session,
         ):
             try:
@@ -125,7 +128,7 @@ def send_immediate_email(_self: object, goal_id: str, decision_ids: list[str]) -
     asyncio.run(_send_immediate_email_async(goal_id, decision_ids))
 
 
-async def _send_immediate_email_async(goal_id: str, decision_ids: list[str]):
+async def _send_immediate_email_async(goal_id: str, decision_ids: list[str]) -> None:
     """Async implementation of immediate email sending."""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
@@ -147,7 +150,7 @@ async def _send_immediate_email_async(goal_id: str, decision_ids: list[str]):
     from src.modules.users.infrastructure.repositories import PostgreSQLUserRepository
 
     async with (
-        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_redis_client(timeout=settings.REDIS_CLIENT_TIMEOUT_SEC) as redis_client,
         get_async_session() as session,
     ):
         try:
@@ -208,7 +211,7 @@ def send_batch_email(_self: object, goal_id: str, window_time: str) -> None:
     asyncio.run(_send_batch_email_async(goal_id, window_time))
 
 
-async def _send_batch_email_async(goal_id: str, window_time: str):
+async def _send_batch_email_async(goal_id: str, window_time: str) -> None:
     """Async implementation of batch email sending."""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
@@ -230,7 +233,7 @@ async def _send_batch_email_async(goal_id: str, window_time: str):
     from src.modules.users.infrastructure.repositories import PostgreSQLUserRepository
 
     async with (
-        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_redis_client(timeout=settings.REDIS_CLIENT_TIMEOUT_SEC) as redis_client,
         get_async_session() as session,
     ):
         try:
@@ -290,7 +293,7 @@ def send_digest_email(_self: object, goal_id: str) -> None:
     asyncio.run(_send_digest_email_async(goal_id))
 
 
-async def _send_digest_email_async(goal_id: str):
+async def _send_digest_email_async(goal_id: str) -> None:
     """Async implementation of digest email sending."""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
@@ -312,7 +315,7 @@ async def _send_digest_email_async(goal_id: str):
     from src.modules.users.infrastructure.repositories import PostgreSQLUserRepository
 
     async with (
-        get_async_redis_client(timeout=5.0) as redis_client,
+        get_async_redis_client(timeout=settings.REDIS_CLIENT_TIMEOUT_SEC) as redis_client,
         get_async_session() as session,
     ):
         try:
@@ -373,9 +376,8 @@ def add_to_immediate_buffer(_self: object, goal_id: str, decision_id: str) -> No
     asyncio.run(_add_to_immediate_buffer_async(goal_id, decision_id))
 
 
-async def _add_to_immediate_buffer_async(goal_id: str, decision_id: str):
+async def _add_to_immediate_buffer_async(goal_id: str, decision_id: str) -> None:
     """Async implementation of adding to immediate buffer."""
-    from src.core.config import settings
     from src.core.infrastructure.redis.client import get_async_redis_client
     from src.core.infrastructure.redis.keys import RedisKeys
 
@@ -383,7 +385,9 @@ async def _add_to_immediate_buffer_async(goal_id: str, decision_id: str):
     time_bucket = now.strftime("%Y%m%d%H") + str(now.minute // 5)
     buffer_key = RedisKeys.immediate_buffer(goal_id, time_bucket)
 
-    async with get_async_redis_client(timeout=5.0) as redis_client:
+    async with get_async_redis_client(
+        timeout=settings.REDIS_CLIENT_TIMEOUT_SEC
+    ) as redis_client:
         current_size = await redis_client.llen(buffer_key)
         if current_size >= settings.IMMEDIATE_MAX_ITEMS:
             logger.info(f"Immediate buffer full for goal {goal_id}")

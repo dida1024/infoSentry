@@ -293,7 +293,7 @@ class MatchService:
             feedback_list, _ = await self.feedback_repository.list_by_goal(
                 goal_id=goal.id,
                 page=1,
-                page_size=100,
+                page_size=settings.MATCH_FEEDBACK_PAGE_SIZE,
             )
 
             # 统计同一来源的反馈
