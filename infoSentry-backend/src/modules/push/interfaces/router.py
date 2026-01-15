@@ -58,7 +58,7 @@ async def mark_notification_read(
     notification_id: str,
     user_id: str = Depends(get_current_user_id),
     service: NotificationService = Depends(get_notification_service),
-):
+) -> None:
     """Mark a notification as read."""
     await service.mark_notification_read(notification_id, user_id)
     return None
@@ -100,7 +100,7 @@ async def redirect_click(
     goal_id: str | None = Query(None, description="Goal ID"),
     channel: str | None = Query(None, description="来源渠道"),
     service: NotificationService = Depends(get_notification_service),
-):
+) -> RedirectResponse:
     """Track click and redirect to original URL."""
     target_url = await service.track_click(
         item_id=item_id,

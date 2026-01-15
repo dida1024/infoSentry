@@ -294,6 +294,66 @@ class BusinessEvents:
         )
 
     @classmethod
+    def notification_read(
+        cls,
+        notification_id: str,
+        goal_id: str,
+        user_id: str,
+        **extra: Any,
+    ) -> None:
+        """记录通知已读事件。"""
+        cls._log.info(
+            "notification_read",
+            event_type="notification",
+            notification_id=notification_id,
+            goal_id=goal_id,
+            user_id=user_id,
+            **extra,
+        )
+
+    @classmethod
+    def feedback_submitted(
+        cls,
+        feedback_id: str,
+        item_id: str,
+        goal_id: str,
+        user_id: str,
+        feedback: str,
+        block_source: bool,
+        **extra: Any,
+    ) -> None:
+        """记录用户反馈事件。"""
+        cls._log.info(
+            "feedback_submitted",
+            event_type="feedback",
+            feedback_id=feedback_id,
+            item_id=item_id,
+            goal_id=goal_id,
+            user_id=user_id,
+            feedback=feedback,
+            block_source=block_source,
+            **extra,
+        )
+
+    @classmethod
+    def click_tracked(
+        cls,
+        item_id: str,
+        goal_id: str | None,
+        channel: str,
+        **extra: Any,
+    ) -> None:
+        """记录点击追踪事件。"""
+        cls._log.info(
+            "click_tracked",
+            event_type="click",
+            item_id=item_id,
+            goal_id=goal_id,
+            channel=channel,
+            **extra,
+        )
+
+    @classmethod
     def feature_degraded(
         cls,
         feature: str,

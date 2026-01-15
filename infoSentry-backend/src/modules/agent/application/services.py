@@ -29,14 +29,14 @@ from src.modules.items.application.budget_service import BudgetService
 
 def _decode_cursor(cursor: str | None) -> tuple[int, int]:
     if not cursor:
-        return 1, 20
+        return settings.CURSOR_DEFAULT_PAGE, settings.CURSOR_DEFAULT_PAGE_SIZE
     try:
         decoded = base64.b64decode(cursor).decode()
         page, page_size = decoded.split(":")
         return int(page), int(page_size)
     except Exception as e:
         logger.debug(f"Failed to decode cursor '{cursor}', using defaults: {e}")
-        return 1, 20
+        return settings.CURSOR_DEFAULT_PAGE, settings.CURSOR_DEFAULT_PAGE_SIZE
 
 
 def _encode_cursor(page: int, page_size: int) -> str:

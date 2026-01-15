@@ -1,5 +1,6 @@
 """Agent API routes."""
 
+import structlog
 from fastapi import APIRouter, Depends, Query
 
 from src.core.application.security import get_current_user_id
@@ -20,6 +21,7 @@ from src.modules.agent.interfaces.schemas import (
 )
 
 router = APIRouter(tags=["agent"])
+logger = structlog.get_logger(__name__)
 
 
 class AgentRunListResponse(CursorPaginatedResponse[AgentRunSummaryResponse]):
@@ -165,6 +167,7 @@ async def update_config(
             message="Configuration updated successfully",
         )
     except Exception as e:
+        logger.exception("Failed to update config", error=str(e))
         return ApiResponse.error(
             message=f"Failed to update config: {str(e)}",
             code=500,
@@ -186,6 +189,7 @@ async def health_check(
         health_status = await service.health_check()
         return ApiResponse.success(data=health_status)
     except Exception as e:
+        logger.exception("Failed to get health status", error=str(e))
         return ApiResponse.error(
             message=f"Failed to get health status: {str(e)}",
             code=500,
@@ -209,6 +213,7 @@ async def get_monitoring_status(
         return ApiResponse.success(data=status)
 
     except Exception as e:
+        logger.exception("Failed to get monitoring status", error=str(e))
         return ApiResponse.error(
             message=f"Failed to get monitoring status: {str(e)}",
             code=500,
@@ -232,6 +237,7 @@ async def get_worker_status(
         return ApiResponse.success(data=workers_result)
 
     except Exception as e:
+        logger.exception("Failed to get worker status", error=str(e))
         return ApiResponse.error(
             message=f"Failed to get worker status: {str(e)}",
             code=500,
@@ -257,6 +263,7 @@ async def reset_budget(
         )
 
     except Exception as e:
+        logger.exception("Failed to reset budget", error=str(e))
         return ApiResponse.error(
             message=f"Failed to reset budget: {str(e)}",
             code=500,
@@ -284,6 +291,7 @@ async def enable_feature(
     except ValidationError:
         raise
     except Exception as e:
+        logger.exception("Failed to enable feature", error=str(e), feature=feature)
         return ApiResponse.error(
             message=f"Failed to enable feature: {str(e)}",
             code=500,
@@ -311,6 +319,7 @@ async def disable_feature(
     except ValidationError:
         raise
     except Exception as e:
+        logger.exception("Failed to disable feature", error=str(e), feature=feature)
         return ApiResponse.error(
             message=f"Failed to disable feature: {str(e)}",
             code=500,

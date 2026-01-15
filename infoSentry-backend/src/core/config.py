@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     JWT_ALGORITHM: str = "HS256"
     TIMEZONE: str = "Asia/Shanghai"
+    DEFAULT_PAGE: int = 1
+    DEFAULT_PAGE_SIZE: int = 20
+    SOURCES_PAGE_SIZE: int = 50
+    CURSOR_DEFAULT_PAGE: int = 1
+    CURSOR_DEFAULT_PAGE_SIZE: int = 20
+    NOTIFICATION_GOAL_LOOKUP_LIMIT: int = 100
 
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyUrl] | str, BeforeValidator(parse_cors)

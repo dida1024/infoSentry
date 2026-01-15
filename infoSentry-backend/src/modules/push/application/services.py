@@ -5,7 +5,9 @@ from datetime import datetime
 
 from loguru import logger
 
+from src.core.config import settings
 from src.core.domain.exceptions import EntityNotFoundError
+from src.core.infrastructure.logging import BusinessEvents
 from src.modules.goals.domain.exceptions import GoalNotFoundError
 from src.modules.goals.domain.repository import GoalRepository
 from src.modules.items.domain.repository import ItemRepository
@@ -35,14 +37,14 @@ from src.modules.sources.domain.repository import SourceRepository
 
 def _decode_cursor(cursor: str | None) -> tuple[int, int]:
     if not cursor:
-        return 1, 20
+        return settings.CURSOR_DEFAULT_PAGE, settings.CURSOR_DEFAULT_PAGE_SIZE
     try:
         decoded = base64.b64decode(cursor).decode()
         page, page_size = decoded.split(":")
         return int(page), int(page_size)
     except Exception as e:
         logger.debug(f"Failed to decode cursor '{cursor}', using defaults: {e}")
-        return 1, 20
+        return settings.CURSOR_DEFAULT_PAGE, settings.CURSOR_DEFAULT_PAGE_SIZE
 
 
 def _encode_cursor(page: int, page_size: int) -> str:
@@ -101,7 +103,7 @@ class NotificationService:
             goals, _ = await self.goal_repo.list_by_user(
                 user_id=user_id,
                 page=1,
-                page_size=100,
+                page_size=settings.NOTIFICATION_GOAL_LOOKUP_LIMIT,
             )
             if not goals:
                 return NotificationListData(
@@ -202,6 +204,11 @@ class NotificationService:
 
         decision.mark_read()
         await self.push_decision_repo.update(decision)
+        BusinessEvents.notification_read(
+            notification_id=notification_id,
+            goal_id=decision.goal_id,
+            user_id=user_id,
+        )
 
     async def submit_feedback(
         self,
@@ -255,6 +262,14 @@ class NotificationService:
                 )
                 await self.blocked_source_repo.create(blocked)
 
+        BusinessEvents.feedback_submitted(
+            feedback_id=saved.id,
+            item_id=item_id,
+            goal_id=goal_id,
+            user_id=user_id,
+            feedback=feedback,
+            block_source=block_source,
+        )
         return saved.id
 
     async def track_click(
@@ -283,4 +298,9 @@ class NotificationService:
         )
         await self.click_repo.create(click_event)
 
+        BusinessEvents.click_tracked(
+            item_id=item_id,
+            goal_id=goal_id,
+            channel=push_channel.value,
+        )
         return item.url
