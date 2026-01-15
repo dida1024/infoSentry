@@ -122,11 +122,40 @@ class MatchService:
     - 发布 MatchComputed 事件
     """
 
-    # 权重配置
+    # 权重配置（已废弃，保留用于向后兼容）
     WEIGHT_COSINE = 0.40  # 语义相似度权重
     WEIGHT_TERMS = 0.30  # 词条命中权重
     WEIGHT_RECENCY = 0.20  # 时效性权重
     WEIGHT_SOURCE = 0.10  # 来源可信度权重
+
+    # 混合评分策略配置
+    # 语义相似度阈值
+    SEMANTIC_HIGH_THRESHOLD = 0.75  # 高语义相似度阈值
+    SEMANTIC_MEDIUM_THRESHOLD = 0.60  # 中等语义相似度阈值
+
+    # 基础分配置
+    BASE_SCORE_HIGH_SEMANTIC = 0.60  # 高语义相似度基础分
+    BASE_SCORE_MEDIUM_SEMANTIC_WITH_TERMS = 0.50  # 中等语义+关键词基础分
+    BASE_SCORE_MEDIUM_SEMANTIC_NO_TERMS = 0.30  # 中等语义无关键词基础分
+    BASE_SCORE_LOW_SEMANTIC = 0.30  # 低语义相似度基础分
+
+    # 语义加分系数
+    SEMANTIC_BONUS_HIGH = 0.20  # 高语义相似度加分系数
+    SEMANTIC_BONUS_MEDIUM_WITH_TERMS = 0.15  # 中等语义+关键词加分系数
+    SEMANTIC_BONUS_MEDIUM_NO_TERMS = 0.20  # 中等语义无关键词加分系数
+    SEMANTIC_BONUS_LOW = 0.30  # 低语义相似度加分系数
+
+    # 关键词加分配置
+    TERM_BONUS_PER_HIT_HIGH = 0.05  # 高语义时每个关键词加分
+    TERM_BONUS_MAX_HIGH = 0.15  # 高语义时关键词最大加分
+    TERM_BONUS_PER_HIT_MEDIUM = 0.10  # 中等语义时每个关键词加分
+    TERM_BONUS_MAX_MEDIUM = 0.25  # 中等语义时关键词最大加分
+    TERM_BONUS_PER_HIT_LOW = 0.15  # 低语义时每个关键词加分
+    TERM_BONUS_MAX_LOW = 0.30  # 低语义时关键词最大加分
+
+    # 时效性和来源权重
+    RECENCY_WEIGHT = 0.10  # 时效性权重
+    SOURCE_WEIGHT = 0.05  # 来源可信度权重
 
     # 时效性配置
     RECENCY_FULL_SCORE_HOURS = 6  # 6 小时内满分
@@ -442,33 +471,66 @@ class MatchService:
             logger.error(f"Failed to generate embedding for goal {goal.id}: {e}")
             return None
 
+    def _contains_chinese(self, text: str) -> bool:
+        """判断文本是否包含中文字符。
+
+        Args:
+            text: 要检查的文本
+
+        Returns:
+            如果包含中文字符返回 True，否则返回 False
+        """
+        return any('\u4e00' <= char <= '\u9fff' for char in text)
+
     def _check_term_hits(
         self,
         text: str,
         terms: list[GoalPriorityTerm],
     ) -> tuple[int, list[dict]]:
-        """检查词条命中。"""
+        """检查词条命中（支持中英文混合匹配）。
+
+        对于中文关键词，使用子串匹配；对于英文关键词，使用词边界匹配。
+        """
         text_lower = text.lower()
         hits = 0
         details: list[dict] = []
 
         for term in terms:
             term_lower = term.term.lower()
-            # 使用正则进行词边界匹配
-            pattern = r"\b" + re.escape(term_lower) + r"\b"
-            matches = list(re.finditer(pattern, text_lower))
 
-            if matches:
-                hits += 1
-                details.append(
-                    {
+            # 判断是否包含中文字符
+            if self._contains_chinese(term_lower):
+                # 中文使用子串匹配
+                if term_lower in text_lower:
+                    hits += 1
+                    count = text_lower.count(term_lower)
+
+                    # 找出前3个位置
+                    positions = []
+                    start = 0
+                    for _ in range(min(count, 3)):
+                        pos = text_lower.find(term_lower, start)
+                        if pos != -1:
+                            positions.append(pos)
+                            start = pos + len(term_lower)
+
+                    details.append({
+                        "term": term.term,
+                        "count": count,
+                        "positions": positions,
+                    })
+            else:
+                # 英文使用词边界匹配
+                pattern = r"\b" + re.escape(term_lower) + r"\b"
+                matches = list(re.finditer(pattern, text_lower))
+
+                if matches:
+                    hits += 1
+                    details.append({
                         "term": term.term,
                         "count": len(matches),
-                        "positions": [
-                            m.start() for m in matches[:3]
-                        ],  # 最多记录 3 个位置
-                    }
-                )
+                        "positions": [m.start() for m in matches[:3]],
+                    })
 
         return hits, details
 
@@ -616,26 +678,71 @@ class MatchService:
         features: MatchFeatures,
         reasons: MatchReasons,
     ) -> float:
-        """计算最终匹配分数。"""
+        """计算最终匹配分数 - 混合策略。
+
+        采用分层评分策略，让语义相似度和关键词匹配互为补充：
+        - 高语义相似度 (≥0.75): 主要依赖语义，关键词作为加分项
+        - 中等语义相似度 (0.60-0.75): 需要关键词支持
+        - 低语义相似度 (<0.60): 必须有关键词命中
+        """
         if reasons.is_blocked:
             return 0.0
 
-        # 加权计算
-        score = (
-            self.WEIGHT_COSINE * features.cosine_similarity
-            + self.WEIGHT_RECENCY * features.recency_score
-            + self.WEIGHT_SOURCE * features.source_trust
-        )
+        cosine = features.cosine_similarity
+        term_hits = features.term_hits
+        recency = features.recency_score
+        source = features.source_trust
 
-        # 词条命中加分
-        if features.term_hits > 0:
-            # 每命中一个词加 0.1，最多加 0.3
-            term_bonus = min(features.term_hits * 0.1, 0.3)
-            score += self.WEIGHT_TERMS * (0.5 + term_bonus / 0.3 * 0.5)
+        # 策略1: 高语义相似度 - 语义主导
+        if cosine >= self.SEMANTIC_HIGH_THRESHOLD:
+            # 基础分 + 语义加分
+            base_score = self.BASE_SCORE_HIGH_SEMANTIC + cosine * self.SEMANTIC_BONUS_HIGH
+
+            # 关键词作为加分项
+            if term_hits > 0:
+                term_bonus = min(
+                    term_hits * self.TERM_BONUS_PER_HIT_HIGH,
+                    self.TERM_BONUS_MAX_HIGH
+                )
+                base_score += term_bonus
+
+            score = base_score
+
+        # 策略2: 中等语义相似度 - 需要关键词支持
+        elif cosine >= self.SEMANTIC_MEDIUM_THRESHOLD:
+            if term_hits > 0:
+                # 有关键词命中，给予较高分数
+                score = (
+                    self.BASE_SCORE_MEDIUM_SEMANTIC_WITH_TERMS
+                    + cosine * self.SEMANTIC_BONUS_MEDIUM_WITH_TERMS
+                    + min(
+                        term_hits * self.TERM_BONUS_PER_HIT_MEDIUM,
+                        self.TERM_BONUS_MAX_MEDIUM
+                    )
+                )
+            else:
+                # 无关键词命中，分数受限
+                score = (
+                    self.BASE_SCORE_MEDIUM_SEMANTIC_NO_TERMS
+                    + cosine * self.SEMANTIC_BONUS_MEDIUM_NO_TERMS
+                )
+
+        # 策略3: 低语义相似度 - 必须有关键词
         else:
-            score += self.WEIGHT_TERMS * 0.3  # 未命中给予基础分
+            if term_hits > 0:
+                # 关键词主导
+                score = self.BASE_SCORE_LOW_SEMANTIC + min(
+                    term_hits * self.TERM_BONUS_PER_HIT_LOW,
+                    self.TERM_BONUS_MAX_LOW
+                )
+            else:
+                # 很低的分数
+                score = cosine * self.SEMANTIC_BONUS_LOW
 
-        # 应用反馈调整（like/dislike 影响排序）
+        # 加入时效性和来源可信度的微调
+        score += recency * self.RECENCY_WEIGHT + source * self.SOURCE_WEIGHT
+
+        # 应用反馈调整
         score += features.feedback_boost
 
         # 确保分数在 [0, 1] 范围

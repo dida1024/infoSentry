@@ -391,6 +391,47 @@ class TestMatchService:
         assert hits == 0
         assert len(details) == 0
 
+    def test_check_term_hits_chinese(self, match_service):
+        """测试中文关键词匹配。"""
+        text = "招聘后端开发工程师，要求熟悉 Python"
+        terms = [
+            GoalPriorityTerm(
+                id="term-1",
+                goal_id="goal-1",
+                term="招聘",
+                term_type=TermType.MUST,
+            ),
+            GoalPriorityTerm(
+                id="term-2",
+                goal_id="goal-1",
+                term="后端",
+                term_type=TermType.MUST,
+            ),
+        ]
+
+        hits, details = match_service._check_term_hits(text, terms)
+
+        assert hits == 2
+        assert len(details) == 2
+        assert details[0]["term"] == "招聘"
+        assert details[0]["count"] == 1
+        assert details[1]["term"] == "后端"
+        assert details[1]["count"] == 1
+
+    def test_check_term_hits_mixed_chinese_english(self, match_service):
+        """测试中英文混合关键词匹配。"""
+        text = "招聘 Python 后端开发"
+        terms = [
+            GoalPriorityTerm(id="t1", goal_id="g1", term="招聘", term_type=TermType.MUST),
+            GoalPriorityTerm(id="t2", goal_id="g1", term="Python", term_type=TermType.MUST),
+            GoalPriorityTerm(id="t3", goal_id="g1", term="后端", term_type=TermType.MUST),
+        ]
+
+        hits, details = match_service._check_term_hits(text, terms)
+
+        assert hits == 3
+        assert len(details) == 3
+
     def test_compute_recency_score_fresh(self, match_service):
         """测试新鲜内容的时效性分数。"""
         item = Item(
@@ -526,6 +567,51 @@ class TestMatchService:
         score = match_service._compute_final_score(sample_goal, features, reasons)
 
         assert score == 0.0
+
+    def test_compute_final_score_high_semantic_no_terms(self, match_service, sample_goal):
+        """测试高语义相似度但无关键词命中的情况。"""
+        features = MatchFeatures(
+            cosine_similarity=0.85,
+            term_hits=0,
+            recency_score=1.0,
+            source_trust=0.8,
+        )
+        reasons = MatchReasons(is_blocked=False)
+
+        score = match_service._compute_final_score(sample_goal, features, reasons)
+
+        # 高语义相似度应该得到较高分数（包含recency和source加分）
+        assert 0.85 <= score <= 0.95
+
+    def test_compute_final_score_medium_semantic_with_terms(self, match_service, sample_goal):
+        """测试中等语义相似度且有关键词命中的情况。"""
+        features = MatchFeatures(
+            cosine_similarity=0.70,
+            term_hits=2,
+            recency_score=1.0,
+            source_trust=0.8,
+        )
+        reasons = MatchReasons(is_blocked=False)
+
+        score = match_service._compute_final_score(sample_goal, features, reasons)
+
+        # 中等语义+关键词应该得到高分数（包含recency和source加分）
+        assert 0.85 <= score <= 1.0
+
+    def test_compute_final_score_medium_semantic_no_terms(self, match_service, sample_goal):
+        """测试中等语义相似度但无关键词命中的情况。"""
+        features = MatchFeatures(
+            cosine_similarity=0.70,
+            term_hits=0,
+            recency_score=1.0,
+            source_trust=0.8,
+        )
+        reasons = MatchReasons(is_blocked=False)
+
+        score = match_service._compute_final_score(sample_goal, features, reasons)
+
+        # 中等语义无关键词应该得到较低分数（包含recency和source加分）
+        assert 0.50 <= score < 0.65
 
     async def test_match_item_to_goal(
         self,
