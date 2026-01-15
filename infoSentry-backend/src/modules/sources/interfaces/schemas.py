@@ -1,11 +1,18 @@
 """Source API schemas."""
 
 from datetime import datetime
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
-from src.modules.sources.domain.entities import SourceType
+
+class SourceType(str, Enum):
+    """Source type enum for API layer."""
+
+    NEWSNOW = "NEWSNOW"
+    RSS = "RSS"
+    SITE = "SITE"
 
 
 class SourceConfigSchema(BaseModel):

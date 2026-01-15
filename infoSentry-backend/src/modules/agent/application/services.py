@@ -7,7 +7,7 @@ from typing import Any
 from loguru import logger
 
 from src.core.config import settings
-from src.core.domain.exceptions import EntityNotFoundError, ValidationError
+from src.core.domain.exceptions import EntityNotFoundError
 from src.core.domain.ports.kv import KVClient
 from src.modules.agent.application.models import (
     ActionLedgerData,
@@ -256,7 +256,7 @@ class AgentAdminService:
     async def enable_feature(self, feature: str) -> dict[str, Any]:
         allowed_features = {"llm", "embedding", "immediate", "email"}
         if feature.lower() not in allowed_features:
-            raise ValidationError(f"Unknown feature: {feature}")
+            raise ValueError(f"Unknown feature: {feature}")
         config_key = f"config:{feature.upper()}_ENABLED"
         await self.kv_client.set(config_key, "true")
         return {"feature": feature, "enabled": True}
@@ -264,7 +264,7 @@ class AgentAdminService:
     async def disable_feature(self, feature: str) -> dict[str, Any]:
         allowed_features = {"llm", "embedding", "immediate", "email"}
         if feature.lower() not in allowed_features:
-            raise ValidationError(f"Unknown feature: {feature}")
+            raise ValueError(f"Unknown feature: {feature}")
         config_key = f"config:{feature.upper()}_ENABLED"
         await self.kv_client.set(config_key, "false")
         return {"feature": feature, "enabled": False}

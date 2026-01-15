@@ -80,7 +80,7 @@ async def submit_feedback(
     feedback_id = await service.submit_feedback(
         item_id=item_id,
         goal_id=request.goal_id,
-        feedback=request.feedback,
+        feedback=request.feedback.value,
         block_source=request.block_source,
         user_id=user_id,
     )

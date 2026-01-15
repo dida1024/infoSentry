@@ -38,6 +38,7 @@ from src.modules.goals.application.handlers import (
     UpdateGoalHandler,
 )
 from src.modules.goals.application.keyword_service import KeywordSuggestionService
+from src.modules.goals.application.models import GoalData
 from src.modules.goals.application.services import (
     GoalMatchQueryService,
     GoalQueryService,
@@ -48,14 +49,33 @@ from src.modules.goals.interfaces.schemas import (
     GenerateGoalDraftResponse,
     GoalItemMatchResponse,
     GoalResponse,
+    GoalStatus,
     GoalStatusResponse,
     ItemResponse,
+    PriorityMode,
     SuggestKeywordsRequest,
     SuggestKeywordsResponse,
     UpdateGoalRequest,
 )
 
 router = APIRouter(prefix="/goals", tags=["goals"])
+
+
+def _to_goal_response(goal: GoalData) -> GoalResponse:
+    return GoalResponse(
+        id=goal.id,
+        name=goal.name,
+        description=goal.description,
+        priority_mode=PriorityMode(goal.priority_mode.value),
+        status=GoalStatus(goal.status.value),
+        priority_terms=goal.priority_terms,
+        negative_terms=goal.negative_terms,
+        batch_windows=goal.batch_windows,
+        digest_send_time=goal.digest_send_time,
+        stats=goal.stats,
+        created_at=goal.created_at,
+        updated_at=goal.updated_at,
+    )
 
 
 @router.get(
@@ -74,7 +94,7 @@ async def list_goals(
 ) -> PaginatedResponse[GoalResponse]:
     """List all goals for current user."""
     result = await service.list_goals(user_id=user_id, page=page, page_size=page_size)
-    responses = [GoalResponse(**item.model_dump()) for item in result.items]
+    responses = [_to_goal_response(item) for item in result.items]
 
     return PaginatedResponse.create(
         items=responses,
@@ -102,7 +122,7 @@ async def create_goal(
         user_id=user_id,
         name=request.name,
         description=request.description,
-        priority_mode=request.priority_mode,
+        priority_mode=request.priority_mode.value,
         priority_terms=request.priority_terms,
         negative_terms=request.negative_terms,
         batch_windows=request.batch_windows,
@@ -113,7 +133,7 @@ async def create_goal(
     response = await query_service.build_goal_data(goal)
 
     return ApiResponse.success(
-        data=GoalResponse(**response.model_dump()),
+        data=_to_goal_response(response),
         message="Goal created successfully",
     )
 
@@ -204,7 +224,7 @@ async def get_goal(
 ) -> ApiResponse[GoalResponse]:
     """Get goal details."""
     response = await service.get_goal(goal_id=goal_id, user_id=user_id)
-    return ApiResponse.success(data=GoalResponse(**response.model_dump()))
+    return ApiResponse.success(data=_to_goal_response(response))
 
 
 @router.put(
@@ -226,7 +246,7 @@ async def update_goal(
         user_id=user_id,
         name=request.name,
         description=request.description,
-        priority_mode=request.priority_mode,
+        priority_mode=request.priority_mode.value if request.priority_mode else None,
         priority_terms=request.priority_terms,
         negative_terms=request.negative_terms,
         batch_windows=request.batch_windows,
@@ -236,7 +256,7 @@ async def update_goal(
 
     response = await query_service.build_goal_data(goal)
     return ApiResponse.success(
-        data=GoalResponse(**response.model_dump()),
+        data=_to_goal_response(response),
         message="Goal updated successfully",
     )
 

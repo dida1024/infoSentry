@@ -1,16 +1,43 @@
 """Agent API schemas."""
 
 from datetime import datetime
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
-from src.modules.agent.domain.entities import (
-    ActionType,
-    AgentRunStatus,
-    AgentTrigger,
-    ToolCallStatus,
-)
+
+class AgentTrigger(str, Enum):
+    """Agent trigger types for API layer."""
+
+    MATCH_COMPUTED = "MatchComputed"
+    BATCH_WINDOW_TICK = "BatchWindowTick"
+    DIGEST_TICK = "DigestTick"
+
+
+class AgentRunStatus(str, Enum):
+    """Agent run status for API layer."""
+
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    TIMEOUT = "TIMEOUT"
+    ERROR = "ERROR"
+    FALLBACK = "FALLBACK"
+
+
+class ToolCallStatus(str, Enum):
+    """Tool call status for API layer."""
+
+    SUCCESS = "SUCCESS"
+    ERROR = "ERROR"
+
+
+class ActionType(str, Enum):
+    """Action types in ledger for API layer."""
+
+    EMIT_DECISION = "EMIT_DECISION"
+    ENQUEUE_EMAIL = "ENQUEUE_EMAIL"
+    SUGGEST_TUNING = "SUGGEST_TUNING"
 
 
 class AgentRunSummaryResponse(BaseModel):

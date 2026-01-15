@@ -1,15 +1,42 @@
 """Push API schemas."""
 
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from src.modules.push.domain.entities import (
-    FeedbackType,
-    PushChannel,
-    PushDecision,
-    PushStatus,
-)
+
+class PushDecision(str, Enum):
+    """Push decision types for API layer."""
+
+    IMMEDIATE = "IMMEDIATE"
+    BATCH = "BATCH"
+    DIGEST = "DIGEST"
+    IGNORE = "IGNORE"
+
+
+class PushStatus(str, Enum):
+    """Push status types for API layer."""
+
+    PENDING = "PENDING"
+    SENT = "SENT"
+    FAILED = "FAILED"
+    SKIPPED = "SKIPPED"
+    READ = "READ"
+
+
+class PushChannel(str, Enum):
+    """Push channel types for API layer."""
+
+    EMAIL = "EMAIL"
+    IN_APP = "IN_APP"
+
+
+class FeedbackType(str, Enum):
+    """Feedback type enum for API layer."""
+
+    LIKE = "LIKE"
+    DISLIKE = "DISLIKE"
 
 
 class EvidenceItem(BaseModel):

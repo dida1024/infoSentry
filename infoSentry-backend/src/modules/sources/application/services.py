@@ -31,13 +31,14 @@ class SourceQueryService:
 
     async def list_sources(
         self,
-        source_type: SourceType | None,
+        source_type: str | None,
         page: int,
         page_size: int,
     ) -> SourceListData:
         """List sources by type."""
+        domain_type = SourceType(source_type) if source_type else None
         sources, total = await self.source_repo.list_by_type(
-            source_type=source_type,
+            source_type=domain_type,
             enabled_only=False,
             page=page,
             page_size=page_size,

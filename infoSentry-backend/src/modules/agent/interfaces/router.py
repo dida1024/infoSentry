@@ -1,10 +1,9 @@
 """Agent API routes."""
 
 import structlog
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from src.core.application.security import get_current_user_id
-from src.core.domain.exceptions import ValidationError
 from src.core.interfaces.http.response import ApiResponse, CursorPaginatedResponse
 from src.modules.agent.application.dependencies import (
     get_agent_admin_service,
@@ -288,8 +287,11 @@ async def enable_feature(
             data=result,
             message=f"Feature {feature} has been enabled",
         )
-    except ValidationError:
-        raise
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "VALIDATION_ERROR", "message": f"Unknown feature: {feature}"},
+        )
     except Exception as e:
         logger.exception("Failed to enable feature", error=str(e), feature=feature)
         return ApiResponse.error(
@@ -316,8 +318,11 @@ async def disable_feature(
             data=result,
             message=f"Feature {feature} has been disabled",
         )
-    except ValidationError:
-        raise
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "VALIDATION_ERROR", "message": f"Unknown feature: {feature}"},
+        )
     except Exception as e:
         logger.exception("Failed to disable feature", error=str(e), feature=feature)
         return ApiResponse.error(

@@ -1,10 +1,24 @@
 """Goal API schemas."""
 
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from src.modules.goals.domain.entities import GoalStatus, PriorityMode
+
+class GoalStatus(str, Enum):
+    """Goal status enum for API layer."""
+
+    ACTIVE = "active"
+    PAUSED = "paused"
+    ARCHIVED = "archived"
+
+
+class PriorityMode(str, Enum):
+    """Priority mode for API layer."""
+
+    STRICT = "STRICT"
+    SOFT = "SOFT"
 
 
 class CreateGoalRequest(BaseModel):

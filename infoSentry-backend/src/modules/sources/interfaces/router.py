@@ -27,15 +27,32 @@ from src.modules.sources.application.handlers import (
     EnableSourceHandler,
     UpdateSourceHandler,
 )
+from src.modules.sources.application.models import SourceData
 from src.modules.sources.application.services import SourceQueryService
-from src.modules.sources.domain.entities import SourceType
 from src.modules.sources.interfaces.schemas import (
     CreateSourceRequest,
     SourceResponse,
+    SourceType,
     UpdateSourceRequest,
 )
 
 router = APIRouter(prefix="/sources", tags=["sources"])
+
+
+def _to_source_response(source: SourceData) -> SourceResponse:
+    return SourceResponse(
+        id=source.id,
+        type=SourceType(source.type.value),
+        name=source.name,
+        enabled=source.enabled,
+        fetch_interval_sec=source.fetch_interval_sec,
+        next_fetch_at=source.next_fetch_at,
+        last_fetch_at=source.last_fetch_at,
+        error_streak=source.error_streak,
+        config=source.config,
+        created_at=source.created_at,
+        updated_at=source.updated_at,
+    )
 
 
 @router.get(
@@ -55,13 +72,13 @@ async def list_sources(
 ) -> PaginatedResponse[SourceResponse]:
     """List all sources."""
     result = await service.list_sources(
-        source_type=type,
+        source_type=type.value if type else None,
         page=page,
         page_size=page_size,
     )
 
     return PaginatedResponse.create(
-        items=[SourceResponse(**item.model_dump()) for item in result.items],
+        items=[_to_source_response(item) for item in result.items],
         total=result.total,
         page=page,
         page_size=page_size,
@@ -83,7 +100,7 @@ async def create_source(
 ) -> ApiResponse[SourceResponse]:
     """Create a new source."""
     command = CreateSourceCommand(
-        type=request.type,
+        type=request.type.value,
         name=request.name,
         config=request.config,
         fetch_interval_sec=request.fetch_interval_sec,
@@ -91,7 +108,7 @@ async def create_source(
     source = await handler.handle(command)
 
     return ApiResponse.success(
-        data=SourceResponse(**query_service.build_source_data(source).model_dump()),
+        data=_to_source_response(query_service.build_source_data(source)),
         message="Source created successfully",
     )
 
@@ -109,7 +126,7 @@ async def get_source(
 ) -> ApiResponse[SourceResponse]:
     """Get source by ID."""
     source = await service.get_source(source_id=source_id)
-    return ApiResponse.success(data=SourceResponse(**source.model_dump()))
+    return ApiResponse.success(data=_to_source_response(source))
 
 
 @router.put(
@@ -135,7 +152,7 @@ async def update_source(
     source = await handler.handle(command)
 
     return ApiResponse.success(
-        data=SourceResponse(**query_service.build_source_data(source).model_dump()),
+        data=_to_source_response(query_service.build_source_data(source)),
         message="Source updated successfully",
     )
 
@@ -157,7 +174,7 @@ async def enable_source(
     source = await handler.handle(command)
 
     return ApiResponse.success(
-        data=SourceResponse(**query_service.build_source_data(source).model_dump()),
+        data=_to_source_response(query_service.build_source_data(source)),
         message="Source enabled",
     )
 
@@ -179,7 +196,7 @@ async def disable_source(
     source = await handler.handle(command)
 
     return ApiResponse.success(
-        data=SourceResponse(**query_service.build_source_data(source).model_dump()),
+        data=_to_source_response(query_service.build_source_data(source)),
         message="Source disabled",
     )
 
