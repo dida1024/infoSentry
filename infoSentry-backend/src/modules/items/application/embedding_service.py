@@ -8,8 +8,6 @@
 
 from loguru import logger
 from openai import AsyncOpenAI
-
-from src.core.infrastructure.logging import BusinessEvents
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -18,6 +16,7 @@ from tenacity import (
 )
 
 from src.core.config import settings
+from src.core.infrastructure.logging import BusinessEvents
 from src.modules.items.domain.entities import Item
 from src.modules.items.domain.repository import ItemRepository
 

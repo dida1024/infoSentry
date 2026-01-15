@@ -7,6 +7,7 @@ import time
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
+from xml.etree.ElementTree import Element
 
 import httpx
 from loguru import logger
@@ -220,7 +221,7 @@ class RSSFetcher(BaseFetcher):
 
         return items
 
-    def _parse_rss_basic(self, root) -> list[FetchedItem]:
+    def _parse_rss_basic(self, root: Element) -> list[FetchedItem]:
         """解析 RSS 2.0 格式。"""
 
         items: list[FetchedItem] = []
@@ -263,7 +264,7 @@ class RSSFetcher(BaseFetcher):
 
         return items
 
-    def _parse_atom_basic(self, root) -> list[FetchedItem]:
+    def _parse_atom_basic(self, root: Element) -> list[FetchedItem]:
         """解析 Atom 格式。"""
         items: list[FetchedItem] = []
 
