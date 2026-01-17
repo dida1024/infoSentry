@@ -1,6 +1,6 @@
 """Standard API response models."""
 
-from typing import Any, TypeVar
+from typing import Any, Self, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
@@ -54,7 +54,7 @@ class PaginatedResponse[T](ApiResponse[list[T]]):
         total: int,
         page: int = 1,
         page_size: int = 10,
-    ) -> "PaginatedResponse[T]":
+    ) -> Self:
         return cls(
             data=items,
             meta={
@@ -79,7 +79,7 @@ class CursorPaginatedResponse[T](ApiResponse[list[T]]):
         items: list[T],
         next_cursor: str | None = None,
         has_more: bool = False,
-    ) -> "CursorPaginatedResponse[T]":
+    ) -> Self:
         return cls(data=items, next_cursor=next_cursor, has_more=has_more)
 
 
