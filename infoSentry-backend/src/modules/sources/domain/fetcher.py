@@ -1,10 +1,13 @@
 """Fetcher domain interfaces and models."""
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from ipaddress import ip_address
 from typing import Any, Protocol
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -125,7 +128,33 @@ class BaseFetcher(ABC):
     def _clean_title(self, title: str | None) -> str:
         if not title:
             return ""
-        return " ".join(title.split())
+        cleaned = re.sub(r"<[^>]+>", "", title)
+        return " ".join(cleaned.split())
+
+    def _is_allowed_url(self, url: str) -> bool:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        host = parsed.hostname
+        if not host:
+            return False
+        if host in {"localhost"}:
+            return False
+        if host.endswith((".local", ".internal")):
+            return False
+        try:
+            ip_value = ip_address(host)
+        except ValueError:
+            return True
+        if (
+            ip_value.is_private
+            or ip_value.is_loopback
+            or ip_value.is_link_local
+            or ip_value.is_reserved
+            or ip_value.is_multicast
+        ):
+            return False
+        return True
 
 
 class FetcherFactory(Protocol):

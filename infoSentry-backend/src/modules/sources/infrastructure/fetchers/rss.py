@@ -40,9 +40,11 @@ class RSSFetcher(BaseFetcher):
         feed_url = self.config.get("feed_url")
         if not feed_url:
             return False, "Missing feed_url in config"
-        # 支持 http://, https://, rsshub:// 三种协议
         if not feed_url.startswith(("http://", "https://", "rsshub://")):
             return False, "feed_url must be a valid HTTP(S) or rsshub:// URL"
+        resolved_url = self._resolve_feed_url(feed_url)
+        if not self._is_allowed_url(resolved_url):
+            return False, "feed_url must be a public HTTP(S) URL"
         return True, None
 
     def _resolve_feed_url(self, feed_url: str) -> str:
@@ -154,6 +156,8 @@ class RSSFetcher(BaseFetcher):
                                 break
 
                     if not url:
+                        continue
+                    if not self._is_allowed_url(url):
                         continue
 
                     # 获取标题

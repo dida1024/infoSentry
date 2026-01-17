@@ -51,6 +51,8 @@ class SiteFetcher(BaseFetcher):
         list_url = self.config.get("list_url")
         if not list_url:
             return False, "Missing list_url in config"
+        if not self._is_allowed_url(list_url):
+            return False, "list_url must be a public HTTP(S) URL"
 
         selectors = self.config.get("selectors", {})
         if not selectors.get("item"):
@@ -167,6 +169,8 @@ class SiteFetcher(BaseFetcher):
                 url = urljoin(base_url, url)
 
         if not url:
+            return None
+        if not self._is_allowed_url(url):
             return None
 
         # 提取标题

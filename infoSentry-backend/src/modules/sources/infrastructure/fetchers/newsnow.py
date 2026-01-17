@@ -35,6 +35,8 @@ class NewsNowFetcher(BaseFetcher):
         """验证配置。"""
         if not self.config.get("base_url"):
             return False, "Missing base_url in config"
+        if not self._is_allowed_url(self.config["base_url"]):
+            return False, "base_url must be a public HTTP(S) URL"
         if not self.config.get("source_id") and not self.config.get("category_path"):
             return False, "Missing source_id or category_path in config"
         return True, None
@@ -138,8 +140,9 @@ class NewsNowFetcher(BaseFetcher):
                     # 处理相对路径
                     if url.startswith("/"):
                         url = urljoin(base_url, url)
+                    if not self._is_allowed_url(url):
+                        continue
 
-                    # 跳过非新闻链接
                     if not self._is_valid_news_url(url):
                         continue
 
