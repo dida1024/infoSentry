@@ -20,6 +20,7 @@ from src.modules.goals.application.dependencies import (
     get_goal_draft_service,
     get_goal_match_query_service,
     get_goal_query_service,
+    get_goal_send_email_service,
     get_keyword_suggestion_service,
     get_pause_goal_handler,
     get_resume_goal_handler,
@@ -39,12 +40,21 @@ from src.modules.goals.application.handlers import (
 )
 from src.modules.goals.application.keyword_service import KeywordSuggestionService
 from src.modules.goals.application.models import GoalData
+from src.modules.goals.application.send_email_service import (
+    EmailServiceUnavailableError,
+    GoalNotFoundError,
+    GoalSendEmailService,
+    NoItemsToSendError,
+    RateLimitExceededError,
+    UserNoEmailError,
+)
 from src.modules.goals.application.services import (
     GoalMatchQueryService,
     GoalQueryService,
 )
 from src.modules.goals.interfaces.schemas import (
     CreateGoalRequest,
+    EmailPreviewData,
     GenerateGoalDraftRequest,
     GenerateGoalDraftResponse,
     GoalItemMatchResponse,
@@ -53,6 +63,8 @@ from src.modules.goals.interfaces.schemas import (
     GoalStatusResponse,
     ItemResponse,
     PriorityMode,
+    SendGoalEmailRequest,
+    SendGoalEmailResponse,
     SuggestKeywordsRequest,
     SuggestKeywordsResponse,
     UpdateGoalRequest,
@@ -379,3 +391,82 @@ async def get_goal_matches(
         page=result.page,
         page_size=result.page_size,
     )
+
+
+@router.post(
+    "/{goal_id}/send-email",
+    response_model=ApiResponse[SendGoalEmailResponse],
+    summary="立即发送目标推送邮件",
+    description="手动触发发送该目标的匹配项目邮件",
+)
+async def send_goal_email(
+    goal_id: str,
+    request: SendGoalEmailRequest,
+    user_id: str = Depends(get_current_user_id),
+    service: GoalSendEmailService = Depends(get_goal_send_email_service),
+) -> ApiResponse[SendGoalEmailResponse]:
+    """Send goal email immediately."""
+    try:
+        result = await service.send_immediately(
+            goal_id=goal_id,
+            user_id=user_id,
+            since=request.since,
+            min_score=request.min_score,
+            limit=request.limit,
+            include_sent=request.include_sent,
+            dry_run=request.dry_run,
+        )
+
+        # Build response
+        preview = None
+        if result.preview_subject:
+            preview = EmailPreviewData(
+                subject=result.preview_subject,
+                to_email=result.preview_to_email or "",
+                item_titles=result.preview_item_titles or [],
+            )
+
+        response = SendGoalEmailResponse(
+            success=result.success,
+            email_sent=result.email_sent,
+            items_count=result.items_count,
+            decisions_updated=result.decisions_updated,
+            preview=preview,
+            message=result.message,
+        )
+
+        return ApiResponse.success(
+            data=response,
+            message=result.message,
+        )
+
+    except GoalNotFoundError:
+        raise BizException(
+            message="目标不存在或无权访问",
+            code=status.HTTP_404_NOT_FOUND,
+            error_code="GOAL_NOT_FOUND",
+        )
+    except NoItemsToSendError:
+        raise BizException(
+            message="没有待发送的项目",
+            code=status.HTTP_400_BAD_REQUEST,
+            error_code="NO_ITEMS_TO_SEND",
+        )
+    except RateLimitExceededError as e:
+        raise BizException(
+            message=f"发送频率超限: {e}",
+            code=status.HTTP_429_TOO_MANY_REQUESTS,
+            error_code="RATE_LIMIT_EXCEEDED",
+        )
+    except UserNoEmailError:
+        raise BizException(
+            message="用户未配置邮箱",
+            code=status.HTTP_400_BAD_REQUEST,
+            error_code="USER_NO_EMAIL",
+        )
+    except EmailServiceUnavailableError:
+        raise BizException(
+            message="邮件服务暂不可用",
+            code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            error_code="EMAIL_SERVICE_UNAVAILABLE",
+        )

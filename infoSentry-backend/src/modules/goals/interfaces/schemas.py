@@ -183,3 +183,64 @@ class GenerateGoalDraftResponse(BaseModel):
     name: str = Field(..., description="建议的目标名称")
     description: str = Field(..., description="建议的目标描述")
     keywords: list[str] = Field(default_factory=list, description="建议关键词列表")
+
+
+class SendGoalEmailRequest(BaseModel):
+    """立即发送目标推送邮件请求。"""
+
+    since: datetime | None = Field(
+        None,
+        description="只包含此时间后匹配的项目（默认24小时前）",
+    )
+    min_score: float = Field(
+        0.0,
+        ge=0.0,
+        le=1.0,
+        description="最低匹配分数过滤",
+    )
+    limit: int = Field(
+        20,
+        ge=1,
+        le=50,
+        description="最大项目数",
+    )
+    include_sent: bool = Field(
+        False,
+        description="是否包含已发送的项目",
+    )
+    dry_run: bool = Field(
+        False,
+        description="预览模式，不实际发送",
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "min_score": 0.6,
+                "limit": 20,
+                "include_sent": False,
+                "dry_run": False,
+            }
+        }
+
+
+class EmailPreviewData(BaseModel):
+    """邮件预览数据。"""
+
+    subject: str = Field(..., description="邮件主题")
+    to_email: str = Field(..., description="收件人邮箱")
+    item_titles: list[str] = Field(..., description="包含的项目标题列表")
+
+
+class SendGoalEmailResponse(BaseModel):
+    """立即发送目标推送邮件响应。"""
+
+    success: bool = Field(..., description="操作是否成功")
+    email_sent: bool = Field(..., description="邮件是否实际发送")
+    items_count: int = Field(..., description="包含的项目数")
+    decisions_updated: int = Field(..., description="更新的推送决策数")
+    preview: EmailPreviewData | None = Field(
+        None,
+        description="邮件预览（dry_run=true 时返回）",
+    )
+    message: str = Field(..., description="结果消息")

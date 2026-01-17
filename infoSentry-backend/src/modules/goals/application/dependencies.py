@@ -9,6 +9,7 @@ from fastapi import Depends
 
 from src.core.application import dependencies as core_app_deps
 from src.core.domain.ports.prompt_store import PromptStore
+from src.core.infrastructure.redis.client import RedisClient, get_redis_client
 from src.modules.goals.application.goal_draft_service import GoalDraftService
 from src.modules.goals.application.handlers import (
     ArchiveGoalHandler,
@@ -19,6 +20,7 @@ from src.modules.goals.application.handlers import (
     UpdateGoalHandler,
 )
 from src.modules.goals.application.keyword_service import KeywordSuggestionService
+from src.modules.goals.application.send_email_service import GoalSendEmailService
 from src.modules.goals.application.services import (
     GoalMatchQueryService,
     GoalQueryService,
@@ -33,8 +35,12 @@ from src.modules.items.application.dependencies import (
     get_item_repository,
 )
 from src.modules.items.domain.repository import GoalItemMatchRepository, ItemRepository
+from src.modules.push.application.dependencies import get_push_decision_repository
+from src.modules.push.domain.repository import PushDecisionRepository
 from src.modules.sources.application.dependencies import get_source_repository
 from src.modules.sources.domain.repository import SourceRepository
+from src.modules.users.application.dependencies import get_user_repository
+from src.modules.users.domain.repository import UserRepository
 
 
 def _missing_dependency(name: str) -> NoReturn:
@@ -137,3 +143,24 @@ async def get_goal_draft_service(
 ) -> GoalDraftService:
     """获取目标草稿生成服务。"""
     return GoalDraftService(prompt_store=prompt_store)
+
+
+async def get_goal_send_email_service(
+    goal_repository: GoalRepository = Depends(get_goal_repository),
+    user_repository: UserRepository = Depends(get_user_repository),
+    match_repository: GoalItemMatchRepository = Depends(get_goal_item_match_repository),
+    item_repository: ItemRepository = Depends(get_item_repository),
+    source_repository: SourceRepository = Depends(get_source_repository),
+    decision_repository: PushDecisionRepository = Depends(get_push_decision_repository),
+    redis_client: RedisClient = Depends(get_redis_client),
+) -> GoalSendEmailService:
+    """获取目标邮件发送服务。"""
+    return GoalSendEmailService(
+        goal_repo=goal_repository,
+        user_repo=user_repository,
+        match_repo=match_repository,
+        item_repo=item_repository,
+        source_repo=source_repository,
+        decision_repo=decision_repository,
+        redis_client=redis_client,
+    )
