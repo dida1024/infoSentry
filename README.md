@@ -16,8 +16,7 @@
 使用 Docker Compose 启动开发环境：
 
 ```bash
-./dev.sh core
-./dev.sh migrate
+make dev
 ```
 
 服务地址：
@@ -30,4 +29,3 @@
 - 文档索引：`docs/README.md`
 - 后端说明：`infoSentry-backend/README.md`
 - 前端说明：`infosentry-web/README.md`
-
