@@ -19,7 +19,7 @@ from typing import Any
 from loguru import logger
 
 from src.core.config import settings
-from src.core.infrastructure.health import EmailHealthResult
+from src.core.domain.ports.health_checker import EmailHealthChecker
 
 
 @dataclass
@@ -168,10 +168,12 @@ class EmailService:
         provider: SMTPProvider | None = None,
         max_retries: int = 3,
         base_delay: float = 1.0,
+        health_checker: EmailHealthChecker | None = None,
     ):
         self.provider = provider or SMTPProvider()
         self.max_retries = max_retries
         self.base_delay = base_delay
+        self.health_checker = health_checker
         self._consecutive_failures = 0
         self._last_failure_time: datetime | None = None
 
@@ -303,19 +305,24 @@ class EmailService:
 
         return results
 
-    def get_health_status(self) -> EmailHealthResult:
+    async def get_health_status(self):
         """Get email service health status.
 
         Returns:
-            EmailHealthResult: 邮件服务健康状态
+            Health status dictionary
         """
-        return EmailHealthResult(
-            available=self.is_available(),
-            circuit_open=self.is_circuit_open(),
-            consecutive_failures=self._consecutive_failures,
-            smtp_configured=self.provider.is_configured(),
-            email_enabled=settings.EMAIL_ENABLED,
-        )
+        if self.health_checker:
+            return await self.health_checker.check_email_health()
+
+        # Fallback implementation
+        return {
+            "status": "healthy" if self.is_available() else "unhealthy",
+            "available": self.is_available(),
+            "circuit_open": self.is_circuit_open(),
+            "consecutive_failures": self._consecutive_failures,
+            "smtp_configured": self.provider.is_configured(),
+            "email_enabled": settings.EMAIL_ENABLED,
+        }
 
 
 # Global email service instance

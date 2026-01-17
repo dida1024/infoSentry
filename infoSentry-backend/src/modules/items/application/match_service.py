@@ -20,11 +20,11 @@ from openai import AsyncOpenAI
 
 from src.core.config import settings
 from src.core.domain.events import EventBus
-from src.core.infrastructure.logging import BusinessEvents
-from src.core.infrastructure.redis.keys import RedisKeys
+from src.core.domain.ports.business_logger import BusinessEventLogger
+from src.core.domain.ports.kv import KVClient
 
 if TYPE_CHECKING:
-    from src.core.infrastructure.redis.client import RedisClient
+    pass
 from src.modules.goals.domain.entities import (
     Goal,
     GoalPriorityTerm,
@@ -174,7 +174,8 @@ class MatchService:
         event_bus: EventBus,
         feedback_repository: ItemFeedbackRepository | None = None,
         blocked_source_repository: BlockedSourceRepository | None = None,
-        redis_client: "RedisClient | None" = None,
+        kv_client: KVClient | None = None,
+        business_logger: BusinessEventLogger | None = None,
         openai_client: AsyncOpenAI | None = None,
     ):
         self.goal_repository = goal_repository
@@ -184,7 +185,8 @@ class MatchService:
         self.event_bus = event_bus
         self.feedback_repository = feedback_repository
         self.blocked_source_repository = blocked_source_repository
-        self.redis_client = redis_client
+        self.kv_client = kv_client
+        self.business_logger = business_logger
         self._openai_client = openai_client
 
     @property
@@ -377,7 +379,9 @@ class MatchService:
         # 获取 Goal 的 embedding
         goal_embedding = await self._get_goal_embedding(goal)
         if goal_embedding is None:
-            logger.debug(f"Failed to get embedding for goal {goal.id}, using fallback=0.5")
+            logger.debug(
+                f"Failed to get embedding for goal {goal.id}, using fallback=0.5"
+            )
             return 0.5  # 降级：无法获取 Goal embedding 时返回基础分数
 
         # 计算余弦相似度
@@ -430,10 +434,11 @@ class MatchService:
         content_hash = hashlib.md5(goal_text.encode()).hexdigest()[:8]
 
         # 尝试从缓存获取
-        if self.redis_client:
-            cache_key = RedisKeys.goal_embedding(goal.id, content_hash)
+        cache_key = None
+        if self.kv_client:
+            cache_key = f"embedding:goal:{goal.id}:{content_hash}"
             try:
-                cached = await self.redis_client.get_json(cache_key)
+                cached = await self.kv_client.get_json(cache_key)
                 if cached:
                     logger.debug(f"Goal embedding cache hit for {goal.id}")
                     return cached
@@ -454,9 +459,9 @@ class MatchService:
             )
 
             # 缓存到 Redis
-            if self.redis_client:
+            if self.kv_client and cache_key:
                 try:
-                    await self.redis_client.set_json(
+                    await self.kv_client.set_json(
                         cache_key,
                         embedding,
                         ex=self.GOAL_EMBEDDING_CACHE_TTL,
@@ -480,7 +485,7 @@ class MatchService:
         Returns:
             如果包含中文字符返回 True，否则返回 False
         """
-        return any('\u4e00' <= char <= '\u9fff' for char in text)
+        return any("\u4e00" <= char <= "\u9fff" for char in text)
 
     def _check_term_hits(
         self,
@@ -514,11 +519,13 @@ class MatchService:
                             positions.append(pos)
                             start = pos + len(term_lower)
 
-                    details.append({
-                        "term": term.term,
-                        "count": count,
-                        "positions": positions,
-                    })
+                    details.append(
+                        {
+                            "term": term.term,
+                            "count": count,
+                            "positions": positions,
+                        }
+                    )
             else:
                 # 英文使用词边界匹配
                 pattern = r"\b" + re.escape(term_lower) + r"\b"
@@ -526,11 +533,13 @@ class MatchService:
 
                 if matches:
                     hits += 1
-                    details.append({
-                        "term": term.term,
-                        "count": len(matches),
-                        "positions": [m.start() for m in matches[:3]],
-                    })
+                    details.append(
+                        {
+                            "term": term.term,
+                            "count": len(matches),
+                            "positions": [m.start() for m in matches[:3]],
+                        }
+                    )
 
         return hits, details
 
@@ -696,13 +705,14 @@ class MatchService:
         # 策略1: 高语义相似度 - 语义主导
         if cosine >= self.SEMANTIC_HIGH_THRESHOLD:
             # 基础分 + 语义加分
-            base_score = self.BASE_SCORE_HIGH_SEMANTIC + cosine * self.SEMANTIC_BONUS_HIGH
+            base_score = (
+                self.BASE_SCORE_HIGH_SEMANTIC + cosine * self.SEMANTIC_BONUS_HIGH
+            )
 
             # 关键词作为加分项
             if term_hits > 0:
                 term_bonus = min(
-                    term_hits * self.TERM_BONUS_PER_HIT_HIGH,
-                    self.TERM_BONUS_MAX_HIGH
+                    term_hits * self.TERM_BONUS_PER_HIT_HIGH, self.TERM_BONUS_MAX_HIGH
                 )
                 base_score += term_bonus
 
@@ -717,7 +727,7 @@ class MatchService:
                     + cosine * self.SEMANTIC_BONUS_MEDIUM_WITH_TERMS
                     + min(
                         term_hits * self.TERM_BONUS_PER_HIT_MEDIUM,
-                        self.TERM_BONUS_MAX_MEDIUM
+                        self.TERM_BONUS_MAX_MEDIUM,
                     )
                 )
             else:
@@ -732,8 +742,7 @@ class MatchService:
             if term_hits > 0:
                 # 关键词主导
                 score = self.BASE_SCORE_LOW_SEMANTIC + min(
-                    term_hits * self.TERM_BONUS_PER_HIT_LOW,
-                    self.TERM_BONUS_MAX_LOW
+                    term_hits * self.TERM_BONUS_PER_HIT_LOW, self.TERM_BONUS_MAX_LOW
                 )
             else:
                 # 很低的分数
@@ -767,18 +776,19 @@ class MatchService:
         )
 
         # 记录高分匹配的业务事件
-        if result.score >= settings.BATCH_THRESHOLD:
+        if result.score >= settings.BATCH_THRESHOLD and self.business_logger:
             decision = (
-                "immediate"
-                if result.score >= settings.IMMEDIATE_THRESHOLD
-                else "batch"
+                "immediate" if result.score >= settings.IMMEDIATE_THRESHOLD else "batch"
             )
-            BusinessEvents.item_matched(
-                item_id=result.item_id,
-                goal_id=result.goal_id,
-                score=result.score,
-                decision=decision,
-                reason=result.reasons.summary,
+            await self.business_logger.log_event(
+                "item_matched",
+                {
+                    "item_id": result.item_id,
+                    "goal_id": result.goal_id,
+                    "score": result.score,
+                    "decision": decision,
+                    "reason": result.reasons.summary,
+                },
             )
 
     async def match_item_by_id(self, item_id: str) -> list[MatchResult]:

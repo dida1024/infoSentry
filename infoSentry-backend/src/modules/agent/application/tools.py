@@ -15,6 +15,7 @@ from typing import Any, TypeVar
 from loguru import logger
 
 from src.core.config import settings
+from src.core.domain.ports.kv import KVClient
 from src.modules.agent.domain.entities import (
     AgentToolCall,
     ToolCallStatus,
@@ -411,8 +412,8 @@ class EnqueueEmailTool(BaseTool):
     description = "将决策加入邮件发送队列"
     is_write = True
 
-    def __init__(self, redis_client=None, ledger_repo=None):
-        self.redis = redis_client
+    def __init__(self, kv_client: KVClient | None = None, ledger_repo=None):
+        self.kv_client = kv_client
         self.ledger_repo = ledger_repo
 
     async def execute(
@@ -424,12 +425,10 @@ class EnqueueEmailTool(BaseTool):
     ) -> ToolResult:
         """执行加入邮件队列。"""
         # 写入 Redis 队列或直接触发 Celery 任务
-        if self.redis:
-            from src.core.infrastructure.redis.keys import RedisKeys
-
-            key = RedisKeys.immediate_buffer("email", channel)
+        if self.kv_client:
+            key = f"buffer:immediate:email:{channel}"
             for decision_id in decision_ids:
-                await self.redis.lpush(key, decision_id)
+                await self.kv_client.lpush(key, decision_id)
 
         # 记录到 action ledger
         if self.ledger_repo and run_id:

@@ -4,6 +4,7 @@ from typing import NoReturn
 
 from fastapi import Depends
 
+from src.core.domain.ports.health_checker import EmailHealthChecker
 from src.modules.goals.domain.repository import GoalRepository
 from src.modules.items.domain.repository import ItemRepository
 from src.modules.push.application.services import NotificationService
@@ -48,10 +49,12 @@ async def get_goal_repository() -> GoalRepository:
     _missing_dependency("GoalRepository")
 
 
+async def get_email_health_checker() -> EmailHealthChecker:
+    _missing_dependency("EmailHealthChecker")
+
+
 async def get_notification_service(
-    push_decision_repo: PushDecisionRepository = Depends(
-        get_push_decision_repository
-    ),
+    push_decision_repo: PushDecisionRepository = Depends(get_push_decision_repository),
     item_repo: ItemRepository = Depends(get_item_repository),
     source_repo: SourceRepository = Depends(get_source_repository),
     goal_repo: GoalRepository = Depends(get_goal_repository),
