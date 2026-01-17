@@ -55,11 +55,11 @@ cd infoSentry
 ### 2.2 配置环境变量
 
 ```bash
-# 复制配置模板
-cp infoSentry-backend/env.example infoSentry-backend/.env
+# 复制配置模板（仓库根目录）
+cp .env.example .env
 
 # 编辑配置（必填项用 [必填] 标记）
-vim infoSentry-backend/.env
+vim .env
 
 # 必须配置的关键变量：
 # - SECRET_KEY: 应用密钥
@@ -400,6 +400,7 @@ docker-compose -f docker-compose.prod.yml restart postgres
 
 ```
 infoSentry/
+├── .env.example               # 生产环境变量模板（根目录）
 ├── docker-compose.prod.yml    # 生产环境编排
 ├── nginx/
 │   └── nginx.conf             # Nginx 配置
@@ -407,7 +408,7 @@ infoSentry/
 │   ├── backup.sh              # 备份脚本
 │   └── chaos.sh               # 故障演练脚本
 ├── infoSentry-backend/
-│   ├── env.example            # 环境变量模板
+│   ├── .env.example            # 后端本地开发模板
 │   ├── Dockerfile             # 后端镜像
 │   └── ...
 └── infosentry-web/
@@ -443,5 +444,4 @@ docker exec -it infosentry-redis redis-cli
 
 ### C. 环境变量清单
 
-详见 `infoSentry-backend/env.example`
-
+详见 `.env.example`

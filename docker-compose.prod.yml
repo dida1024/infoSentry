@@ -11,7 +11,7 @@
 #   停止并删除数据: docker-compose -f docker-compose.prod.yml down -v
 #
 # 注意事项:
-#   1. 部署前请先复制 .env.example 到 .env 并填写配置
+#   1. 部署前请在仓库根目录复制 .env.example 到 .env 并填写配置
 #   2. 确保端口 80、443（如启用 HTTPS）未被占用
 #   3. 首次部署后需运行数据库迁移：
 #      docker-compose -f docker-compose.prod.yml exec api uv run alembic upgrade head
@@ -309,4 +309,3 @@ networks:
   infosentry-network:
     name: infosentry-network
     driver: bridge
-

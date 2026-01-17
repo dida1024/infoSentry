@@ -39,10 +39,11 @@ src/
 ### 1. 配置环境变量
 
 ```bash
-# 复制配置模板
-cp env.example .env
+# 在仓库根目录复制配置模板
+cd ..
+cp .env.example .env
 
-# 编辑配置（必填项请参考 env.example 中的注释）
+# 编辑配置（必填项请参考 .env.example 中的注释）
 vim .env
 ```
 
@@ -99,7 +100,7 @@ pip install -e .
 复制环境变量示例文件并修改:
 
 ```bash
-cp env.example .env
+cp .env.example .env
 # 编辑 .env 文件
 ```
 
