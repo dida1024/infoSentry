@@ -40,9 +40,17 @@ def build_redirect_url(
     item_id: str,
     goal_id: str,
     channel: str = "email",
+    api_prefix: str = "/api/v1",
 ) -> str:
     """Build redirect URL for click tracking."""
-    return f"{base_url}/r/{item_id}?goal_id={goal_id}&channel={channel}"
+    normalized_base = base_url.rstrip("/")
+    normalized_prefix = api_prefix.rstrip("/")
+    if normalized_prefix and not normalized_base.endswith(normalized_prefix):
+        normalized_base = f"{normalized_base}{normalized_prefix}"
+    return (
+        f"{normalized_base}/r/{item_id}"
+        f"?goal_id={goal_id}&channel={channel}"
+    )
 
 
 def render_immediate_email(

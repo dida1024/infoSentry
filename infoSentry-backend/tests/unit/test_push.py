@@ -306,6 +306,7 @@ class TestEmailTemplates:
             "email",
         )
 
+        assert "/api/v1/r/item-123" in url
         assert "item-123" in url
         assert "goal-456" in url
         assert "channel=email" in url
