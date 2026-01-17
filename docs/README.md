@@ -12,6 +12,7 @@
 
 ## Agent（Dev Tools）
 - Agent Runtime：`agents/AGENT_RUNTIME_SPEC.md`
+- AI Skills：`agents/AI_SKILLS.md`
 
 ## 决策（Decisions）
 - 架构决策记录：`decisions/ARCHITECTURE_DECISIONS.md`
