@@ -8,8 +8,8 @@
 - 可解释性
 """
 
-
 import pytest
+from pydantic import ValidationError
 
 from src.modules.agent.application.llm_service import (
     BoundaryJudgeOutput,
@@ -167,13 +167,15 @@ class TestAgentState:
     def test_to_output_snapshot(self):
         """测试生成输出快照。"""
         state = AgentState()
-        state.actions.append(ActionProposal(
-            action_type="EMIT_DECISION",
-            decision="IMMEDIATE",
-            goal_id="goal-1",
-            item_id="item-1",
-            reason="Test",
-        ))
+        state.actions.append(
+            ActionProposal(
+                action_type="EMIT_DECISION",
+                decision="IMMEDIATE",
+                goal_id="goal-1",
+                item_id="item-1",
+                reason="Test",
+            )
+        )
 
         snapshot = state.to_output_snapshot()
 
@@ -376,12 +378,17 @@ class TestBoundaryJudgeNode:
 
         state = AgentState(
             goal=GoalContext(
-                goal_id="g1", user_id="u1", name="Test",
-                description="Test", priority_mode="SOFT",
+                goal_id="g1",
+                user_id="u1",
+                name="Test",
+                description="Test",
+                priority_mode="SOFT",
             ),
             item=ItemContext(
-                item_id="i1", source_id="s1",
-                title="Test", url="https://test.com",
+                item_id="i1",
+                source_id="s1",
+                title="Test",
+                url="https://test.com",
             ),
             match=MatchContext(score=0.90, features={}, reasons={}),
         )
@@ -406,12 +413,17 @@ class TestEmitActionsNode:
         node = EmitActionsNode()
         state = AgentState(
             goal=GoalContext(
-                goal_id="goal-1", user_id="user-1", name="Test",
-                description="Test", priority_mode="SOFT",
+                goal_id="goal-1",
+                user_id="user-1",
+                name="Test",
+                description="Test",
+                priority_mode="SOFT",
             ),
             item=ItemContext(
-                item_id="item-1", source_id="src-1",
-                title="Test", url="https://test.com",
+                item_id="item-1",
+                source_id="src-1",
+                title="Test",
+                url="https://test.com",
             ),
             match=MatchContext(
                 score=0.95,
@@ -433,12 +445,17 @@ class TestEmitActionsNode:
         node = EmitActionsNode()
         state = AgentState(
             goal=GoalContext(
-                goal_id="goal-1", user_id="user-1", name="Test",
-                description="Test", priority_mode="SOFT",
+                goal_id="goal-1",
+                user_id="user-1",
+                name="Test",
+                description="Test",
+                priority_mode="SOFT",
             ),
             item=ItemContext(
-                item_id="item-1", source_id="src-1",
-                title="Test", url="https://test.com",
+                item_id="item-1",
+                source_id="src-1",
+                title="Test",
+                url="https://test.com",
             ),
         )
         state.draft.preliminary_bucket = DecisionBucket.IGNORE
@@ -452,12 +469,17 @@ class TestEmitActionsNode:
         node = EmitActionsNode()
         state = AgentState(
             goal=GoalContext(
-                goal_id="goal-1", user_id="user-1", name="Test",
-                description="Test", priority_mode="SOFT",
+                goal_id="goal-1",
+                user_id="user-1",
+                name="Test",
+                description="Test",
+                priority_mode="SOFT",
             ),
             item=ItemContext(
-                item_id="item-1", source_id="src-1",
-                title="Test", url="https://test.com",
+                item_id="item-1",
+                source_id="src-1",
+                title="Test",
+                url="https://test.com",
             ),
         )
         state.draft.blocked = True
@@ -478,19 +500,26 @@ class TestNodePipeline:
 
     async def test_pipeline_execution(self):
         """测试管道执行。"""
-        pipeline = NodePipeline([
-            BucketNode(),
-            EmitActionsNode(),
-        ])
+        pipeline = NodePipeline(
+            [
+                BucketNode(),
+                EmitActionsNode(),
+            ]
+        )
 
         state = AgentState(
             goal=GoalContext(
-                goal_id="goal-1", user_id="user-1", name="Test",
-                description="Test", priority_mode="SOFT",
+                goal_id="goal-1",
+                user_id="user-1",
+                name="Test",
+                description="Test",
+                priority_mode="SOFT",
             ),
             item=ItemContext(
-                item_id="item-1", source_id="src-1",
-                title="Test", url="https://test.com",
+                item_id="item-1",
+                source_id="src-1",
+                title="Test",
+                url="https://test.com",
             ),
             match=MatchContext(score=0.95, features={}, reasons={}),
         )
@@ -515,6 +544,7 @@ class TestToolRegistry:
 
         class MockTool(BaseTool):
             name = "mock_tool"
+
             async def execute(self, **kwargs):
                 return ToolResult(success=True, data="test")
 
@@ -529,11 +559,13 @@ class TestToolRegistry:
 
         class Tool1(BaseTool):
             name = "tool1"
+
             async def execute(self, **kwargs):
                 return ToolResult(success=True)
 
         class Tool2(BaseTool):
             name = "tool2"
+
             async def execute(self, **kwargs):
                 return ToolResult(success=True)
 
@@ -551,6 +583,7 @@ class TestToolRegistry:
 
         class MockTool(BaseTool):
             name = "mock_tool"
+
             async def execute(self, **kwargs):
                 return ToolResult(success=True, data={"key": "value"})
 
@@ -577,6 +610,7 @@ class TestToolRegistry:
 
         class MockTool(BaseTool):
             name = "mock_tool"
+
             async def execute(self, **kwargs):
                 return ToolResult(success=True)
 
@@ -612,7 +646,7 @@ class TestBoundaryJudgeOutput:
 
     def test_invalid_label(self):
         """测试无效标签。"""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             BoundaryJudgeOutput(
                 label="INVALID",
                 confidence=0.85,
@@ -621,7 +655,7 @@ class TestBoundaryJudgeOutput:
 
     def test_invalid_confidence(self):
         """测试无效置信度。"""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             BoundaryJudgeOutput(
                 label="IMMEDIATE",
                 confidence=1.5,  # 超出范围
@@ -667,4 +701,3 @@ class TestActionProposal:
 
         assert data["action_type"] == "EMIT_DECISION"
         assert data["decision"] == "BATCH"
-

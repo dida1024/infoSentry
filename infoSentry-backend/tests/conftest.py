@@ -141,9 +141,7 @@ def mock_redis_client() -> MagicMock:
     client.set = AsyncMock(return_value=True)
     client.delete = AsyncMock(return_value=1)
     client.incr = AsyncMock(return_value=1)
-    client.health_check = AsyncMock(
-        return_value={"status": "ok", "connected": True}
-    )
+    client.health_check = AsyncMock(return_value={"status": "ok", "connected": True})
     return client
 
 
@@ -177,6 +175,7 @@ async def async_client(
     test_settings, mock_db_session, mock_redis_client
 ) -> AsyncGenerator[AsyncClient, None]:
     """异步 HTTP 客户端（用于 API 测试）。"""
+    _ = test_settings
     from main import app
     from src.core.infrastructure.database.session import get_db_session
     from src.core.infrastructure.redis import get_redis_client
@@ -270,9 +269,7 @@ def sample_match_data() -> dict[str, Any]:
         },
         "reasons_json": {
             "summary": "命中核心关键词「GPT」",
-            "evidence": [
-                {"type": "TERM_HIT", "value": "GPT-5", "field": "title"}
-            ],
+            "evidence": [{"type": "TERM_HIT", "value": "GPT-5", "field": "title"}],
         },
     }
 
@@ -289,9 +286,7 @@ def mock_openai_client() -> MagicMock:
 
     # Mock embedding
     client.embeddings.create = AsyncMock(
-        return_value=MagicMock(
-            data=[MagicMock(embedding=[0.1] * 1536)]
-        )
+        return_value=MagicMock(data=[MagicMock(embedding=[0.1] * 1536)])
     )
 
     # Mock chat completion
@@ -351,5 +346,5 @@ def frozen_time():
 def create_test_id(prefix: str = "test") -> str:
     """生成测试用 ID。"""
     import uuid
-    return f"{prefix}-{uuid.uuid4().hex[:8]}"
 
+    return f"{prefix}-{uuid.uuid4().hex[:8]}"

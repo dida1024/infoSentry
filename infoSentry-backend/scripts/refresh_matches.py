@@ -13,29 +13,16 @@ import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-# 添加项目根目录到 Python 路径
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
 
-from loguru import logger
+def _ensure_project_root_on_path() -> None:
+    """确保项目根目录在 Python 路径中，便于直接运行脚本。"""
+    project_root = Path(__file__).parent.parent
+    project_root_str = str(project_root)
+    if project_root_str not in sys.path:
+        sys.path.insert(0, project_root_str)
 
-from src.core.domain.events import SimpleEventBus
-from src.core.infrastructure.database.session import get_async_session
-from src.core.infrastructure.redis.client import RedisClient
-from src.modules.goals.infrastructure.mappers import (  # noqa: E402
-    GoalMapper,
-    GoalPriorityTermMapper,
-)
-from src.modules.goals.infrastructure.repositories import (
-    PostgreSQLGoalPriorityTermRepository,
-    PostgreSQLGoalRepository,
-)
-from src.modules.items.application.match_service import MatchService
-from src.modules.items.infrastructure.mappers import GoalItemMatchMapper, ItemMapper
-from src.modules.items.infrastructure.repositories import (
-    PostgreSQLGoalItemMatchRepository,
-    PostgreSQLItemRepository,
-)
+
+_ensure_project_root_on_path()
 
 
 async def refresh_matches_for_goal(
@@ -51,6 +38,26 @@ async def refresh_matches_for_goal(
     Returns:
         创建的匹配数
     """
+    from loguru import logger
+
+    from src.core.domain.events import SimpleEventBus
+    from src.core.infrastructure.database.session import get_async_session
+    from src.core.infrastructure.redis.client import RedisClient
+    from src.modules.goals.infrastructure.mappers import (
+        GoalMapper,
+        GoalPriorityTermMapper,
+    )
+    from src.modules.goals.infrastructure.repositories import (
+        PostgreSQLGoalPriorityTermRepository,
+        PostgreSQLGoalRepository,
+    )
+    from src.modules.items.application.match_service import MatchService
+    from src.modules.items.infrastructure.mappers import GoalItemMatchMapper, ItemMapper
+    from src.modules.items.infrastructure.repositories import (
+        PostgreSQLGoalItemMatchRepository,
+        PostgreSQLItemRepository,
+    )
+
     async with get_async_session() as session:
         event_bus = SimpleEventBus()
         redis_client = RedisClient()
@@ -107,6 +114,13 @@ async def refresh_matches_for_goal(
 
 async def refresh_all_goals(hours_back: int = 168) -> None:
     """刷新所有活跃 Goal 的匹配记录。"""
+    from loguru import logger
+
+    from src.core.domain.events import SimpleEventBus
+    from src.core.infrastructure.database.session import get_async_session
+    from src.modules.goals.infrastructure.mappers import GoalMapper
+    from src.modules.goals.infrastructure.repositories import PostgreSQLGoalRepository
+
     async with get_async_session() as session:
         event_bus = SimpleEventBus()
         goal_repo = PostgreSQLGoalRepository(session, GoalMapper(), event_bus)
