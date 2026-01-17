@@ -39,7 +39,7 @@ export interface GenerateGoalDraftResponse {
   keywords: string[];
 }
 
-export interface UpdateGoalRequest extends Partial<CreateGoalRequest> {}
+export type UpdateGoalRequest = Partial<CreateGoalRequest>;
 
 interface ApiWrapper<T> {
   code: number;
