@@ -47,8 +47,8 @@ class SMTPProvider:
         port: int | None = None,
         user: str | None = None,
         password: str | None = None,
-        use_tls: bool = True,
-        use_ssl: bool = False,
+        use_tls: bool | None = None,
+        use_ssl: bool | None = None,
         from_email: str | None = None,
         from_name: str | None = None,
     ):
