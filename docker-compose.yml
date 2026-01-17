@@ -271,33 +271,33 @@ services:
           memory: 128M
 
   # ============================================
-  # 反向代理层
+  # 反向代理层（如需使用容器 Nginx，请取消注释）
   # ============================================
 
-  nginx:
-    image: nginx:alpine
-    container_name: infosentry-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro  # SSL 证书目录（可选）
-    depends_on:
-      - api
-      - web
-    healthcheck:
-      test: ["CMD", "nginx", "-t"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - infosentry-network
-    deploy:
-      resources:
-        limits:
-          memory: 64M
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: infosentry-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./nginx/ssl:/etc/nginx/ssl:ro  # SSL 证书目录（可选）
+  #   depends_on:
+  #     - api
+  #     - web
+  #   healthcheck:
+  #     test: ["CMD", "nginx", "-t"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #   networks:
+  #     - infosentry-network
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 64M
 
 volumes:
   postgres_data:
