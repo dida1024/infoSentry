@@ -1,8 +1,8 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Pencil, ThumbsUp, ThumbsDown, ExternalLink, Trash2 } from "lucide-react";
+import { ArrowLeft, Mail, Pencil, ThumbsUp, ThumbsDown, ExternalLink, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout";
 import {
@@ -16,6 +16,7 @@ import {
   Alert,
 } from "@/components/ui";
 import { useGoal, useGoalMatches, useDeleteGoal } from "@/hooks/use-goals";
+import { SendGoalEmailDialog } from "./send-goal-email-dialog";
 import type { GoalItemMatch } from "@/types";
 
 const statusConfig = {
@@ -101,6 +102,7 @@ export default function GoalDetailPage({
   const { data: goal, isLoading: goalLoading, error: goalError } = useGoal(id);
   const { data: matches, isLoading: matchesLoading } = useGoalMatches(id);
   const deleteGoal = useDeleteGoal();
+  const [showSendDialog, setShowSendDialog] = useState(false);
 
   const priorityTerms = goal?.priority_terms ?? [];
   const negativeTerms = goal?.negative_terms ?? [];
@@ -180,6 +182,14 @@ export default function GoalDetailPage({
               </Button>
             </Link>
             <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowSendDialog(true)}
+            >
+              <Mail className="h-4 w-4 mr-1" />
+              发送邮件
+            </Button>
+            <Button
               variant="danger"
               size="sm"
               onClick={handleDelete}
@@ -244,6 +254,13 @@ export default function GoalDetailPage({
         </CardContent>
       </Card>
 
+      {showSendDialog && (
+        <SendGoalEmailDialog
+          goalId={id}
+          onClose={() => setShowSendDialog(false)}
+        />
+      )}
+
       {/* Matches */}
       <Card>
         <CardHeader>
@@ -271,4 +288,3 @@ export default function GoalDetailPage({
     </div>
   );
 }
-

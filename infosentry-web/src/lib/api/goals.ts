@@ -39,6 +39,29 @@ export interface GenerateGoalDraftResponse {
   keywords: string[];
 }
 
+export interface EmailPreviewData {
+  subject: string;
+  to_email: string;
+  item_titles: string[];
+}
+
+export interface SendGoalEmailRequest {
+  since?: string;
+  min_score?: number;
+  limit?: number;
+  include_sent?: boolean;
+  dry_run?: boolean;
+}
+
+export interface SendGoalEmailResponse {
+  success: boolean;
+  email_sent: boolean;
+  items_count: number;
+  decisions_updated: number;
+  preview?: EmailPreviewData | null;
+  message: string;
+}
+
 export type UpdateGoalRequest = Partial<CreateGoalRequest>;
 
 interface ApiWrapper<T> {
@@ -152,5 +175,15 @@ export const goalsApi = {
     );
     return response.data;
   },
-};
 
+  /**
+   * 立即发送 Goal 推送邮件
+   */
+  sendEmail: async (id: string, data: SendGoalEmailRequest): Promise<SendGoalEmailResponse> => {
+    const response = await api.post<ApiWrapper<SendGoalEmailResponse>>(
+      `/goals/${id}/send-email`,
+      data
+    );
+    return response.data;
+  },
+};

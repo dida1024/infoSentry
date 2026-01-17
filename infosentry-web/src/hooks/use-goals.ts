@@ -3,6 +3,7 @@ import {
   goalsApi,
   type CreateGoalRequest,
   type GenerateGoalDraftRequest,
+  type SendGoalEmailRequest,
   type UpdateGoalRequest,
   type SuggestKeywordsRequest,
 } from "@/lib/api/goals";
@@ -152,3 +153,20 @@ export function useGenerateGoalDraft() {
   });
 }
 
+/**
+ * 立即发送 Goal 推送邮件
+ */
+export function useSendGoalEmail(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: SendGoalEmailRequest) => goalsApi.sendEmail(id, data),
+    onSuccess: (data) => {
+      if (!data.email_sent) {
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: goalKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: goalKeys.matches(id) });
+    },
+  });
+}
