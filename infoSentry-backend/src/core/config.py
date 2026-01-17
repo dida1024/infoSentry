@@ -37,8 +37,8 @@ class Settings(BaseSettings):
     ROOTPATH: str = ""
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str = secrets.token_urlsafe(32)
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
-    MAGIC_LINK_EXPIRE_MINUTES: int = 30  # Magic link 30分钟过期
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
+    MAGIC_LINK_EXPIRE_MINUTES: int = 30
     FRONTEND_HOST: str = "http://localhost:3000"
     BACKEND_HOST: str = "http://localhost:8000"
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
@@ -62,6 +62,20 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyUrl] | str, BeforeValidator(parse_cors)
     ] = []
+    CORS_ALLOW_METHODS: list[str] = [
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "OPTIONS",
+    ]
+    CORS_ALLOW_HEADERS: list[str] = [
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "X-Requested-With",
+    ]
 
     @computed_field
     @property
@@ -114,6 +128,25 @@ class Settings(BaseSettings):
     def _set_default_emails_from(self) -> Self:
         if not self.EMAILS_FROM_NAME:
             self.EMAILS_FROM_NAME = self.PROJECT_NAME
+        return self
+
+    @model_validator(mode="after")
+    def _validate_security_settings(self) -> Self:
+        insecure_keys = {
+            "",
+            "changethis",
+            "dev-secret-key-please-change-in-production",
+        }
+        cors_origins = (
+            self.BACKEND_CORS_ORIGINS
+            if isinstance(self.BACKEND_CORS_ORIGINS, list)
+            else [self.BACKEND_CORS_ORIGINS]
+        )
+        if "*" in cors_origins:
+            raise ValueError("CORS origin '*' is not allowed")
+        if self.ENVIRONMENT == "production":
+            if self.SECRET_KEY in insecure_keys or len(self.SECRET_KEY) < 32:
+                raise ValueError("SECRET_KEY must be set and at least 32 characters")
         return self
 
     EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48

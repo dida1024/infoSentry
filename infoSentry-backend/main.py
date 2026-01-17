@@ -173,8 +173,8 @@ if settings.all_cors_origins:
         CORSMiddleware,
         allow_origins=settings.all_cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=settings.CORS_ALLOW_METHODS,
+        allow_headers=settings.CORS_ALLOW_HEADERS,
     )
 
 # Include API router
