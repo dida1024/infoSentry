@@ -230,7 +230,7 @@ async def _match_item_async(item_id: str) -> None:
                 item_repository=item_repo,
                 match_repository=match_repo,
                 event_bus=event_bus,
-                redis_client=redis_client,
+                kv_client=redis_client,
             )
 
             # 执行匹配
@@ -338,7 +338,7 @@ async def _match_items_for_goal_async(goal_id: str, hours_back: int) -> None:
                 item_repository=item_repo,
                 match_repository=match_repo,
                 event_bus=event_bus,
-                redis_client=redis_client,
+                kv_client=redis_client,
             )
 
             # 获取最近的 Items
