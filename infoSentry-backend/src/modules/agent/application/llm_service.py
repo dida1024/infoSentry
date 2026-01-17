@@ -9,10 +9,11 @@
 
 import json
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, cast
 
 from loguru import logger
 from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel, Field, ValidationError
 from tenacity import (
     retry,
@@ -194,7 +195,7 @@ class LLMJudgeService:
         item_snippet: str,
         match_score: float,
         match_reasons: dict[str, Any] | None,
-    ) -> list[dict[str, str]]:
+    ) -> list[ChatCompletionMessageParam]:
         """构建 messages（支持文件化 prompt）。"""
         if settings.PROMPTS_ENABLED:
             if not self._prompt_store:
@@ -211,7 +212,7 @@ class LLMJudgeService:
                     ),
                     None,
                 )
-                messages: list[dict[str, str]] = []
+                messages: list[ChatCompletionMessageParam] = []
                 if system:
                     messages.append({"role": "system", "content": system})
                 messages.append({"role": "user", "content": prompt})
@@ -235,7 +236,10 @@ class LLMJudgeService:
                     "match_reason_summary": summary,
                 },
             )
-            return [{"role": m.role, "content": m.content} for m in rendered]
+            return cast(
+                list[ChatCompletionMessageParam],
+                [{"role": m.role, "content": m.content} for m in rendered],
+            )
 
         # 回退：使用代码内 prompt（仅用于紧急回滚）
         user_prompt = (
@@ -249,10 +253,13 @@ class LLMJudgeService:
                 match_reasons,
             )
         )
-        return [
-            {"role": "system", "content": self.SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ]
+        return cast(
+            list[ChatCompletionMessageParam],
+            [
+                {"role": "system", "content": self.SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
 
     @retry(
         retry=retry_if_exception_type((Exception,)),
@@ -260,7 +267,9 @@ class LLMJudgeService:
         wait=wait_exponential(multiplier=1, min=1, max=5),
         reraise=True,
     )
-    async def _call_llm(self, messages: Sequence[dict[str, str]]) -> tuple[str, int]:
+    async def _call_llm(
+        self, messages: Sequence[ChatCompletionMessageParam]
+    ) -> tuple[str, int]:
         """调用 LLM API。"""
         response = await self.client.chat.completions.create(
             model=settings.OPENAI_JUDGE_MODEL,
