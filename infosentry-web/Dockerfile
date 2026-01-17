@@ -11,8 +11,8 @@ WORKDIR /app
 # 复制依赖文件
 COPY package.json package-lock.json ./
 
-# 安装依赖
-RUN npm ci --only=production
+# 安装依赖（构建需要 devDependencies，如 typescript）
+RUN npm ci
 
 # Stage 2: 构建应用
 FROM node:20-alpine AS builder
@@ -59,4 +59,3 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "server.js"]
-
