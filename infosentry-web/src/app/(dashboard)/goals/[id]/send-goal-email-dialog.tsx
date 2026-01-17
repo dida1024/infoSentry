@@ -13,7 +13,7 @@ const schema = z.object({
   since: z.string().optional(),
   min_score: z.number().min(0).max(1),
   limit: z.number().int().min(1).max(50),
-  include_sent: z.boolean().default(false),
+  include_sent: z.boolean(),
 });
 
 type FormData = z.infer<typeof schema>;
