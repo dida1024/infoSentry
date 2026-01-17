@@ -436,7 +436,9 @@ class MonitoringService:
                     last_beat_time = datetime.fromisoformat(last_beat)
                     age_seconds = (datetime.now(UTC) - last_beat_time).total_seconds()
                     result.workers[worker_type] = WorkerHeartbeat(
-                        status="ok" if age_seconds < settings.WORKER_HEARTBEAT_STALE_SEC else "stale",
+                        status="ok"
+                        if age_seconds < settings.WORKER_HEARTBEAT_STALE_SEC
+                        else "stale",
                         last_heartbeat=last_beat,
                         age_seconds=int(age_seconds),
                     )

@@ -171,6 +171,7 @@ def enqueue_embed_task(_self: object, item_id: str) -> None:
     """
     logger.info(f"Item {item_id} enqueued for embedding")
     from src.modules.items.tasks import embed_item
+
     embed_item.delay(item_id=item_id)
 
 

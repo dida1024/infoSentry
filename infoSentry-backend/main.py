@@ -160,9 +160,7 @@ app.dependency_overrides[users_app_deps.get_magic_link_repository] = (
 app.dependency_overrides[users_app_deps.get_user_budget_daily_repository] = (
     users_infra_deps.get_user_budget_daily_repository
 )
-app.dependency_overrides[users_app_deps.get_token_service] = (
-    infra_jwt.get_token_service
-)
+app.dependency_overrides[users_app_deps.get_token_service] = infra_jwt.get_token_service
 
 # Exception handlers
 app.add_exception_handler(BizException, biz_exception_handler)

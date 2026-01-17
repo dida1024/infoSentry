@@ -132,7 +132,9 @@ class TestBudgetService:
             "judge_disabled": False,
         }
 
-        with patch("src.modules.items.application.budget_service.settings") as mock_settings:
+        with patch(
+            "src.modules.items.application.budget_service.settings"
+        ) as mock_settings:
             mock_settings.EMBEDDING_ENABLED = True
             mock_settings.DAILY_USD_BUDGET = 0.33
             mock_settings.EMBED_PER_DAY = 500
@@ -152,7 +154,9 @@ class TestBudgetService:
             "judge_disabled": False,
         }
 
-        with patch("src.modules.items.application.budget_service.settings") as mock_settings:
+        with patch(
+            "src.modules.items.application.budget_service.settings"
+        ) as mock_settings:
             mock_settings.EMBEDDING_ENABLED = True
             mock_settings.DAILY_USD_BUDGET = 0.33
             mock_settings.EMBED_PER_DAY = 500
@@ -164,7 +168,9 @@ class TestBudgetService:
 
     async def test_check_embedding_budget_disabled(self, budget_service, mock_redis):
         """测试全局禁用的情况。"""
-        with patch("src.modules.items.application.budget_service.settings") as mock_settings:
+        with patch(
+            "src.modules.items.application.budget_service.settings"
+        ) as mock_settings:
             mock_settings.EMBEDDING_ENABLED = False
 
             allowed, reason = await budget_service.check_embedding_budget()
@@ -358,9 +364,15 @@ class TestMatchService:
         """测试多个词条命中。"""
         text = "OpenAI 和 Claude 都是 AI 领域的领先者"
         terms = [
-            GoalPriorityTerm(id="t1", goal_id="g1", term="OpenAI", term_type=TermType.MUST),
-            GoalPriorityTerm(id="t2", goal_id="g1", term="Claude", term_type=TermType.MUST),
-            GoalPriorityTerm(id="t3", goal_id="g1", term="Google", term_type=TermType.MUST),
+            GoalPriorityTerm(
+                id="t1", goal_id="g1", term="OpenAI", term_type=TermType.MUST
+            ),
+            GoalPriorityTerm(
+                id="t2", goal_id="g1", term="Claude", term_type=TermType.MUST
+            ),
+            GoalPriorityTerm(
+                id="t3", goal_id="g1", term="Google", term_type=TermType.MUST
+            ),
         ]
 
         hits, details = match_service._check_term_hits(text, terms)
@@ -372,7 +384,9 @@ class TestMatchService:
         """测试大小写不敏感匹配。"""
         text = "openai 是一家 AI 公司"
         terms = [
-            GoalPriorityTerm(id="t1", goal_id="g1", term="OpenAI", term_type=TermType.MUST),
+            GoalPriorityTerm(
+                id="t1", goal_id="g1", term="OpenAI", term_type=TermType.MUST
+            ),
         ]
 
         hits, _ = match_service._check_term_hits(text, terms)
@@ -422,9 +436,15 @@ class TestMatchService:
         """测试中英文混合关键词匹配。"""
         text = "招聘 Python 后端开发"
         terms = [
-            GoalPriorityTerm(id="t1", goal_id="g1", term="招聘", term_type=TermType.MUST),
-            GoalPriorityTerm(id="t2", goal_id="g1", term="Python", term_type=TermType.MUST),
-            GoalPriorityTerm(id="t3", goal_id="g1", term="后端", term_type=TermType.MUST),
+            GoalPriorityTerm(
+                id="t1", goal_id="g1", term="招聘", term_type=TermType.MUST
+            ),
+            GoalPriorityTerm(
+                id="t2", goal_id="g1", term="Python", term_type=TermType.MUST
+            ),
+            GoalPriorityTerm(
+                id="t3", goal_id="g1", term="后端", term_type=TermType.MUST
+            ),
         ]
 
         hits, details = match_service._check_term_hits(text, terms)
@@ -495,10 +515,14 @@ class TestMatchService:
             recency_score=0.9,
         )
         must_terms = [
-            GoalPriorityTerm(id="t1", goal_id="g1", term="GPT", term_type=TermType.MUST),
+            GoalPriorityTerm(
+                id="t1", goal_id="g1", term="GPT", term_type=TermType.MUST
+            ),
         ]
 
-        reasons = match_service._generate_reasons(sample_goal, item, features, must_terms)
+        reasons = match_service._generate_reasons(
+            sample_goal, item, features, must_terms
+        )
 
         assert not reasons.is_blocked
         assert "GPT" in reasons.summary
@@ -515,7 +539,9 @@ class TestMatchService:
         )
         must_terms = []
 
-        reasons = match_service._generate_reasons(sample_goal, item, features, must_terms)
+        reasons = match_service._generate_reasons(
+            sample_goal, item, features, must_terms
+        )
 
         assert reasons.is_blocked
         assert "广告" in reasons.block_reason
@@ -568,7 +594,9 @@ class TestMatchService:
 
         assert score == 0.0
 
-    def test_compute_final_score_high_semantic_no_terms(self, match_service, sample_goal):
+    def test_compute_final_score_high_semantic_no_terms(
+        self, match_service, sample_goal
+    ):
         """测试高语义相似度但无关键词命中的情况。"""
         features = MatchFeatures(
             cosine_similarity=0.85,
@@ -583,7 +611,9 @@ class TestMatchService:
         # 高语义相似度应该得到较高分数（包含recency和source加分）
         assert 0.85 <= score <= 0.95
 
-    def test_compute_final_score_medium_semantic_with_terms(self, match_service, sample_goal):
+    def test_compute_final_score_medium_semantic_with_terms(
+        self, match_service, sample_goal
+    ):
         """测试中等语义相似度且有关键词命中的情况。"""
         features = MatchFeatures(
             cosine_similarity=0.70,
@@ -598,7 +628,9 @@ class TestMatchService:
         # 中等语义+关键词应该得到高分数（包含recency和source加分）
         assert 0.85 <= score <= 1.0
 
-    def test_compute_final_score_medium_semantic_no_terms(self, match_service, sample_goal):
+    def test_compute_final_score_medium_semantic_no_terms(
+        self, match_service, sample_goal
+    ):
         """测试中等语义相似度但无关键词命中的情况。"""
         features = MatchFeatures(
             cosine_similarity=0.70,
@@ -623,7 +655,9 @@ class TestMatchService:
         """测试单个 Item 与 Goal 的匹配。"""
         # 设置 mock
         mock_term_repo.list_by_goal.return_value = [
-            GoalPriorityTerm(id="t1", goal_id=sample_goal.id, term="GPT", term_type=TermType.MUST),
+            GoalPriorityTerm(
+                id="t1", goal_id=sample_goal.id, term="GPT", term_type=TermType.MUST
+            ),
         ]
 
         result = await match_service.match_item_to_goal(sample_item, sample_goal)
@@ -665,4 +699,3 @@ class TestMatchResult:
         )
 
         assert result.is_valid is False
-

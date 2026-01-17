@@ -95,9 +95,11 @@ def sample_items():
 @pytest.fixture
 def mock_openai_embedding():
     """Mock OpenAI Embedding 服务。"""
+
     async def mock_create_embedding(text):
         # 返回模拟的 1536 维向量
         import hashlib
+
         hash_val = int(hashlib.md5(text.encode()).hexdigest(), 16)
         return [((hash_val >> i) & 1) * 0.1 for i in range(1536)]
 
@@ -157,16 +159,14 @@ class TestIngestToMatchFlow:
         # 标题包含 "GPT" 和 "OpenAI"，应该有较高分数
         title_lower = item["title"].lower()
         term_hits = sum(
-            1 for term in goal["priority_terms"]
-            if term.lower() in title_lower
+            1 for term in goal["priority_terms"] if term.lower() in title_lower
         )
 
         assert term_hits >= 1  # 至少命中 GPT 或 OpenAI
 
         # 检查负面词
         negative_hits = sum(
-            1 for term in goal["negative_terms"]
-            if term.lower() in title_lower
+            1 for term in goal["negative_terms"] if term.lower() in title_lower
         )
 
         assert negative_hits == 0  # 不应命中负面词
@@ -183,8 +183,7 @@ class TestIngestToMatchFlow:
         # 检查负面词命中
         content = f"{item['title']} {item['snippet']}".lower()
         negative_hits = sum(
-            1 for term in goal["negative_terms"]
-            if term.lower() in content
+            1 for term in goal["negative_terms"] if term.lower() in content
         )
 
         assert negative_hits >= 1  # 应该命中 "招聘"
@@ -414,7 +413,8 @@ class TestFullE2EFlow:
 
         # 3. 匹配
         term_hits = sum(
-            1 for term in goal["priority_terms"]
+            1
+            for term in goal["priority_terms"]
             if term.lower() in item["title"].lower()
         )
         assert term_hits >= 1
@@ -427,6 +427,7 @@ class TestFullE2EFlow:
             DecisionBucket,
             ThresholdConfig,
         )
+
         bucket = ThresholdConfig().get_bucket(mock_score)
         assert bucket == DecisionBucket.IMMEDIATE
 
@@ -467,11 +468,13 @@ class TestFullE2EFlow:
             bucket = config.get_bucket(mock_score)
 
             if bucket == DecisionBucket.BATCH:
-                batch_candidates.append({
-                    "item_id": item["id"],
-                    "title": item["title"],
-                    "score": mock_score,
-                })
+                batch_candidates.append(
+                    {
+                        "item_id": item["id"],
+                        "title": item["title"],
+                        "score": mock_score,
+                    }
+                )
 
         # 验证有候选进入 Batch
         assert len(batch_candidates) >= 0  # 可能有或没有
@@ -513,4 +516,3 @@ class TestFullE2EFlow:
 
         # source-002 应该有较低信任度
         assert compute_trust("source-002") < 0.3
-

@@ -145,10 +145,7 @@ class TestCoalesceResult:
         result = CoalesceResult(
             goal_id="goal-1",
             decision_type=PushDecision.IMMEDIATE,
-            items=[
-                {"item_id": f"item-{i}", "title": f"News {i}"}
-                for i in range(5)
-            ],
+            items=[{"item_id": f"item-{i}", "title": f"News {i}"} for i in range(5)],
         )
 
         # 应该只保留前 3 条
@@ -265,10 +262,7 @@ class TestEmailTemplates:
 
     def test_immediate_template_multiple_items(self):
         """测试 Immediate 模板 - 多条目。"""
-        items = [
-            self._make_email_item(f"item-{i}", f"News {i}")
-            for i in range(3)
-        ]
+        items = [self._make_email_item(f"item-{i}", f"News {i}") for i in range(3)]
         email_data = self._make_email_data("AI 动态", items)
 
         subject, html = render_immediate_email(email_data)

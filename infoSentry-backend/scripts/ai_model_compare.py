@@ -190,7 +190,9 @@ def _load_toml(path: Path) -> dict[str, Any]:
     return data
 
 
-def load_config(config_path: Path, *, out_dir_override: Path | None) -> tuple[RunSettings, list[ModelSpec]]:
+def load_config(
+    config_path: Path, *, out_dir_override: Path | None
+) -> tuple[RunSettings, list[ModelSpec]]:
     raw = _load_toml(config_path)
 
     run_raw = raw.get("run", {})
@@ -200,9 +202,13 @@ def load_config(config_path: Path, *, out_dir_override: Path | None) -> tuple[Ru
         raise ValueError("[run] 必须是 table")
 
     # 全局默认值（都可被 CLI 或 model 覆盖）
-    temperature = _coerce_float(run_raw.get("temperature", 0.2), field="run.temperature")
+    temperature = _coerce_float(
+        run_raw.get("temperature", 0.2), field="run.temperature"
+    )
     max_tokens = _coerce_int(run_raw.get("max_tokens", 1024), field="run.max_tokens")
-    timeout_seconds = _coerce_float(run_raw.get("timeout_seconds", 60.0), field="run.timeout_seconds")
+    timeout_seconds = _coerce_float(
+        run_raw.get("timeout_seconds", 60.0), field="run.timeout_seconds"
+    )
     concurrency = _coerce_int(run_raw.get("concurrency", 4), field="run.concurrency")
     save_raw = _coerce_bool(run_raw.get("save_raw", False), field="run.save_raw")
 
@@ -249,7 +255,9 @@ def load_config(config_path: Path, *, out_dir_override: Path | None) -> tuple[Ru
 
         api_key = item.get("api_key")
         if api_key is not None and not isinstance(api_key, str):
-            raise ValueError(f"models[{idx}].api_key 必须是字符串或省略（不建议写入文件）")
+            raise ValueError(
+                f"models[{idx}].api_key 必须是字符串或省略（不建议写入文件）"
+            )
 
         api_key_optional = _coerce_bool(
             item.get("api_key_optional", False), field=f"models[{idx}].api_key_optional"
@@ -257,7 +265,9 @@ def load_config(config_path: Path, *, out_dir_override: Path | None) -> tuple[Ru
 
         temp_override = item.get("temperature")
         temperature_override = (
-            _coerce_float(temp_override, field=f"models[{idx}].temperature") if temp_override is not None else None
+            _coerce_float(temp_override, field=f"models[{idx}].temperature")
+            if temp_override is not None
+            else None
         )
 
         max_tokens_override_raw = item.get("max_tokens")
@@ -274,7 +284,9 @@ def load_config(config_path: Path, *, out_dir_override: Path | None) -> tuple[Ru
             else None
         )
 
-        enabled = _coerce_bool(item.get("enabled", True), field=f"models[{idx}].enabled")
+        enabled = _coerce_bool(
+            item.get("enabled", True), field=f"models[{idx}].enabled"
+        )
 
         headers_raw = item.get("headers", {})
         if headers_raw is None:
@@ -320,7 +332,9 @@ def _resolve_api_key(spec: ModelSpec) -> str | None:
             return value
         if spec.api_key_optional:
             return None
-        raise RuntimeError(f"模型 {spec.name} 需要 API Key，但环境变量未设置：{spec.api_key_env}")
+        raise RuntimeError(
+            f"模型 {spec.name} 需要 API Key，但环境变量未设置：{spec.api_key_env}"
+        )
     if spec.api_key_optional:
         return None
     raise RuntimeError(f"模型 {spec.name} 需要 API Key，但未提供 api_key_env/api_key")
@@ -370,7 +384,9 @@ async def _call_openai_compatible(
     if api_key:
         headers["authorization"] = f"Bearer {api_key}"
 
-    resp = await client.post(url, headers=headers, json=payload, timeout=timeout_seconds)
+    resp = await client.post(
+        url, headers=headers, json=payload, timeout=timeout_seconds
+    )
     resp.raise_for_status()
     data = resp.json()
 
@@ -394,7 +410,9 @@ async def _call_openai_compatible(
     usage: Mapping[str, Any] = usage_val if isinstance(usage_val, dict) else {}
 
     if text is None:
-        raise RuntimeError(f"OpenAI 兼容接口返回无法解析的结构：{_safe_json(data)[:2000]}")
+        raise RuntimeError(
+            f"OpenAI 兼容接口返回无法解析的结构：{_safe_json(data)[:2000]}"
+        )
 
     return ProviderResult(
         text=text,
@@ -440,7 +458,9 @@ async def _call_anthropic(
     if api_key:
         headers["x-api-key"] = api_key
 
-    resp = await client.post(url, headers=headers, json=payload, timeout=timeout_seconds)
+    resp = await client.post(
+        url, headers=headers, json=payload, timeout=timeout_seconds
+    )
     resp.raise_for_status()
     data = resp.json()
 
@@ -484,7 +504,9 @@ async def _call_gemini(
     if not api_key and not spec.api_key_optional:
         raise RuntimeError("Gemini 需要 api_key")
 
-    base_url = (spec.base_url or "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
+    base_url = (
+        spec.base_url or "https://generativelanguage.googleapis.com/v1beta"
+    ).rstrip("/")
 
     model_path = spec.model.strip()
     if model_path.startswith("models/"):
@@ -510,7 +532,9 @@ async def _call_gemini(
     if api_key:
         headers["x-goog-api-key"] = api_key
 
-    resp = await client.post(url, headers=headers, json=payload, timeout=timeout_seconds)
+    resp = await client.post(
+        url, headers=headers, json=payload, timeout=timeout_seconds
+    )
     resp.raise_for_status()
     data = resp.json()
 
@@ -556,9 +580,17 @@ async def run_one_model(
     client: httpx.AsyncClient,
     semaphore: asyncio.Semaphore,
 ) -> ModelRunResult:
-    temperature = spec.temperature if spec.temperature is not None else run_settings.temperature
-    max_tokens = spec.max_tokens if spec.max_tokens is not None else run_settings.max_tokens
-    timeout_seconds = spec.timeout_seconds if spec.timeout_seconds is not None else run_settings.timeout_seconds
+    temperature = (
+        spec.temperature if spec.temperature is not None else run_settings.temperature
+    )
+    max_tokens = (
+        spec.max_tokens if spec.max_tokens is not None else run_settings.max_tokens
+    )
+    timeout_seconds = (
+        spec.timeout_seconds
+        if spec.timeout_seconds is not None
+        else run_settings.timeout_seconds
+    )
 
     api_key = _resolve_api_key(spec)
 
@@ -698,8 +730,15 @@ def _write_markdown(
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="AI 模型对比脚本（多模型并发调用 + 输出报告）")
-    parser.add_argument("--config", type=str, required=True, help="TOML 配置路径（例如 scripts/ai_models.toml）")
+    parser = argparse.ArgumentParser(
+        description="AI 模型对比脚本（多模型并发调用 + 输出报告）"
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        required=True,
+        help="TOML 配置路径（例如 scripts/ai_models.toml）",
+    )
 
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--prompt", type=str, help="直接提供 prompt 文本")
@@ -708,19 +747,37 @@ def _parse_args() -> argparse.Namespace:
         type=str,
         help="从文件读取 prompt（支持 [SYSTEM]/[USER] 分段）",
     )
-    group.add_argument("--stdin", action="store_true", help="从 stdin 读取 prompt（读取到 EOF）")
+    group.add_argument(
+        "--stdin", action="store_true", help="从 stdin 读取 prompt（读取到 EOF）"
+    )
 
     parser.add_argument("--system", type=str, default=None, help="可选 system prompt")
 
-    parser.add_argument("--temperature", type=float, default=None, help="覆盖配置的 temperature")
-    parser.add_argument("--max-tokens", type=int, default=None, help="覆盖配置的 max_tokens")
-    parser.add_argument("--timeout-seconds", type=float, default=None, help="覆盖配置的 timeout_seconds")
-    parser.add_argument("--concurrency", type=int, default=None, help="覆盖配置的 concurrency")
-    parser.add_argument("--save-raw", action="store_true", help="保存原始响应 JSON 到输出（可能很大）")
+    parser.add_argument(
+        "--temperature", type=float, default=None, help="覆盖配置的 temperature"
+    )
+    parser.add_argument(
+        "--max-tokens", type=int, default=None, help="覆盖配置的 max_tokens"
+    )
+    parser.add_argument(
+        "--timeout-seconds", type=float, default=None, help="覆盖配置的 timeout_seconds"
+    )
+    parser.add_argument(
+        "--concurrency", type=int, default=None, help="覆盖配置的 concurrency"
+    )
+    parser.add_argument(
+        "--save-raw", action="store_true", help="保存原始响应 JSON 到输出（可能很大）"
+    )
 
-    parser.add_argument("--out-dir", type=str, default=None, help="输出目录（相对 backend 根目录）")
-    parser.add_argument("--out-prefix", type=str, default="ai_compare", help="输出文件名前缀")
-    parser.add_argument("--no-markdown", action="store_true", help="不输出 Markdown 报告")
+    parser.add_argument(
+        "--out-dir", type=str, default=None, help="输出目录（相对 backend 根目录）"
+    )
+    parser.add_argument(
+        "--out-prefix", type=str, default="ai_compare", help="输出文件名前缀"
+    )
+    parser.add_argument(
+        "--no-markdown", action="store_true", help="不输出 Markdown 报告"
+    )
     parser.add_argument("--no-jsonl", action="store_true", help="不输出 JSONL 结果")
 
     return parser.parse_args()
@@ -749,7 +806,11 @@ def _read_prompt_bundle(args: argparse.Namespace) -> tuple[str, str | None]:
 async def _main_async() -> int:
     args = _parse_args()
 
-    config_path = (project_root / args.config).resolve() if not Path(args.config).is_absolute() else Path(args.config)
+    config_path = (
+        (project_root / args.config).resolve()
+        if not Path(args.config).is_absolute()
+        else Path(args.config)
+    )
     out_dir_override = (project_root / args.out_dir).resolve() if args.out_dir else None
 
     run_settings, specs = load_config(config_path, out_dir_override=out_dir_override)
@@ -803,7 +864,11 @@ async def _main_async() -> int:
 
     prompt, system_from_file = _read_prompt_bundle(args)
 
-    system_cli = args.system.strip() if isinstance(args.system, str) and args.system.strip() else None
+    system_cli = (
+        args.system.strip()
+        if isinstance(args.system, str) and args.system.strip()
+        else None
+    )
     system_prompt = system_cli or system_from_file
 
     ts = _now_ts()
@@ -897,4 +962,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

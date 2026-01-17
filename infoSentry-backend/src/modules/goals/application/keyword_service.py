@@ -86,13 +86,13 @@ class KeywordSuggestionService:
             self._logger.warning("Description too short for keyword suggestion")
             return []
 
-        messages = self._build_messages(description=description, max_keywords=max_keywords)
+        messages = self._build_messages(
+            description=description, max_keywords=max_keywords
+        )
 
         try:
             result, tokens_used = await self._call_llm(messages)
-            self._logger.info(
-                f"Keyword suggestion completed, tokens: {tokens_used}"
-            )
+            self._logger.info(f"Keyword suggestion completed, tokens: {tokens_used}")
 
             keywords = self._validate_output(result, max_keywords)
             return keywords
@@ -101,7 +101,9 @@ class KeywordSuggestionService:
             self._logger.exception(f"Keyword suggestion failed: {e}")
             return []
 
-    def _build_messages(self, *, description: str, max_keywords: int) -> list[dict[str, str]]:
+    def _build_messages(
+        self, *, description: str, max_keywords: int
+    ) -> list[dict[str, str]]:
         """构建 messages（支持文件化 prompt）。"""
         if settings.PROMPTS_ENABLED:
             rendered = self._prompt_store.render_messages(
@@ -150,20 +152,16 @@ class KeywordSuggestionService:
 
         return content, tokens_used
 
-    def _validate_output(
-        self, raw_output: str, max_keywords: int
-    ) -> list[str]:
+    def _validate_output(self, raw_output: str, max_keywords: int) -> list[str]:
         """验证并处理输出。"""
         try:
             data = json.loads(raw_output)
             output = KeywordSuggestionOutput(**data)
 
             # 清理和限制关键词
-            keywords = [
-                kw.strip()
-                for kw in output.keywords
-                if kw and kw.strip()
-            ][:max_keywords]
+            keywords = [kw.strip() for kw in output.keywords if kw and kw.strip()][
+                :max_keywords
+            ]
 
             return keywords
 

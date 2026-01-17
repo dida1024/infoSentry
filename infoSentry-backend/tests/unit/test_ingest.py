@@ -12,9 +12,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-# 使用 anyio 作为异步测试后端
-pytestmark = pytest.mark.anyio
-
 from src.modules.sources.application.ingest_service import IngestResult, IngestService
 from src.modules.sources.domain.entities import Source, SourceType
 from src.modules.sources.infrastructure.fetchers.base import (
@@ -27,6 +24,9 @@ from src.modules.sources.infrastructure.fetchers.newsnow import NewsNowFetcher
 from src.modules.sources.infrastructure.fetchers.rss import RSSFetcher
 from src.modules.sources.infrastructure.fetchers.site import SiteFetcher
 from src.modules.sources.infrastructure.models import IngestStatus
+
+# 使用 anyio 作为异步测试后端
+pytestmark = pytest.mark.anyio
 
 # ============================================
 # URL 去重测试
@@ -231,7 +231,9 @@ class TestNewsNowFetcher:
             max_items=20,
         )
 
-        assert fetcher._is_valid_news_url("https://news.example.com/article/123") is True
+        assert (
+            fetcher._is_valid_news_url("https://news.example.com/article/123") is True
+        )
         assert fetcher._is_valid_news_url("/login") is False
         assert fetcher._is_valid_news_url("javascript:void(0)") is False
         assert fetcher._is_valid_news_url("mailto:test@example.com") is False
@@ -383,7 +385,9 @@ class TestIngestService:
         return factory
 
     @pytest.fixture
-    def ingest_service(self, mock_source_repo, mock_item_repo, mock_event_bus, mock_fetcher_factory):
+    def ingest_service(
+        self, mock_source_repo, mock_item_repo, mock_event_bus, mock_fetcher_factory
+    ):
         """创建 IngestService 实例。"""
         return IngestService(
             source_repository=mock_source_repo,
@@ -538,4 +542,3 @@ class TestIngestResult:
         )
 
         assert result.is_success is True
-

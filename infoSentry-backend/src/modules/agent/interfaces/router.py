@@ -45,9 +45,7 @@ async def list_agent_runs(
     """List agent runs."""
     result = await service.list_runs(goal_id, cursor, run_status)
 
-    responses = [
-        AgentRunSummaryResponse(**item.model_dump()) for item in result.items
-    ]
+    responses = [AgentRunSummaryResponse(**item.model_dump()) for item in result.items]
 
     return AgentRunListResponse.create(
         items=responses,
@@ -290,7 +288,10 @@ async def enable_feature(
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "VALIDATION_ERROR", "message": f"Unknown feature: {feature}"},
+            detail={
+                "code": "VALIDATION_ERROR",
+                "message": f"Unknown feature: {feature}",
+            },
         )
     except Exception as e:
         logger.exception("Failed to enable feature", error=str(e), feature=feature)
@@ -321,7 +322,10 @@ async def disable_feature(
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "VALIDATION_ERROR", "message": f"Unknown feature: {feature}"},
+            detail={
+                "code": "VALIDATION_ERROR",
+                "message": f"Unknown feature: {feature}",
+            },
         )
     except Exception as e:
         logger.exception("Failed to disable feature", error=str(e), feature=feature)

@@ -60,7 +60,9 @@ class GoalMatchQueryService:
         Raises:
             GoalNotFoundError: If goal not found or user has no access
         """
-        self.logger.info(f"Listing matches for goal {goal_id} for user {user_id} with min_score {min_score} and page {page} and page_size {page_size}")
+        self.logger.info(
+            f"Listing matches for goal {goal_id} for user {user_id} with min_score {min_score} and page {page} and page_size {page_size}"
+        )
         # Access check
         goal = await self.goal_repo.get_by_id(goal_id)
         if not goal or goal.user_id != user_id:
@@ -78,7 +80,9 @@ class GoalMatchQueryService:
         )
 
         if not matches:
-            self.logger.info(f"No matches found for goal {goal_id} for user {user_id} with min_score {min_score} and page {page} and page_size {page_size}")
+            self.logger.info(
+                f"No matches found for goal {goal_id} for user {user_id} with min_score {min_score} and page {page} and page_size {page_size}"
+            )
             return GoalMatchListData(
                 items=[],
                 total=total,
@@ -117,7 +121,9 @@ class GoalMatchQueryService:
             )
             for match in matches
         ]
-        self.logger.info(f"Found {len(match_items)} matches for goal {goal_id} for user {user_id} with min_score {min_score} and page {page} and page_size {page_size}")
+        self.logger.info(
+            f"Found {len(match_items)} matches for goal {goal_id} for user {user_id} with min_score {min_score} and page {page} and page_size {page_size}"
+        )
         return GoalMatchListData(
             items=match_items,
             total=total,

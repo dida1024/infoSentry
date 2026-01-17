@@ -78,7 +78,9 @@ async def _check_and_coalesce_immediate_async() -> None:
                 )
                 goal_repo = PostgreSQLGoalRepository(session, GoalMapper(), event_bus)
                 item_repo = PostgreSQLItemRepository(session, ItemMapper(), event_bus)
-                source_repo = PostgreSQLSourceRepository(session, SourceMapper(), event_bus)
+                source_repo = PostgreSQLSourceRepository(
+                    session, SourceMapper(), event_bus
+                )
                 user_repo = PostgreSQLUserRepository(session, UserMapper(), event_bus)
 
                 # Create push service
@@ -150,7 +152,9 @@ async def _send_immediate_email_async(goal_id: str, decision_ids: list[str]) -> 
     from src.modules.users.infrastructure.repositories import PostgreSQLUserRepository
 
     async with (
-        get_async_redis_client(timeout=settings.REDIS_CLIENT_TIMEOUT_SEC) as redis_client,
+        get_async_redis_client(
+            timeout=settings.REDIS_CLIENT_TIMEOUT_SEC
+        ) as redis_client,
         get_async_session() as session,
     ):
         try:
@@ -233,7 +237,9 @@ async def _send_batch_email_async(goal_id: str, window_time: str) -> None:
     from src.modules.users.infrastructure.repositories import PostgreSQLUserRepository
 
     async with (
-        get_async_redis_client(timeout=settings.REDIS_CLIENT_TIMEOUT_SEC) as redis_client,
+        get_async_redis_client(
+            timeout=settings.REDIS_CLIENT_TIMEOUT_SEC
+        ) as redis_client,
         get_async_session() as session,
     ):
         try:
@@ -315,7 +321,9 @@ async def _send_digest_email_async(goal_id: str) -> None:
     from src.modules.users.infrastructure.repositories import PostgreSQLUserRepository
 
     async with (
-        get_async_redis_client(timeout=settings.REDIS_CLIENT_TIMEOUT_SEC) as redis_client,
+        get_async_redis_client(
+            timeout=settings.REDIS_CLIENT_TIMEOUT_SEC
+        ) as redis_client,
         get_async_session() as session,
     ):
         try:

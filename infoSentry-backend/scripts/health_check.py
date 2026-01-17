@@ -83,7 +83,13 @@ async def check_queues() -> dict:
         queues = {}
         total_backlog = 0
 
-        for queue in [Queues.INGEST, Queues.EMBED, Queues.MATCH, Queues.AGENT, Queues.EMAIL]:
+        for queue in [
+            Queues.INGEST,
+            Queues.EMBED,
+            Queues.MATCH,
+            Queues.AGENT,
+            Queues.EMAIL,
+        ]:
             try:
                 length = await redis_client.llen(queue)
                 queues[queue] = {"length": length}
@@ -118,7 +124,11 @@ async def check_budget() -> dict:
         budget_service = BudgetService(redis_client)
         status = await budget_service.get_status()
 
-        usage_percent = (status.usd_est / settings.DAILY_USD_BUDGET) * 100 if settings.DAILY_USD_BUDGET > 0 else 0
+        usage_percent = (
+            (status.usd_est / settings.DAILY_USD_BUDGET) * 100
+            if settings.DAILY_USD_BUDGET > 0
+            else 0
+        )
 
         health_status = "healthy"
         if usage_percent >= 80:
@@ -179,7 +189,13 @@ async def run_full_check() -> dict:
     }
 
     # 并行执行所有检查
-    database_result, redis_result, queues_result, budget_result, workers_result = await asyncio.gather(
+    (
+        database_result,
+        redis_result,
+        queues_result,
+        budget_result,
+        workers_result,
+    ) = await asyncio.gather(
         check_database(),
         check_redis(),
         check_queues(),
@@ -188,11 +204,31 @@ async def run_full_check() -> dict:
         return_exceptions=True,
     )
 
-    results["components"]["database"] = database_result if not isinstance(database_result, Exception) else {"status": "error", "error": str(database_result)}
-    results["components"]["redis"] = redis_result if not isinstance(redis_result, Exception) else {"status": "error", "error": str(redis_result)}
-    results["components"]["queues"] = queues_result if not isinstance(queues_result, Exception) else {"status": "error", "error": str(queues_result)}
-    results["components"]["budget"] = budget_result if not isinstance(budget_result, Exception) else {"status": "error", "error": str(budget_result)}
-    results["components"]["workers"] = workers_result if not isinstance(workers_result, Exception) else {"status": "error", "error": str(workers_result)}
+    results["components"]["database"] = (
+        database_result
+        if not isinstance(database_result, Exception)
+        else {"status": "error", "error": str(database_result)}
+    )
+    results["components"]["redis"] = (
+        redis_result
+        if not isinstance(redis_result, Exception)
+        else {"status": "error", "error": str(redis_result)}
+    )
+    results["components"]["queues"] = (
+        queues_result
+        if not isinstance(queues_result, Exception)
+        else {"status": "error", "error": str(queues_result)}
+    )
+    results["components"]["budget"] = (
+        budget_result
+        if not isinstance(budget_result, Exception)
+        else {"status": "error", "error": str(budget_result)}
+    )
+    results["components"]["workers"] = (
+        workers_result
+        if not isinstance(workers_result, Exception)
+        else {"status": "error", "error": str(workers_result)}
+    )
 
     # 确定整体状态
     statuses = [c.get("status", "unknown") for c in results["components"].values()]
@@ -236,13 +272,27 @@ def print_result(result: dict, json_output: bool = False):
         print(f"{'=' * 60}")
 
         if "overall_status" in result:
-            status_emoji = "✅" if result["overall_status"] == "healthy" else "⚠️" if result["overall_status"] == "degraded" else "❌"
-            print(f"\nOverall Status: {status_emoji} {result['overall_status'].upper()}")
+            status_emoji = (
+                "✅"
+                if result["overall_status"] == "healthy"
+                else "⚠️"
+                if result["overall_status"] == "degraded"
+                else "❌"
+            )
+            print(
+                f"\nOverall Status: {status_emoji} {result['overall_status'].upper()}"
+            )
 
             print(f"\n{'-' * 40}")
             for component, info in result.get("components", {}).items():
                 comp_status = info.get("status", "unknown")
-                comp_emoji = "✅" if comp_status == "healthy" else "⚠️" if comp_status in ("warning", "degraded") else "❌"
+                comp_emoji = (
+                    "✅"
+                    if comp_status == "healthy"
+                    else "⚠️"
+                    if comp_status in ("warning", "degraded")
+                    else "❌"
+                )
                 print(f"{comp_emoji} {component}: {comp_status}")
 
                 # 打印额外信息
@@ -254,8 +304,16 @@ def print_result(result: dict, json_output: bool = False):
         elif "result" in result:
             info = result["result"]
             comp_status = info.get("status", "unknown")
-            comp_emoji = "✅" if comp_status == "healthy" else "⚠️" if comp_status in ("warning", "degraded") else "❌"
-            print(f"\n{result.get('component', 'Component')}: {comp_emoji} {comp_status}")
+            comp_emoji = (
+                "✅"
+                if comp_status == "healthy"
+                else "⚠️"
+                if comp_status in ("warning", "degraded")
+                else "❌"
+            )
+            print(
+                f"\n{result.get('component', 'Component')}: {comp_emoji} {comp_status}"
+            )
 
             for key, value in info.items():
                 if key != "status":
@@ -296,7 +354,9 @@ def main():
 
     # 确定退出码
     if args.strict:
-        overall = result.get("overall_status", result.get("result", {}).get("status", "unknown"))
+        overall = result.get(
+            "overall_status", result.get("result", {}).get("status", "unknown")
+        )
         if overall != "healthy":
             sys.exit(1)
 
@@ -305,4 +365,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -44,7 +44,9 @@ def test_prompt_regression_rendering() -> None:
         assert isinstance(name, str) and name.strip(), f"Missing prompt.name in {f}"
         language = prompt.get("language")
         if language is not None:
-            assert isinstance(language, str) and language.strip(), f"Invalid prompt.language in {f}"
+            assert isinstance(language, str) and language.strip(), (
+                f"Invalid prompt.language in {f}"
+            )
 
         cases = data.get("cases", [])
         assert isinstance(cases, list) and cases, f"Missing cases in {f}"
@@ -53,7 +55,9 @@ def test_prompt_regression_rendering() -> None:
             assert isinstance(case, dict), f"Invalid case entry in {f}"
             case_name = case.get("name", "<unnamed>")
             vars_raw = case.get("vars", {})
-            assert isinstance(vars_raw, dict), f"Invalid vars for case={case_name} in {f}"
+            assert isinstance(vars_raw, dict), (
+                f"Invalid vars for case={case_name} in {f}"
+            )
 
             rendered = store.render_messages(
                 name=name,
@@ -70,20 +74,35 @@ def test_prompt_regression_rendering() -> None:
             )
 
             assertions = case.get("assertions", {})
-            assert isinstance(assertions, dict), f"Invalid assertions for case={case_name} in {f}"
+            assert isinstance(assertions, dict), (
+                f"Invalid assertions for case={case_name} in {f}"
+            )
             rendered_assert = assertions.get("rendered", {})
-            assert isinstance(rendered_assert, dict), f"Invalid assertions.rendered for case={case_name} in {f}"
+            assert isinstance(rendered_assert, dict), (
+                f"Invalid assertions.rendered for case={case_name} in {f}"
+            )
 
             must_contain = rendered_assert.get("must_contain", [])
             must_not_contain = rendered_assert.get("must_not_contain", [])
-            assert isinstance(must_contain, list), f"Invalid must_contain for case={case_name} in {f}"
-            assert isinstance(must_not_contain, list), f"Invalid must_not_contain for case={case_name} in {f}"
+            assert isinstance(must_contain, list), (
+                f"Invalid must_contain for case={case_name} in {f}"
+            )
+            assert isinstance(must_not_contain, list), (
+                f"Invalid must_not_contain for case={case_name} in {f}"
+            )
 
             for s in must_contain:
-                assert isinstance(s, str) and s, f"Invalid must_contain entry for case={case_name} in {f}"
-                assert s in combined, f"Missing required text in {f} case={case_name}: {s!r}"
+                assert isinstance(s, str) and s, (
+                    f"Invalid must_contain entry for case={case_name} in {f}"
+                )
+                assert s in combined, (
+                    f"Missing required text in {f} case={case_name}: {s!r}"
+                )
 
             for s in must_not_contain:
-                assert isinstance(s, str) and s, f"Invalid must_not_contain entry for case={case_name} in {f}"
-                assert s not in combined, f"Found forbidden text in {f} case={case_name}: {s!r}"
-
+                assert isinstance(s, str) and s, (
+                    f"Invalid must_not_contain entry for case={case_name} in {f}"
+                )
+                assert s not in combined, (
+                    f"Found forbidden text in {f} case={case_name}: {s!r}"
+                )

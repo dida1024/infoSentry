@@ -8,7 +8,7 @@
 """
 
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -38,9 +38,7 @@ class TestKeywordSuggestionOutput:
 
     def test_valid_output(self):
         """测试有效输出。"""
-        output = KeywordSuggestionOutput(
-            keywords=["AI", "大模型", "GPT"]
-        )
+        output = KeywordSuggestionOutput(keywords=["AI", "大模型", "GPT"])
         assert output.keywords == ["AI", "大模型", "GPT"]
 
     def test_empty_keywords(self):
@@ -119,7 +117,7 @@ class TestKeywordSuggestionService:
         """测试缺少 keywords 字段。"""
         service = KeywordSuggestionService(prompt_store=_prompt_store())
         # KeywordSuggestionOutput 有默认值，所以会返回空列表
-        result = service._validate_output('{}', max_keywords=5)
+        result = service._validate_output("{}", max_keywords=5)
         assert result == []
 
     def test_validate_output_empty_strings_filtered(self):
@@ -148,7 +146,9 @@ class TestKeywordSuggestionService:
         mock_client = AsyncMock()
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
-        service = KeywordSuggestionService(prompt_store=_prompt_store(), openai_client=mock_client)
+        service = KeywordSuggestionService(
+            prompt_store=_prompt_store(), openai_client=mock_client
+        )
         result = await service.suggest_keywords(
             description="追踪 AI 领域的重要新闻和技术突破",
             max_keywords=5,
@@ -164,7 +164,9 @@ class TestKeywordSuggestionService:
             side_effect=Exception("API Error")
         )
 
-        service = KeywordSuggestionService(prompt_store=_prompt_store(), openai_client=mock_client)
+        service = KeywordSuggestionService(
+            prompt_store=_prompt_store(), openai_client=mock_client
+        )
         result = await service.suggest_keywords(
             description="追踪 AI 领域的重要新闻和技术突破",
             max_keywords=5,
@@ -187,7 +189,9 @@ class TestKeywordSuggestionService:
         mock_client = AsyncMock()
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
-        service = KeywordSuggestionService(prompt_store=_prompt_store(), openai_client=mock_client)
+        service = KeywordSuggestionService(
+            prompt_store=_prompt_store(), openai_client=mock_client
+        )
         result = await service.suggest_keywords(
             description="追踪技术领域的新闻动态",
             max_keywords=3,

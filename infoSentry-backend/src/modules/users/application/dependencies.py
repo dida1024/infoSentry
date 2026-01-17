@@ -47,7 +47,9 @@ async def get_request_magic_link_handler(
     magic_link_repository: MagicLinkRepository = Depends(get_magic_link_repository),
     token_service: TokenService = Depends(get_token_service),
 ) -> RequestMagicLinkHandler:
-    return RequestMagicLinkHandler(user_repository, magic_link_repository, token_service)
+    return RequestMagicLinkHandler(
+        user_repository, magic_link_repository, token_service
+    )
 
 
 async def get_consume_magic_link_handler(
@@ -55,7 +57,9 @@ async def get_consume_magic_link_handler(
     magic_link_repository: MagicLinkRepository = Depends(get_magic_link_repository),
     token_service: TokenService = Depends(get_token_service),
 ) -> ConsumeMagicLinkHandler:
-    return ConsumeMagicLinkHandler(user_repository, magic_link_repository, token_service)
+    return ConsumeMagicLinkHandler(
+        user_repository, magic_link_repository, token_service
+    )
 
 
 async def get_update_profile_handler(

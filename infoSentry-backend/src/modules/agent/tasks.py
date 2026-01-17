@@ -96,7 +96,9 @@ async def _handle_match_computed_async(
     )
 
     async with (
-        get_async_redis_client(timeout=settings.REDIS_CLIENT_TIMEOUT_SEC) as redis_client,
+        get_async_redis_client(
+            timeout=settings.REDIS_CLIENT_TIMEOUT_SEC
+        ) as redis_client,
         get_async_session() as session,
     ):
         try:
@@ -630,7 +632,9 @@ async def _check_and_update_budget_async() -> None:
     from src.modules.items.application.budget_service import BudgetService
 
     async with (
-        get_async_redis_client(timeout=settings.REDIS_CLIENT_TIMEOUT_SEC) as redis_client,
+        get_async_redis_client(
+            timeout=settings.REDIS_CLIENT_TIMEOUT_SEC
+        ) as redis_client,
         get_async_session() as session,
     ):
         try:

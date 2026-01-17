@@ -50,17 +50,23 @@ class TestGoalDraftOutput:
 class TestGoalDraftService:
     async def test_llm_disabled_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(settings, "LLM_ENABLED", False)
-        service = GoalDraftService(prompt_store=_prompt_store(), openai_client=AsyncMock())
+        service = GoalDraftService(
+            prompt_store=_prompt_store(), openai_client=AsyncMock()
+        )
         with pytest.raises(GoalDraftNotAvailableError):
             await service.generate_draft("关注 AI 行业投融资")
 
     async def test_short_intent_raises_value_error(self) -> None:
-        service = GoalDraftService(prompt_store=_prompt_store(), openai_client=AsyncMock())
+        service = GoalDraftService(
+            prompt_store=_prompt_store(), openai_client=AsyncMock()
+        )
         with pytest.raises(ValueError):
             await service.generate_draft("太短")
 
     def test_build_user_prompt(self) -> None:
-        service = GoalDraftService(prompt_store=_prompt_store(), openai_client=AsyncMock())
+        service = GoalDraftService(
+            prompt_store=_prompt_store(), openai_client=AsyncMock()
+        )
         prompt = service._build_user_prompt(intent="关注 AI 芯片", max_keywords=5)
         assert "关注 AI 芯片" in prompt
         assert "5" in prompt
@@ -82,8 +88,12 @@ class TestGoalDraftService:
         mock_client = AsyncMock()
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
-        service = GoalDraftService(prompt_store=_prompt_store(), openai_client=mock_client)
-        result = await service.generate_draft(intent="关注 AI 行业投融资", max_keywords=5)
+        service = GoalDraftService(
+            prompt_store=_prompt_store(), openai_client=mock_client
+        )
+        result = await service.generate_draft(
+            intent="关注 AI 行业投融资", max_keywords=5
+        )
 
         assert result.name == "AI 投融资观察"
         assert "关注" in result.description
@@ -97,7 +107,9 @@ class TestGoalDraftService:
             side_effect=Exception("API Error")
         )
 
-        service = GoalDraftService(prompt_store=_prompt_store(), openai_client=mock_client)
+        service = GoalDraftService(
+            prompt_store=_prompt_store(), openai_client=mock_client
+        )
         with pytest.raises(GoalDraftGenerationError):
             await service.generate_draft(intent="关注 AI 行业投融资", max_keywords=5)
 
@@ -118,7 +130,9 @@ class TestGoalDraftService:
         mock_client = AsyncMock()
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
-        service = GoalDraftService(prompt_store=_prompt_store(), openai_client=mock_client)
+        service = GoalDraftService(
+            prompt_store=_prompt_store(), openai_client=mock_client
+        )
         result = await service.generate_draft(intent="关注 AI", max_keywords=5)
 
         # name 去掉换行/多余空格
@@ -129,4 +143,3 @@ class TestGoalDraftService:
         assert result.keywords.count("AI") == 1
         assert all(k.strip() for k in result.keywords)
         assert all(len(k) <= 30 for k in result.keywords)
-

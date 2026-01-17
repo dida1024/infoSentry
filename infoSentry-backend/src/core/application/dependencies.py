@@ -17,4 +17,3 @@ def _missing_dependency(name: str) -> NoReturn:
 
 async def get_prompt_store() -> PromptStore:
     _missing_dependency("PromptStore")
-

@@ -44,8 +44,12 @@ class ReplayResult(BaseModel):
 
     run_id: str = Field(..., description="运行 ID")
     original_status: str | None = Field(None, description="原始运行状态")
-    original_actions: list[dict[str, Any]] | None = Field(None, description="原始动作列表")
-    replayed_actions: list[dict[str, Any]] | None = Field(None, description="重放动作列表")
+    original_actions: list[dict[str, Any]] | None = Field(
+        None, description="原始动作列表"
+    )
+    replayed_actions: list[dict[str, Any]] | None = Field(
+        None, description="重放动作列表"
+    )
     diff: list[dict[str, Any]] | None = Field(None, description="动作差异")
     tool_calls_count: int | None = Field(None, description="工具调用次数", ge=0)
     ledger_entries_count: int | None = Field(None, description="账本记录数", ge=0)

@@ -219,7 +219,9 @@ def _load_prompty_file(path: Path) -> PromptDefinition:
 
     messages: list[PromptMessageTemplate] = []
     if system_text and system_text.strip():
-        messages.append(PromptMessageTemplate(role="system", content_template=system_text))
+        messages.append(
+            PromptMessageTemplate(role="system", content_template=system_text)
+        )
     messages.append(PromptMessageTemplate(role="user", content_template=user_text))
 
     output_raw = meta_raw.get("output", {})

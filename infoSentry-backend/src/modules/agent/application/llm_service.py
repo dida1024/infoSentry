@@ -204,7 +204,11 @@ class LLMJudgeService:
             if prompt and prompt.strip():
                 prompt_def = self._prompt_store.get(name="agent.boundary_judge")
                 system = next(
-                    (m.content_template for m in prompt_def.messages if m.role == "system"),
+                    (
+                        m.content_template
+                        for m in prompt_def.messages
+                        if m.role == "system"
+                    ),
                     None,
                 )
                 messages: list[dict[str, str]] = []
@@ -234,12 +238,16 @@ class LLMJudgeService:
             return [{"role": m.role, "content": m.content} for m in rendered]
 
         # 回退：使用代码内 prompt（仅用于紧急回滚）
-        user_prompt = prompt if (prompt and prompt.strip()) else self._build_user_prompt(
-            goal_description,
-            item_title,
-            item_snippet,
-            match_score,
-            match_reasons,
+        user_prompt = (
+            prompt
+            if (prompt and prompt.strip())
+            else self._build_user_prompt(
+                goal_description,
+                item_title,
+                item_snippet,
+                match_score,
+                match_reasons,
+            )
         )
         return [
             {"role": "system", "content": self.SYSTEM_PROMPT},

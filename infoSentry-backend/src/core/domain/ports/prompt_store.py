@@ -89,4 +89,3 @@ class PromptStore(Protocol):
         version: str | None = None,
         language: str | None = None,
     ) -> list[PromptMessage]: ...
-

@@ -15,4 +15,3 @@ def get_prompt_store() -> FileSystemPromptStore:
         base_dir=Path(settings.PROMPTS_DIR).resolve(),
         default_language=settings.PROMPTS_DEFAULT_LANGUAGE,
     )
-

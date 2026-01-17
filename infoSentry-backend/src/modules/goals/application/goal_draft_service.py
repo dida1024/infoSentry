@@ -58,7 +58,9 @@ class GoalDraftService:
     _MAX_DESCRIPTION_CHARS: Final[int] = 280
     _MAX_KEYWORD_CHARS: Final[int] = 30
 
-    SYSTEM_PROMPT: Final[str] = """你是一个信息追踪产品的助理。用户会用一句话描述想关注什么，请你生成一个“追踪目标”的草稿。
+    SYSTEM_PROMPT: Final[
+        str
+    ] = """你是一个信息追踪产品的助理。用户会用一句话描述想关注什么，请你生成一个“追踪目标”的草稿。
 
 要求：
 1) 输出必须是严格 JSON，且只输出 JSON，不要任何解释文字
@@ -93,7 +95,9 @@ class GoalDraftService:
             )
         return self._client
 
-    async def generate_draft(self, intent: str, max_keywords: int = 5) -> GoalDraftOutput:
+    async def generate_draft(
+        self, intent: str, max_keywords: int = 5
+    ) -> GoalDraftOutput:
         """根据用户意图生成目标草稿。"""
         if not settings.LLM_ENABLED:
             raise GoalDraftNotAvailableError("LLM feature disabled")
@@ -102,7 +106,9 @@ class GoalDraftService:
         if len(normalized_intent) < 3:
             raise ValueError("intent too short")
 
-        messages = self._build_messages(intent=normalized_intent, max_keywords=max_keywords)
+        messages = self._build_messages(
+            intent=normalized_intent, max_keywords=max_keywords
+        )
 
         try:
             raw_output, tokens_used = await self._call_llm(messages)
@@ -116,7 +122,9 @@ class GoalDraftService:
         output = self._validate_output(raw_output)
         return self._sanitize_output(output, normalized_intent, max_keywords)
 
-    def _build_messages(self, *, intent: str, max_keywords: int) -> list[dict[str, str]]:
+    def _build_messages(
+        self, *, intent: str, max_keywords: int
+    ) -> list[dict[str, str]]:
         """构建 messages（支持文件化 prompt）。"""
         if settings.PROMPTS_ENABLED:
             rendered = self._prompt_store.render_messages(
@@ -226,4 +234,3 @@ class GoalDraftService:
             description=description,
             keywords=cleaned_keywords,
         )
-
