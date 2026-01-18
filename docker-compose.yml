@@ -111,8 +111,8 @@ services:
     command: uv run uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
     environment:
       <<: *common-env
-    expose:
-      - "8000"
+    ports:
+      - "18000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -140,8 +140,8 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: ${BACKEND_HOST:-http://localhost:8000}
       NODE_ENV: production
-    expose:
-      - "3000"
+    ports:
+      - "13001:3000"
     depends_on:
       - api
     healthcheck:
