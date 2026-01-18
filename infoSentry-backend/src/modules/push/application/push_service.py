@@ -104,7 +104,7 @@ class PushService:
         pattern = RedisKeys.immediate_buffer_pattern()
 
         # Use scan instead of keys for production safety
-        cursor = "0"
+        cursor = 0
         while True:
             cursor, keys = await self.redis.client.scan(
                 cursor=cursor,
@@ -125,7 +125,7 @@ class PushService:
                         await self._flush_immediate_buffer(goal_id, time_bucket)
                         flushed_goals.append(goal_id)
 
-            if cursor == "0":
+            if cursor == 0:
                 break
 
         return flushed_goals
