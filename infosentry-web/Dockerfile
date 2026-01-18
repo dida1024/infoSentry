@@ -18,6 +18,10 @@ RUN npm ci
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# 构建期注入 Next.js 公共环境变量
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 # 复制依赖
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

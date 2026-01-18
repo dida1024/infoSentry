@@ -39,7 +39,7 @@ x-common-env: &common-env
   EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL:-}
   EMAILS_FROM_NAME: ${EMAILS_FROM_NAME:-infoSentry}
   FRONTEND_HOST: ${FRONTEND_HOST:-http://localhost:3000}
-  BACKEND_HOST: ${BACKEND_HOST:-http://localhost:8000}
+  BACKEND_HOST: ${s:-http://localhost:8000}
   LLM_ENABLED: ${LLM_ENABLED:-true}
   EMBEDDING_ENABLED: ${EMBEDDING_ENABLED:-true}
   IMMEDIATE_ENABLED: ${IMMEDIATE_ENABLED:-true}
@@ -135,6 +135,8 @@ services:
     build:
       context: ./infosentry-web
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${BACKEND_HOST:-http://localhost:8000}
     container_name: infosentry-web
     restart: unless-stopped
     environment:
