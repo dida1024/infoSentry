@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import Field
 
 from src.core.domain.aggregate_root import AggregateRoot
+from src.core.domain.base_entity import BaseEntity
 
 
 class SourceType(str, Enum):
@@ -30,6 +31,8 @@ class Source(AggregateRoot):
 
     type: SourceType = Field(..., description="源类型")
     name: str = Field(..., description="源名称")
+    owner_id: str | None = Field(default=None, description="创建者用户ID")
+    is_private: bool = Field(default=False, description="是否私密")
     enabled: bool = Field(default=True, description="是否启用")
     fetch_interval_sec: int = Field(default=1800, description="抓取间隔（秒）")
     next_fetch_at: datetime | None = Field(default=None, description="下次抓取时间")
@@ -121,4 +124,26 @@ class Source(AggregateRoot):
         if interval_sec == self.fetch_interval_sec:
             return
         self.fetch_interval_sec = interval_sec
+        self._update_timestamp()
+
+
+class SourceSubscription(BaseEntity):
+    """Source subscription - 用户订阅信息源。"""
+
+    user_id: str = Field(..., description="订阅用户ID")
+    source_id: str = Field(..., description="信息源ID")
+    enabled: bool = Field(default=True, description="是否启用")
+
+    def enable(self) -> None:
+        """Enable the subscription."""
+        if self.enabled:
+            return
+        self.enabled = True
+        self._update_timestamp()
+
+    def disable(self) -> None:
+        """Disable the subscription."""
+        if not self.enabled:
+            return
+        self.enabled = False
         self._update_timestamp()

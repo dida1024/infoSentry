@@ -33,7 +33,9 @@ async def _send_magic_link_email_async(
     from src.modules.push.application.email_service import get_email_service
     from src.modules.users.application.email_templates import render_magic_link_email
     from src.modules.users.infrastructure.mappers import MagicLinkMapper
-    from src.modules.users.infrastructure.repositories import PostgreSQLMagicLinkRepository
+    from src.modules.users.infrastructure.repositories import (
+        PostgreSQLMagicLinkRepository,
+    )
 
     async with get_async_session() as session:
         try:

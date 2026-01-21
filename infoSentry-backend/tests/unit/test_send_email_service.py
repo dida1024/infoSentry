@@ -9,7 +9,7 @@
 """
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -29,12 +29,6 @@ from src.modules.goals.interfaces.schemas import (
 )
 from src.modules.items.domain.entities import GoalItemMatch
 from src.modules.push.application.email_service import EmailResult
-from src.modules.push.domain.entities import (
-    PushChannel,
-    PushDecision,
-    PushDecisionRecord,
-    PushStatus,
-)
 
 pytestmark = pytest.mark.anyio
 

@@ -1,10 +1,11 @@
 """Tests for email template loader and user email templates."""
 
+from datetime import UTC, datetime
+
 import pytest
 
 from src.core.infrastructure.email.template_loader import render_template
 from src.modules.users.application.email_templates import render_magic_link_email
-from datetime import datetime, UTC
 
 
 class TestTemplateLoader:

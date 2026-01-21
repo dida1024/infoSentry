@@ -6,8 +6,8 @@ from uuid import uuid4
 from loguru import logger
 
 from src.core.config import settings
-from src.core.infrastructure.logging import BusinessEvents
 from src.core.domain.ports.token import TokenService
+from src.core.infrastructure.logging import BusinessEvents
 from src.modules.users.application.commands import (
     ConsumeMagicLinkCommand,
     RequestMagicLinkCommand,

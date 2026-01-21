@@ -16,13 +16,14 @@ from pathlib import Path
 from typing import Any
 
 import psycopg
-from psycopg import errors, sql
 import structlog
+from psycopg import errors, sql
+
+from src.core.config import Settings
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.core.config import Settings
 
 logger = structlog.get_logger(__name__)
 
