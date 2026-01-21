@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Enum, Text
+from sqlalchemy import JSON, DateTime, Enum, Text, UniqueConstraint
 from sqlmodel import Field
 
 from src.core.infrastructure.database.base_model import BaseModel
@@ -24,7 +24,9 @@ class SourceModel(BaseModel, table=True):
         nullable=False,
         index=True,
     )
+    owner_id: str | None = Field(default=None, nullable=True, index=True)
     name: str = Field(nullable=False, unique=True, index=True)
+    is_private: bool = Field(default=False, nullable=False, index=True)
     enabled: bool = Field(default=True, nullable=False, index=True)
     fetch_interval_sec: int = Field(default=1800, nullable=False)
     next_fetch_at: datetime | None = Field(
@@ -41,6 +43,23 @@ class SourceModel(BaseModel, table=True):
     error_streak: int = Field(default=0, nullable=False)
     empty_streak: int = Field(default=0, nullable=False)
     config: dict = Field(default_factory=dict, sa_type=JSON, nullable=False)
+
+
+class SourceSubscriptionModel(BaseModel, table=True):
+    """Source subscription database model."""
+
+    __tablename__ = "source_subscriptions"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "source_id",
+            name="uq_source_subscriptions_user_source",
+        ),
+    )
+
+    user_id: str = Field(nullable=False, index=True)
+    source_id: str = Field(nullable=False, index=True)
+    enabled: bool = Field(default=True, nullable=False, index=True)
 
 
 class IngestLogModel(BaseModel, table=True):

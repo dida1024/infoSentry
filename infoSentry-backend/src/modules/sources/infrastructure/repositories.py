@@ -3,16 +3,25 @@
 from datetime import datetime
 
 from loguru import logger
-from sqlalchemy import func
+from sqlalchemy import exists, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
 from src.core.domain.events import EventBus
 from src.core.infrastructure.database.event_aware_repository import EventAwareRepository
-from src.modules.sources.domain.entities import Source, SourceType
-from src.modules.sources.domain.repository import SourceRepository
-from src.modules.sources.infrastructure.mappers import SourceMapper
-from src.modules.sources.infrastructure.models import SourceModel
+from src.modules.sources.domain.entities import Source, SourceSubscription, SourceType
+from src.modules.sources.domain.repository import (
+    SourceRepository,
+    SourceSubscriptionRepository,
+)
+from src.modules.sources.infrastructure.mappers import (
+    SourceMapper,
+    SourceSubscriptionMapper,
+)
+from src.modules.sources.infrastructure.models import (
+    SourceModel,
+    SourceSubscriptionModel,
+)
 
 
 class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository):
