@@ -3,8 +3,17 @@
  */
 
 // API 配置
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const ensureApiBaseUrl = (value: string): string => {
+  const trimmed = value.replace(/\/+$/, "");
+  if (trimmed.endsWith("/api/v1")) {
+    return trimmed;
+  }
+  return `${trimmed}/api/v1`;
+};
+
+export const API_BASE_URL = ensureApiBaseUrl(
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1",
+);
 
 export const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -48,4 +57,3 @@ export const SOURCE_TYPE = {
   RSS: "RSS",
   SITE: "SITE",
 } as const;
-
