@@ -12,6 +12,8 @@ from src.modules.users.application.handlers import (
     RequestMagicLinkHandler,
     UpdateProfileHandler,
 )
+from src.modules.users.domain.ports import MagicLinkEmailQueue
+from src.modules.users.infrastructure.email_queue import CeleryMagicLinkEmailQueue
 from src.modules.users.infrastructure.mappers import (
     MagicLinkMapper,
     UserBudgetDailyMapper,
@@ -34,6 +36,10 @@ def get_magic_link_mapper() -> MagicLinkMapper:
 
 def get_user_budget_daily_mapper() -> UserBudgetDailyMapper:
     return UserBudgetDailyMapper()
+
+
+def get_magic_link_email_queue() -> MagicLinkEmailQueue:
+    return CeleryMagicLinkEmailQueue()
 
 
 async def get_user_repository(
@@ -63,9 +69,12 @@ async def get_request_magic_link_handler(
         get_magic_link_repository
     ),
     token_service=Depends(get_token_service),
+    magic_link_email_queue: MagicLinkEmailQueue = Depends(
+        get_magic_link_email_queue
+    ),
 ) -> RequestMagicLinkHandler:
     return RequestMagicLinkHandler(
-        user_repository, magic_link_repository, token_service
+        user_repository, magic_link_repository, token_service, magic_link_email_queue
     )
 
 

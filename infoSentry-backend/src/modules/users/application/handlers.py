@@ -6,6 +6,7 @@ from uuid import uuid4
 from loguru import logger
 
 from src.core.config import settings
+from src.core.infrastructure.logging import BusinessEvents
 from src.core.domain.ports.token import TokenService
 from src.modules.users.application.commands import (
     ConsumeMagicLinkCommand,
@@ -20,6 +21,7 @@ from src.modules.users.domain.exceptions import (
     MagicLinkExpiredError,
     UserNotFoundError,
 )
+from src.modules.users.domain.ports import MagicLinkEmailQueue
 from src.modules.users.domain.repository import MagicLinkRepository, UserRepository
 
 
@@ -31,10 +33,12 @@ class RequestMagicLinkHandler:
         user_repository: UserRepository,
         magic_link_repository: MagicLinkRepository,
         token_service: TokenService,
+        magic_link_email_queue: MagicLinkEmailQueue,
     ):
         self.user_repository = user_repository
         self.magic_link_repository = magic_link_repository
         self.token_service = token_service
+        self.magic_link_email_queue = magic_link_email_queue
         self.logger = logger
 
     async def handle(self, command: RequestMagicLinkCommand) -> MagicLink:
@@ -78,6 +82,15 @@ class RequestMagicLinkHandler:
 
         await self.magic_link_repository.create(magic_link)
         self.logger.info(f"Created magic link for: {command.email}")
+
+        await self.magic_link_email_queue.enqueue(
+            magic_link_id=magic_link.id,
+            email=command.email,
+        )
+        BusinessEvents.magic_link_email_enqueued(
+            email=command.email,
+            magic_link_id=magic_link.id,
+        )
 
         # 本地开发环境：打印登录链接到日志，方便调试
         if settings.ENVIRONMENT == "local":

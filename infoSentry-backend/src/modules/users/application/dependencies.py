@@ -15,6 +15,7 @@ from src.modules.users.application.handlers import (
     UpdateProfileHandler,
 )
 from src.modules.users.application.query_service import UserQueryService
+from src.modules.users.domain.ports import MagicLinkEmailQueue
 from src.modules.users.domain.repository import (
     MagicLinkRepository,
     UserBudgetDailyRepository,
@@ -42,13 +43,23 @@ async def get_token_service() -> TokenService:
     _missing_dependency("TokenService")
 
 
+async def get_magic_link_email_queue() -> MagicLinkEmailQueue:
+    _missing_dependency("MagicLinkEmailQueue")
+
+
 async def get_request_magic_link_handler(
     user_repository: UserRepository = Depends(get_user_repository),
     magic_link_repository: MagicLinkRepository = Depends(get_magic_link_repository),
     token_service: TokenService = Depends(get_token_service),
+    magic_link_email_queue: MagicLinkEmailQueue = Depends(
+        get_magic_link_email_queue
+    ),
 ) -> RequestMagicLinkHandler:
     return RequestMagicLinkHandler(
-        user_repository, magic_link_repository, token_service
+        user_repository,
+        magic_link_repository,
+        token_service,
+        magic_link_email_queue,
     )
 
 

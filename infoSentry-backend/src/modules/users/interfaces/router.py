@@ -55,9 +55,6 @@ async def request_magic_link(
     command = RequestMagicLinkCommand(email=request.email)
     await handler.handle(command)
 
-    # TODO: 实际发送邮件的逻辑应该在事件处理器中
-    # 这里暂时只返回成功消息
-
     return MagicLinkResponse()
 
 

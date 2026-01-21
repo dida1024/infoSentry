@@ -116,6 +116,7 @@ celery_app.autodiscover_tasks(
         "src.modules.items",
         "src.modules.push",
         "src.modules.agent",
+        "src.modules.users",
     ],
     related_name="tasks",
 )

@@ -295,6 +295,41 @@ class BusinessEvents:
         )
 
     @classmethod
+    def magic_link_email_enqueued(
+        cls,
+        email: str,
+        magic_link_id: str,
+        **extra: Any,
+    ) -> None:
+        """记录 Magic Link 邮件入队事件。"""
+        cls._log.info(
+            "magic_link_email_enqueued",
+            event_type="auth_email",
+            email=email,
+            magic_link_id=magic_link_id,
+            **extra,
+        )
+
+    @classmethod
+    def magic_link_email_sent(
+        cls,
+        email: str,
+        magic_link_id: str,
+        success: bool,
+        **extra: Any,
+    ) -> None:
+        """记录 Magic Link 邮件发送事件。"""
+        level = "info" if success else "warning"
+        getattr(cls._log, level)(
+            "magic_link_email_sent",
+            event_type="auth_email",
+            email=email,
+            magic_link_id=magic_link_id,
+            success=success,
+            **extra,
+        )
+
+    @classmethod
     def notification_read(
         cls,
         notification_id: str,
