@@ -19,9 +19,9 @@ from pydantic import BaseModel, Field
 class DecisionBucket(str, Enum):
     """决策分桶。"""
 
-    IMMEDIATE = "IMMEDIATE"  # 即时推送 (score >= 0.93)
-    BOUNDARY = "BOUNDARY"  # 边界区域，需要 LLM 判别 (0.88 <= score < 0.93)
-    BATCH = "BATCH"  # 批量推送 (0.75 <= score < 0.88)
+    IMMEDIATE = "IMMEDIATE"  # 即时推送 (score >= 0.89)
+    BOUNDARY = "BOUNDARY"  # 边界区域，需要 LLM 判别 (0.85 <= score < 0.89)
+    BATCH = "BATCH"  # 批量推送 (0.75 <= score < 0.85)
     IGNORE = "IGNORE"  # 忽略 (score < 0.75)
 
 
@@ -181,8 +181,8 @@ class AgentState(BaseModel):
 class ThresholdConfig:
     """阈值配置。"""
 
-    immediate_threshold: float = 0.93  # >= 此值直通 IMMEDIATE
-    boundary_lower: float = 0.88  # >= 此值且 < immediate 进入 BOUNDARY
+    immediate_threshold: float = 0.89  # >= 此值直通 IMMEDIATE
+    boundary_lower: float = 0.85  # >= 此值且 < immediate 进入 BOUNDARY
     batch_threshold: float = 0.75  # >= 此值且 < boundary_lower 进入 BATCH
     # < batch_threshold 则 IGNORE
 

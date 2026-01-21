@@ -55,20 +55,20 @@ class TestThresholdConfig:
         """测试 IMMEDIATE 分桶。"""
         config = ThresholdConfig()
         assert config.get_bucket(0.95) == DecisionBucket.IMMEDIATE
-        assert config.get_bucket(0.93) == DecisionBucket.IMMEDIATE
+        assert config.get_bucket(0.89) == DecisionBucket.IMMEDIATE
         assert config.get_bucket(1.0) == DecisionBucket.IMMEDIATE
 
     def test_boundary_bucket(self):
         """测试 BOUNDARY 分桶。"""
         config = ThresholdConfig()
-        assert config.get_bucket(0.92) == DecisionBucket.BOUNDARY
-        assert config.get_bucket(0.90) == DecisionBucket.BOUNDARY
         assert config.get_bucket(0.88) == DecisionBucket.BOUNDARY
+        assert config.get_bucket(0.87) == DecisionBucket.BOUNDARY
+        assert config.get_bucket(0.85) == DecisionBucket.BOUNDARY
 
     def test_batch_bucket(self):
         """测试 BATCH 分桶。"""
         config = ThresholdConfig()
-        assert config.get_bucket(0.87) == DecisionBucket.BATCH
+        assert config.get_bucket(0.84) == DecisionBucket.BATCH
         assert config.get_bucket(0.80) == DecisionBucket.BATCH
         assert config.get_bucket(0.75) == DecisionBucket.BATCH
 
@@ -289,7 +289,7 @@ class TestBucketNode:
     async def test_boundary_bucket(self, bucket_node):
         """测试 BOUNDARY 分桶。"""
         state = AgentState(
-            match=MatchContext(score=0.90, features={}, reasons={}),
+            match=MatchContext(score=0.87, features={}, reasons={}),
         )
 
         result = await bucket_node.process(state)
@@ -390,7 +390,7 @@ class TestBoundaryJudgeNode:
                 title="Test",
                 url="https://test.com",
             ),
-            match=MatchContext(score=0.90, features={}, reasons={}),
+            match=MatchContext(score=0.87, features={}, reasons={}),
         )
         state.draft.preliminary_bucket = DecisionBucket.BOUNDARY
 

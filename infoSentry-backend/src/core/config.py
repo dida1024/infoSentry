@@ -196,7 +196,7 @@ class Settings(BaseSettings):
     BATCH_MAX_ITEMS: int = 8
     DIGEST_MAX_ITEMS_PER_GOAL: int = 10
     DIGEST_SEND_HOUR: int = 9  # 09:00 CST
-    IMMEDIATE_THRESHOLD: float = 0.93
+    IMMEDIATE_THRESHOLD: float = 0.89
     BATCH_THRESHOLD: float = 0.75
     DIGEST_MIN_SCORE: float = 0.60
     BOUNDARY_LOW: float = 0.88  # LLM判别边界区间下限
