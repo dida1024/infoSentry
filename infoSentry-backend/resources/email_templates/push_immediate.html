@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #ffffff;">
+    <div style="text-align: center; padding: 20px 0; border-bottom: 1px solid #eee;">
+        <h1 style="margin: 0; font-size: 24px; color: #333;">🎯 {{ goal_name }}</h1>
+        <p style="margin: 10px 0 0 0; color: #666;">发现以下高价值内容</p>
+    </div>
+
+    <div style="padding: 20px 0;">
+        {% for item in items %}
+        <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #dc3545;">
+            <h3 style="margin: 0 0 10px 0; font-size: 16px;">
+                <a href="{{ item.redirect_url }}" style="color: #1a73e8; text-decoration: none;">
+                    {{ item.title }}
+                </a>
+            </h3>
+            {% if item.snippet %}
+            <p style="margin: 0 0 10px 0; color: #666; font-size: 14px; line-height: 1.5;">{{ item.snippet }}</p>
+            {% endif %}
+            <p style="margin: 0; font-size: 12px; color: #999;">
+                {% if item.source_name %}📰 {{ item.source_name }} · {% endif %}{{ item.published_str }}
+            </p>
+            <p style="margin: 10px 0 0 0; font-size: 13px; color: #28a745;">
+                💡 {{ item.reason }}
+            </p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div style="text-align: center; padding: 20px; border-top: 1px solid #eee; color: #999; font-size: 12px;">
+        <p>来自 <strong>infoSentry</strong> 的即时推送</p>
+        <p>
+            <a href="{{ base_url }}/goals/{{ goal_id }}" style="color: #1a73e8;">查看目标设置</a> ·
+            <a href="{{ base_url }}/inbox" style="color: #1a73e8;">查看收件箱</a>
+        </p>
+    </div>
+</body>
+</html>

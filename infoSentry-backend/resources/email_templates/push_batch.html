@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #ffffff;">
+    <div style="text-align: center; padding: 20px 0; border-bottom: 1px solid #eee;">
+        <h1 style="margin: 0; font-size: 22px; color: #333;">📬 定时更新</h1>
+        <p style="margin: 10px 0 0 0; color: #666;">
+            <strong>{{ goal_name }}</strong> · {{ window_time }}
+        </p>
+    </div>
+
+    <div style="padding: 20px 0;">
+        <p style="margin: 0 0 16px 0; color: #666; font-size: 14px;">
+            为您找到 <strong>{{ item_count }}</strong> 条相关内容：
+        </p>
+        {% for item in items %}
+        <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 6px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 15px;">
+                <span style="color: #999; font-weight: normal;">{{ loop.index }}.</span>
+                <a href="{{ item.redirect_url }}" style="color: #1a73e8; text-decoration: none;">
+                    {{ item.title }}
+                </a>
+            </h3>
+            {% if item.snippet %}
+            <p style="margin: 0 0 8px 0; color: #666; font-size: 13px; line-height: 1.4;">{{ item.snippet[:150] }}{% if item.snippet|length > 150 %}...{% endif %}</p>
+            {% endif %}
+            <p style="margin: 0; font-size: 11px; color: #999;">
+                {% if item.source_name %}{{ item.source_name }} · {% endif %}{{ item.published_str }}
+            </p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div style="text-align: center; padding: 20px; border-top: 1px solid #eee; color: #999; font-size: 12px;">
+        <p>来自 <strong>infoSentry</strong> 的批量推送</p>
+        <p>
+            <a href="{{ base_url }}/goals/{{ goal_id }}" style="color: #1a73e8;">管理目标</a> ·
+            <a href="{{ base_url }}/inbox" style="color: #1a73e8;">查看全部</a>
+        </p>
+    </div>
+</body>
+</html>

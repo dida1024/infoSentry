@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #ffffff;">
+    <div style="text-align: center; padding: 20px 0; border-bottom: 1px solid #eee;">
+        <h1 style="margin: 0; font-size: 22px; color: #333;">📋 每日摘要</h1>
+        <p style="margin: 10px 0 0 0; color: #666;">{{ date_str }}</p>
+    </div>
+
+    <div style="padding: 20px 0;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h2 style="margin: 0; color: #fff; font-size: 18px;">🎯 {{ goal_name }}</h2>
+            <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.8); font-size: 14px;">
+                今日共 {{ item_count }} 条相关内容
+            </p>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
+            {% for item in items %}
+            <tr style="background: {% if loop.index is odd %}#f8f9fa{% else %}#ffffff{% endif %};">
+                <td style="padding: 12px; vertical-align: top; width: 30px; color: #999; font-size: 14px;">{{ loop.index }}</td>
+                <td style="padding: 12px;">
+                    <a href="{{ item.redirect_url }}" style="color: #1a73e8; text-decoration: none; font-size: 14px; font-weight: 500;">
+                        {{ item.title }}
+                    </a>
+                    <div style="margin-top: 4px; font-size: 12px; color: #999;">
+                        {% if item.source_name %}{{ item.source_name }} · {% endif %}{{ item.published_str }}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div style="text-align: center; padding: 20px;">
+        <a href="{{ base_url }}/inbox?goal_id={{ goal_id }}" style="display: inline-block; padding: 12px 24px; background: #1a73e8; color: #fff; text-decoration: none; border-radius: 6px; font-size: 14px;">
+            查看全部内容
+        </a>
+    </div>
+
+    <div style="text-align: center; padding: 20px; border-top: 1px solid #eee; color: #999; font-size: 12px;">
+        <p>来自 <strong>infoSentry</strong> 的每日摘要</p>
+        <p>
+            <a href="{{ base_url }}/goals/{{ goal_id }}/settings" style="color: #1a73e8;">调整推送设置</a>
+        </p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,13 @@
+==================================================
+infoSentry - {{ goal_name }}
+==================================================
+
+{% for item in items %}
+{{ loop.index }}. {{ item.title }}
+{% if item.snippet %}   {{ item.snippet[:100] }}...{% endif %}
+   链接: {{ item.redirect_url }}
+{% if item.source_name %}   来源: {{ item.source_name }}{% endif %}
+
+{% endfor %}
+==================================================
+此邮件由 infoSentry 自动发送
