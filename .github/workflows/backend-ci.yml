@@ -54,18 +54,17 @@ jobs:
 
       - name: Install dependencies
         working-directory: infoSentry-backend
-        run: uv sync
+        run: uv sync --group dev
 
       - name: Prepare test database
         working-directory: infoSentry-backend
         env:
-          PGHOST: localhost
-          PGPORT: "5432"
-          PGUSER: postgres
-          PGPASSWORD: postgres
+          POSTGRES_SERVER: localhost
+          POSTGRES_PORT: "5432"
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
         run: |
-          uv run python -c "import psycopg\nfrom psycopg import errors\nconn=psycopg.connect('postgresql://postgres:postgres@localhost:5432/postgres', autocommit=True)\ntry:\n  conn.execute('CREATE DATABASE infosentry_test')\nexcept errors.DuplicateDatabase:\n  pass\nfinally:\n  conn.close()"
-          uv run python -c "import psycopg\nconn=psycopg.connect('postgresql://postgres:postgres@localhost:5432/infosentry_test', autocommit=True)\nconn.execute('CREATE EXTENSION IF NOT EXISTS vector')\nconn.close()"
+          uv run python scripts/create_test_db.py --database infosentry_test --maintenance-db postgres --extensions vector
 
       - name: Lint
         working-directory: infoSentry-backend
