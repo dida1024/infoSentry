@@ -20,6 +20,7 @@ class SourceRepository(BaseRepository[Source]):
         self,
         source_type: SourceType | None = None,
         enabled_only: bool = True,
+        require_subscription: bool = False,
         page: int = 1,
         page_size: int = 50,
     ) -> tuple[list[Source], int]:

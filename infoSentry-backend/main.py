@@ -150,6 +150,9 @@ app.dependency_overrides[push_app_deps.get_goal_repository] = (
 app.dependency_overrides[sources_app_deps.get_source_repository] = (
     sources_infra_deps.get_source_repository
 )
+app.dependency_overrides[sources_app_deps.get_source_subscription_repository] = (
+    sources_infra_deps.get_source_subscription_repository
+)
 
 app.dependency_overrides[users_app_deps.get_user_repository] = (
     users_infra_deps.get_user_repository

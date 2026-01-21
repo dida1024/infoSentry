@@ -31,6 +31,7 @@ class CreateSourceRequest(BaseModel):
 
     type: SourceType = Field(..., description="源类型")
     name: str = Field(..., min_length=1, max_length=100, description="源名称")
+    is_private: bool = Field(default=False, description="是否私密信息源")
     config: dict[str, Any] = Field(..., description="源配置")
     fetch_interval_sec: int | None = Field(None, ge=60, description="抓取间隔（秒）")
 
@@ -58,6 +59,7 @@ class SourceResponse(BaseModel):
     id: str = Field(..., description="源ID")
     type: SourceType = Field(..., description="源类型")
     name: str = Field(..., description="源名称")
+    is_private: bool = Field(..., description="是否私密信息源")
     enabled: bool = Field(..., description="是否启用")
     fetch_interval_sec: int = Field(..., description="抓取间隔（秒）")
     next_fetch_at: datetime | None = Field(None, description="下次抓取时间")
@@ -75,3 +77,24 @@ class SourceListResponse(BaseModel):
     """Source list response."""
 
     sources: list[SourceResponse]
+
+
+class PublicSourceResponse(BaseModel):
+    """Public source response."""
+
+    id: str = Field(..., description="源ID")
+    type: SourceType = Field(..., description="源类型")
+    name: str = Field(..., description="源名称")
+    is_private: bool = Field(..., description="是否私密信息源")
+    enabled: bool = Field(..., description="是否启用")
+    fetch_interval_sec: int = Field(..., description="抓取间隔（秒）")
+    next_fetch_at: datetime | None = Field(None, description="下次抓取时间")
+    last_fetch_at: datetime | None = Field(None, description="最后抓取时间")
+    error_streak: int = Field(..., description="连续错误次数")
+    config: dict[str, Any] = Field(..., description="源配置")
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")
+    is_subscribed: bool = Field(..., description="是否已订阅")
+
+    class Config:
+        from_attributes = True

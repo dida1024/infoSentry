@@ -220,6 +220,7 @@ async def _force_ingest_all_async(source_type: str | None) -> None:
             sources, _ = await source_repo.list_by_type(
                 source_type=source_type_filter,
                 enabled_only=True,
+                require_subscription=True,
                 page=1,
                 page_size=settings.FORCE_INGEST_PAGE_SIZE,
             )

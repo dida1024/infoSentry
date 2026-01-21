@@ -9,10 +9,14 @@ from src.modules.sources.application.handlers import (
     DeleteSourceHandler,
     DisableSourceHandler,
     EnableSourceHandler,
+    SubscribeSourceHandler,
     UpdateSourceHandler,
 )
 from src.modules.sources.application.services import SourceQueryService
-from src.modules.sources.domain.repository import SourceRepository
+from src.modules.sources.domain.repository import (
+    SourceRepository,
+    SourceSubscriptionRepository,
+)
 
 
 def _missing_dependency(name: str) -> NoReturn:
@@ -23,10 +27,17 @@ async def get_source_repository() -> SourceRepository:
     _missing_dependency("SourceRepository")
 
 
+async def get_source_subscription_repository() -> SourceSubscriptionRepository:
+    _missing_dependency("SourceSubscriptionRepository")
+
+
 async def get_create_source_handler(
     source_repository: SourceRepository = Depends(get_source_repository),
+    subscription_repository: SourceSubscriptionRepository = Depends(
+        get_source_subscription_repository
+    ),
 ) -> CreateSourceHandler:
-    return CreateSourceHandler(source_repository)
+    return CreateSourceHandler(source_repository, subscription_repository)
 
 
 async def get_update_source_handler(
@@ -36,24 +47,43 @@ async def get_update_source_handler(
 
 
 async def get_enable_source_handler(
-    source_repository: SourceRepository = Depends(get_source_repository),
+    subscription_repository: SourceSubscriptionRepository = Depends(
+        get_source_subscription_repository
+    ),
 ) -> EnableSourceHandler:
-    return EnableSourceHandler(source_repository)
+    return EnableSourceHandler(subscription_repository)
 
 
 async def get_disable_source_handler(
-    source_repository: SourceRepository = Depends(get_source_repository),
+    subscription_repository: SourceSubscriptionRepository = Depends(
+        get_source_subscription_repository
+    ),
 ) -> DisableSourceHandler:
-    return DisableSourceHandler(source_repository)
+    return DisableSourceHandler(subscription_repository)
 
 
 async def get_delete_source_handler(
     source_repository: SourceRepository = Depends(get_source_repository),
+    subscription_repository: SourceSubscriptionRepository = Depends(
+        get_source_subscription_repository
+    ),
 ) -> DeleteSourceHandler:
-    return DeleteSourceHandler(source_repository)
+    return DeleteSourceHandler(source_repository, subscription_repository)
+
+
+async def get_subscribe_source_handler(
+    source_repository: SourceRepository = Depends(get_source_repository),
+    subscription_repository: SourceSubscriptionRepository = Depends(
+        get_source_subscription_repository
+    ),
+) -> SubscribeSourceHandler:
+    return SubscribeSourceHandler(source_repository, subscription_repository)
 
 
 async def get_source_query_service(
     source_repository: SourceRepository = Depends(get_source_repository),
+    subscription_repository: SourceSubscriptionRepository = Depends(
+        get_source_subscription_repository
+    ),
 ) -> SourceQueryService:
-    return SourceQueryService(source_repository)
+    return SourceQueryService(source_repository, subscription_repository)

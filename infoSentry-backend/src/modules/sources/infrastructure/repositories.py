@@ -70,6 +70,7 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
         self,
         source_type: SourceType | None = None,
         enabled_only: bool = True,
+        require_subscription: bool = False,
         page: int = 1,
         page_size: int = 50,
     ) -> tuple[list[Source], int]:
@@ -82,6 +83,49 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
 
         if enabled_only:
             statement = statement.where(col(SourceModel.enabled).is_(True))
+
+        if require_subscription:
+            statement = statement.where(
+                exists(
+                    select(SourceSubscriptionModel.id).where(
+                        SourceSubscriptionModel.source_id == SourceModel.id,
+                        col(SourceSubscriptionModel.is_deleted).is_(False),
+                        col(SourceSubscriptionModel.enabled).is_(True),
+                    )
+                )
+            )
+
+        statement = (
+            statement.offset((page - 1) * page_size)
+            .limit(page_size)
+            .order_by(SourceModel.name)
+        )
+
+        result = await self.session.execute(statement)
+        rows = result.all()
+
+        if not rows:
+            return [], 0
+
+        total_count = rows[0].total_count
+        models = [row.SourceModel for row in rows]
+        return self.mapper.to_domain_list(models), total_count
+
+    async def list_public(
+        self,
+        source_type: SourceType | None = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[list[Source], int]:
+        statement = select(
+            SourceModel, func.count(SourceModel.id).over().label("total_count")
+        ).where(
+            col(SourceModel.is_deleted).is_(False),
+            col(SourceModel.is_private).is_(False),
+        )
+
+        if source_type:
+            statement = statement.where(SourceModel.type == source_type)
 
         statement = (
             statement.offset((page - 1) * page_size)
@@ -112,6 +156,13 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
             .where(
                 col(SourceModel.is_deleted).is_(False),
                 col(SourceModel.enabled).is_(True),
+                exists(
+                    select(SourceSubscriptionModel.id).where(
+                        SourceSubscriptionModel.source_id == SourceModel.id,
+                        col(SourceSubscriptionModel.is_deleted).is_(False),
+                        col(SourceSubscriptionModel.enabled).is_(True),
+                    )
+                ),
             )
             .where(
                 (col(SourceModel.next_fetch_at).is_(None))
@@ -142,6 +193,8 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
 
         existing.type = source.type
         existing.name = source.name
+        existing.owner_id = source.owner_id
+        existing.is_private = source.is_private
         existing.enabled = source.enabled
         existing.fetch_interval_sec = source.fetch_interval_sec
         existing.next_fetch_at = source.next_fetch_at
@@ -186,3 +239,189 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
             page=page,
             page_size=page_size,
         )
+
+
+class PostgreSQLSourceSubscriptionRepository(
+    EventAwareRepository[SourceSubscription], SourceSubscriptionRepository
+):
+    """PostgreSQL source subscription repository implementation."""
+
+    def __init__(
+        self,
+        session: AsyncSession,
+        mapper: SourceSubscriptionMapper,
+        event_publisher: EventBus,
+    ):
+        super().__init__(event_publisher)
+        self.session = session
+        self.mapper = mapper
+        self.logger = logger
+
+    async def get_by_id(self, subscription_id: str) -> SourceSubscription | None:
+        statement = select(SourceSubscriptionModel).where(
+            SourceSubscriptionModel.id == subscription_id,
+            col(SourceSubscriptionModel.is_deleted).is_(False),
+        )
+        result = await self.session.execute(statement)
+        model = result.scalar_one_or_none()
+        return self.mapper.to_domain(model) if model else None
+
+    async def get_by_user_and_source(
+        self,
+        user_id: str,
+        source_id: str,
+        include_deleted: bool = False,
+    ) -> SourceSubscription | None:
+        statement = select(SourceSubscriptionModel).where(
+            SourceSubscriptionModel.user_id == user_id,
+            SourceSubscriptionModel.source_id == source_id,
+        )
+        if not include_deleted:
+            statement = statement.where(col(SourceSubscriptionModel.is_deleted).is_(False))
+        result = await self.session.execute(statement)
+        model = result.scalar_one_or_none()
+        return self.mapper.to_domain(model) if model else None
+
+    async def list_sources_by_user(
+        self,
+        user_id: str,
+        source_type: SourceType | None = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[list[tuple[Source, SourceSubscription]], int]:
+        statement = (
+            select(
+                SourceModel,
+                SourceSubscriptionModel,
+                func.count(SourceSubscriptionModel.id)
+                .over()
+                .label("total_count"),
+            )
+            .join(
+                SourceSubscriptionModel,
+                SourceSubscriptionModel.source_id == SourceModel.id,
+            )
+            .where(
+                SourceSubscriptionModel.user_id == user_id,
+                col(SourceSubscriptionModel.is_deleted).is_(False),
+                col(SourceModel.is_deleted).is_(False),
+            )
+        )
+
+        if source_type:
+            statement = statement.where(SourceModel.type == source_type)
+
+        statement = (
+            statement.offset((page - 1) * page_size)
+            .limit(page_size)
+            .order_by(SourceModel.name)
+        )
+
+        result = await self.session.execute(statement)
+        rows = result.all()
+        if not rows:
+            return [], 0
+
+        total_count = rows[0].total_count
+        items: list[tuple[Source, SourceSubscription]] = []
+        source_mapper = SourceMapper()
+        for row in rows:
+            subscription = self.mapper.to_domain(row.SourceSubscriptionModel)
+            source = source_mapper.to_domain(row.SourceModel)
+            items.append((source, subscription))
+
+        return items, total_count
+
+    async def list_by_user_and_source_ids(
+        self, user_id: str, source_ids: list[str]
+    ) -> list[SourceSubscription]:
+        if not source_ids:
+            return []
+        statement = select(SourceSubscriptionModel).where(
+            SourceSubscriptionModel.user_id == user_id,
+            SourceSubscriptionModel.source_id.in_(source_ids),
+            col(SourceSubscriptionModel.is_deleted).is_(False),
+        )
+        result = await self.session.execute(statement)
+        models = result.scalars().all()
+        return self.mapper.to_domain_list(list(models))
+
+    async def create(self, subscription: SourceSubscription) -> SourceSubscription:
+        model = self.mapper.to_model(subscription)
+        self.session.add(model)
+        await self.session.flush()
+        await self.session.refresh(model)
+        await self._publish_events_from_entity(subscription)
+        return self.mapper.to_domain(model)
+
+    async def update(self, subscription: SourceSubscription) -> SourceSubscription:
+        statement = select(SourceSubscriptionModel).where(
+            SourceSubscriptionModel.id == subscription.id
+        )
+        result = await self.session.execute(statement)
+        existing = result.scalar_one_or_none()
+        if not existing:
+            raise ValueError(
+                f"SourceSubscription with id {subscription.id} not found"
+            )
+
+        existing.user_id = subscription.user_id
+        existing.source_id = subscription.source_id
+        existing.enabled = subscription.enabled
+        existing.updated_at = subscription.updated_at
+        existing.is_deleted = subscription.is_deleted
+
+        self.session.add(existing)
+        await self.session.flush()
+        await self.session.refresh(existing)
+        await self._publish_events_from_entity(subscription)
+        return self.mapper.to_domain(existing)
+
+    async def delete(self, subscription: SourceSubscription | str) -> bool:
+        subscription_id = (
+            subscription.id
+            if isinstance(subscription, SourceSubscription)
+            else subscription
+        )
+        statement = select(SourceSubscriptionModel).where(
+            SourceSubscriptionModel.id == subscription_id,
+            col(SourceSubscriptionModel.is_deleted).is_(False),
+        )
+        result = await self.session.execute(statement)
+        model = result.scalar_one_or_none()
+        if not model:
+            return False
+
+        model.is_deleted = True
+        self.session.add(model)
+        await self.session.flush()
+        return True
+
+    async def list_all(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        include_deleted: bool = False,
+    ) -> tuple[list[SourceSubscription], int]:
+        statement = select(
+            SourceSubscriptionModel,
+            func.count(SourceSubscriptionModel.id).over().label("total_count"),
+        )
+
+        if not include_deleted:
+            statement = statement.where(col(SourceSubscriptionModel.is_deleted).is_(False))
+
+        statement = (
+            statement.offset((page - 1) * page_size)
+            .limit(page_size)
+            .order_by(SourceSubscriptionModel.created_at.desc())
+        )
+
+        result = await self.session.execute(statement)
+        rows = result.all()
+        if not rows:
+            return [], 0
+
+        total_count = rows[0].total_count
+        models = [row.SourceSubscriptionModel for row in rows]
+        return self.mapper.to_domain_list(models), total_count

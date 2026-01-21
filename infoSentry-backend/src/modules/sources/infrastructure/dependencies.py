@@ -10,14 +10,25 @@ from src.modules.sources.application.handlers import (
     DeleteSourceHandler,
     DisableSourceHandler,
     EnableSourceHandler,
+    SubscribeSourceHandler,
     UpdateSourceHandler,
 )
-from src.modules.sources.infrastructure.mappers import SourceMapper
-from src.modules.sources.infrastructure.repositories import PostgreSQLSourceRepository
+from src.modules.sources.infrastructure.mappers import (
+    SourceMapper,
+    SourceSubscriptionMapper,
+)
+from src.modules.sources.infrastructure.repositories import (
+    PostgreSQLSourceRepository,
+    PostgreSQLSourceSubscriptionRepository,
+)
 
 
 def get_source_mapper() -> SourceMapper:
     return SourceMapper()
+
+
+def get_source_subscription_mapper() -> SourceSubscriptionMapper:
+    return SourceSubscriptionMapper()
 
 
 async def get_source_repository(
@@ -27,10 +38,20 @@ async def get_source_repository(
     return PostgreSQLSourceRepository(session, mapper, get_event_bus())
 
 
+async def get_source_subscription_repository(
+    session: AsyncSession = Depends(get_db_session),
+    mapper: SourceSubscriptionMapper = Depends(get_source_subscription_mapper),
+) -> PostgreSQLSourceSubscriptionRepository:
+    return PostgreSQLSourceSubscriptionRepository(session, mapper, get_event_bus())
+
+
 async def get_create_source_handler(
     source_repository: PostgreSQLSourceRepository = Depends(get_source_repository),
+    subscription_repository: PostgreSQLSourceSubscriptionRepository = Depends(
+        get_source_subscription_repository
+    ),
 ) -> CreateSourceHandler:
-    return CreateSourceHandler(source_repository)
+    return CreateSourceHandler(source_repository, subscription_repository)
 
 
 async def get_update_source_handler(
@@ -40,18 +61,34 @@ async def get_update_source_handler(
 
 
 async def get_enable_source_handler(
-    source_repository: PostgreSQLSourceRepository = Depends(get_source_repository),
+    subscription_repository: PostgreSQLSourceSubscriptionRepository = Depends(
+        get_source_subscription_repository
+    ),
 ) -> EnableSourceHandler:
-    return EnableSourceHandler(source_repository)
+    return EnableSourceHandler(subscription_repository)
 
 
 async def get_disable_source_handler(
-    source_repository: PostgreSQLSourceRepository = Depends(get_source_repository),
+    subscription_repository: PostgreSQLSourceSubscriptionRepository = Depends(
+        get_source_subscription_repository
+    ),
 ) -> DisableSourceHandler:
-    return DisableSourceHandler(source_repository)
+    return DisableSourceHandler(subscription_repository)
 
 
 async def get_delete_source_handler(
     source_repository: PostgreSQLSourceRepository = Depends(get_source_repository),
+    subscription_repository: PostgreSQLSourceSubscriptionRepository = Depends(
+        get_source_subscription_repository
+    ),
 ) -> DeleteSourceHandler:
-    return DeleteSourceHandler(source_repository)
+    return DeleteSourceHandler(source_repository, subscription_repository)
+
+
+async def get_subscribe_source_handler(
+    source_repository: PostgreSQLSourceRepository = Depends(get_source_repository),
+    subscription_repository: PostgreSQLSourceSubscriptionRepository = Depends(
+        get_source_subscription_repository
+    ),
+) -> SubscribeSourceHandler:
+    return SubscribeSourceHandler(source_repository, subscription_repository)

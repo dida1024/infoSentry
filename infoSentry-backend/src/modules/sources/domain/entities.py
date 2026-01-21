@@ -147,3 +147,10 @@ class SourceSubscription(BaseEntity):
             return
         self.enabled = False
         self._update_timestamp()
+
+    def restore(self) -> None:
+        """Restore a deleted subscription."""
+        if not self.is_deleted:
+            return
+        self.is_deleted = False
+        self._update_timestamp()
