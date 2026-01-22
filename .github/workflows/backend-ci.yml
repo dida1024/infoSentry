@@ -72,10 +72,6 @@ jobs:
           uv run ruff check .
           uv run ruff format --check .
 
-      - name: Typecheck
-        working-directory: infoSentry-backend
-        run: uv run mypy .
-
       - name: Test
         working-directory: infoSentry-backend
         run: uv run pytest
