@@ -18,8 +18,8 @@ from src.modules.sources.application.dependencies import (
     get_delete_source_handler,
     get_disable_source_handler,
     get_enable_source_handler,
-    get_subscribe_source_handler,
     get_source_query_service,
+    get_subscribe_source_handler,
     get_update_source_handler,
 )
 from src.modules.sources.application.handlers import (

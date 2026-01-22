@@ -64,10 +64,14 @@ def create_database(settings: Settings, target_db: str, maintenance_db: str) -> 
         raise
 
 
-def create_extensions(settings: Settings, target_db: str, extensions: list[str]) -> None:
+def create_extensions(
+    settings: Settings, target_db: str, extensions: list[str]
+) -> None:
     if not extensions:
         return
-    logger.info("create_test_db.extensions.start", target_db=target_db, extensions=extensions)
+    logger.info(
+        "create_test_db.extensions.start", target_db=target_db, extensions=extensions
+    )
     try:
         with _connect(settings, target_db) as conn:
             for extension in extensions:

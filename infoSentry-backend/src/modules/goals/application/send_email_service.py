@@ -159,7 +159,9 @@ class GoalSendEmailService:
             raise UserNoEmailError("User has no email configured")
 
         # 4. Query unsent matches
-        since = since or (datetime.now(UTC) - timedelta(hours=self.DEFAULT_LOOKBACK_HOURS))
+        since = since or (
+            datetime.now(UTC) - timedelta(hours=self.DEFAULT_LOOKBACK_HOURS)
+        )
         matches_with_decisions = await self.match_repo.list_unsent_matches(
             goal_id=goal_id,
             min_score=min_score,
@@ -353,7 +355,10 @@ class GoalSendEmailService:
                     decision=PushDecision.IMMEDIATE,
                     status=PushStatus.SENT,
                     channel=PushChannel.EMAIL,
-                    reason_json={"manual_trigger": True, "triggered_at": now.isoformat()},
+                    reason_json={
+                        "manual_trigger": True,
+                        "triggered_at": now.isoformat(),
+                    },
                     decided_at=now,
                     sent_at=now,
                     dedupe_key=f"manual:{goal_id}:{match.item_id}:{int(now.timestamp())}",

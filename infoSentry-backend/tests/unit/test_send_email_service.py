@@ -578,10 +578,7 @@ class TestGoalSendEmailService:
         user = _make_mock_user()
 
         # 创建多个匹配
-        matches = [
-            (_make_goal_item_match(item_id=f"item-{i}"), None)
-            for i in range(3)
-        ]
+        matches = [(_make_goal_item_match(item_id=f"item-{i}"), None) for i in range(3)]
         items = {f"item-{i}": _make_mock_item(item_id=f"item-{i}") for i in range(3)}
         source = _make_mock_source()
 

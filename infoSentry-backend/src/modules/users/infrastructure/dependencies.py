@@ -69,9 +69,7 @@ async def get_request_magic_link_handler(
         get_magic_link_repository
     ),
     token_service=Depends(get_token_service),
-    magic_link_email_queue: MagicLinkEmailQueue = Depends(
-        get_magic_link_email_queue
-    ),
+    magic_link_email_queue: MagicLinkEmailQueue = Depends(get_magic_link_email_queue),
 ) -> RequestMagicLinkHandler:
     return RequestMagicLinkHandler(
         user_repository, magic_link_repository, token_service, magic_link_email_queue

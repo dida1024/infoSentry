@@ -277,7 +277,9 @@ class PostgreSQLSourceSubscriptionRepository(
             SourceSubscriptionModel.source_id == source_id,
         )
         if not include_deleted:
-            statement = statement.where(col(SourceSubscriptionModel.is_deleted).is_(False))
+            statement = statement.where(
+                col(SourceSubscriptionModel.is_deleted).is_(False)
+            )
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
         return self.mapper.to_domain(model) if model else None
@@ -293,9 +295,7 @@ class PostgreSQLSourceSubscriptionRepository(
             select(
                 SourceModel,
                 SourceSubscriptionModel,
-                func.count(SourceSubscriptionModel.id)
-                .over()
-                .label("total_count"),
+                func.count(SourceSubscriptionModel.id).over().label("total_count"),
             )
             .join(
                 SourceSubscriptionModel,
@@ -361,9 +361,7 @@ class PostgreSQLSourceSubscriptionRepository(
         result = await self.session.execute(statement)
         existing = result.scalar_one_or_none()
         if not existing:
-            raise ValueError(
-                f"SourceSubscription with id {subscription.id} not found"
-            )
+            raise ValueError(f"SourceSubscription with id {subscription.id} not found")
 
         existing.user_id = subscription.user_id
         existing.source_id = subscription.source_id
@@ -409,7 +407,9 @@ class PostgreSQLSourceSubscriptionRepository(
         )
 
         if not include_deleted:
-            statement = statement.where(col(SourceSubscriptionModel.is_deleted).is_(False))
+            statement = statement.where(
+                col(SourceSubscriptionModel.is_deleted).is_(False)
+            )
 
         statement = (
             statement.offset((page - 1) * page_size)

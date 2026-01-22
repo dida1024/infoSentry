@@ -49,10 +49,7 @@ def build_redirect_url(
     normalized_prefix = api_prefix.rstrip("/")
     if normalized_prefix and not normalized_base.endswith(normalized_prefix):
         normalized_base = f"{normalized_base}{normalized_prefix}"
-    return (
-        f"{normalized_base}/r/{item_id}"
-        f"?goal_id={goal_id}&channel={channel}"
-    )
+    return f"{normalized_base}/r/{item_id}?goal_id={goal_id}&channel={channel}"
 
 
 def _prepare_items_for_template(items: list[EmailItem]) -> list[dict[str, object]]:
@@ -62,14 +59,16 @@ def _prepare_items_for_template(items: list[EmailItem]) -> list[dict[str, object
         published_str = ""
         if item.published_at:
             published_str = item.published_at.strftime("%Y-%m-%d %H:%M")
-        result.append({
-            "title": item.title,
-            "snippet": item.snippet,
-            "redirect_url": item.redirect_url,
-            "source_name": item.source_name,
-            "published_str": published_str,
-            "reason": item.reason,
-        })
+        result.append(
+            {
+                "title": item.title,
+                "snippet": item.snippet,
+                "redirect_url": item.redirect_url,
+                "source_name": item.source_name,
+                "published_str": published_str,
+                "reason": item.reason,
+            }
+        )
     return result
 
 
@@ -154,12 +153,14 @@ def render_digest_email(
         published_str = ""
         if item.published_at:
             published_str = item.published_at.strftime("%m-%d %H:%M")
-        items_for_template.append({
-            "title": item.title,
-            "redirect_url": item.redirect_url,
-            "source_name": item.source_name,
-            "published_str": published_str,
-        })
+        items_for_template.append(
+            {
+                "title": item.title,
+                "redirect_url": item.redirect_url,
+                "source_name": item.source_name,
+                "published_str": published_str,
+            }
+        )
 
     html_body = render_template(
         "push_digest.html",
@@ -186,12 +187,14 @@ def render_plain_text_fallback(data: EmailData) -> str:
     # Prepare items for template
     items_for_template: list[dict[str, object]] = []
     for item in data.items:
-        items_for_template.append({
-            "title": item.title,
-            "snippet": item.snippet,
-            "redirect_url": item.redirect_url,
-            "source_name": item.source_name,
-        })
+        items_for_template.append(
+            {
+                "title": item.title,
+                "snippet": item.snippet,
+                "redirect_url": item.redirect_url,
+                "source_name": item.source_name,
+            }
+        )
 
     return render_template(
         "push_plain.txt",

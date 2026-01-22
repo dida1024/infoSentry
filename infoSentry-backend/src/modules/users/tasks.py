@@ -58,9 +58,7 @@ async def _send_magic_link_email_async(
                 return
 
             if not magic_link.is_valid():
-                logger.warning(
-                    f"Magic link invalid for email task: id={magic_link_id}"
-                )
+                logger.warning(f"Magic link invalid for email task: id={magic_link_id}")
                 BusinessEvents.magic_link_email_sent(
                     email=magic_link.email,
                     magic_link_id=magic_link_id,

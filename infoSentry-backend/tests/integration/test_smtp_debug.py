@@ -42,7 +42,6 @@ async def test_smtp_debug_send():
     if not provider.is_configured():
         pytest.skip("SMTP not configured (SMTP_HOST / EMAILS_FROM_EMAIL missing).")
 
-
     subject = "infoSentry SMTP debug test"
     html_body = "<p>SMTP debug test from infoSentry.</p>"
     plain_body = "SMTP debug test from infoSentry."
