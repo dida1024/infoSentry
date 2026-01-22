@@ -14,6 +14,7 @@ const schema = z.object({
     .number()
     .min(5, "抓取间隔不能小于 5 分钟")
     .max(1440, "抓取间隔不能超过 24 小时"),
+  is_private: z.boolean().default(false),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -33,6 +34,7 @@ export function AddSourceDialog({ onClose }: AddSourceDialogProps) {
     resolver: zodResolver(schema),
     defaultValues: {
       fetch_interval_min: 30,
+      is_private: false,
     },
   });
 
@@ -41,6 +43,7 @@ export function AddSourceDialog({ onClose }: AddSourceDialogProps) {
       await createSource.mutateAsync({
         type: "RSS",
         name: data.name,
+        is_private: data.is_private,
         config: { feed_url: data.feed_url },
         fetch_interval_sec: data.fetch_interval_min * 60,
       });
@@ -105,6 +108,21 @@ export function AddSourceDialog({ onClose }: AddSourceDialogProps) {
               hint="建议设置为 15-60 分钟"
               {...register("fetch_interval_min", { valueAsNumber: true })}
             />
+
+            <div className="flex items-start gap-2 rounded-md border border-gray-200 p-3">
+              <input
+                id="is_private"
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                {...register("is_private")}
+              />
+              <label htmlFor="is_private" className="text-sm text-gray-700">
+                私密信息源
+                <p className="text-xs text-gray-500">
+                  仅自己可见，其他人不可订阅
+                </p>
+              </label>
+            </div>
           </div>
 
           {/* Footer */}
