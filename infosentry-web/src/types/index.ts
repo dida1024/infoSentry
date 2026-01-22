@@ -65,6 +65,7 @@ export interface Source {
   id: string;
   type: "NEWSNOW" | "RSS" | "SITE";
   name: string;
+  is_private: boolean;
   enabled: boolean;
   fetch_interval_sec: number;
   last_fetch_at?: string;
@@ -73,6 +74,10 @@ export interface Source {
   config: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+}
+
+export interface PublicSource extends Source {
+  is_subscribed: boolean;
 }
 
 // Item

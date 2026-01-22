@@ -15,6 +15,9 @@ export const sourceKeys = {
   lists: () => [...sourceKeys.all, "list"] as const,
   list: (filters: Record<string, unknown>) =>
     [...sourceKeys.lists(), filters] as const,
+  publicLists: () => [...sourceKeys.all, "public"] as const,
+  publicList: (filters: Record<string, unknown>) =>
+    [...sourceKeys.publicLists(), filters] as const,
   details: () => [...sourceKeys.all, "detail"] as const,
   detail: (id: string) => [...sourceKeys.details(), id] as const,
 };
@@ -31,6 +34,24 @@ export function useSources(params?: {
   return useQuery({
     queryKey: sourceKeys.list(params || {}),
     queryFn: () => sourcesApi.list(params),
+  });
+}
+
+/**
+ * 获取公共 Source 列表
+ */
+export function usePublicSources(
+  params?: {
+    type?: string;
+    page?: number;
+    page_size?: number;
+  },
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: sourceKeys.publicList(params || {}),
+    queryFn: () => sourcesApi.listPublic(params),
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -55,6 +76,7 @@ export function useCreateSource() {
     mutationFn: (data: CreateSourceRequest) => sourcesApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: sourceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: sourceKeys.publicLists() });
     },
   });
 }
@@ -70,6 +92,7 @@ export function useUpdateSource(id: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: sourceKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: sourceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: sourceKeys.publicLists() });
     },
   });
 }
@@ -84,6 +107,7 @@ export function useDeleteSource() {
     mutationFn: (id: string) => sourcesApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: sourceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: sourceKeys.publicLists() });
     },
   });
 }
@@ -99,6 +123,7 @@ export function useEnableSource() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: sourceKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: sourceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: sourceKeys.publicLists() });
     },
   });
 }
@@ -113,6 +138,22 @@ export function useDisableSource() {
     mutationFn: (id: string) => sourcesApi.disable(id),
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: sourceKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: sourceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: sourceKeys.publicLists() });
+    },
+  });
+}
+
+/**
+ * 订阅公共 Source
+ */
+export function useSubscribeSource() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => sourcesApi.subscribe(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: sourceKeys.publicLists() });
       queryClient.invalidateQueries({ queryKey: sourceKeys.lists() });
     },
   });
