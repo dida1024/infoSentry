@@ -301,7 +301,7 @@ class TestEmbeddingConfiguration:
         assert hasattr(settings, "EMBEDDING_ENABLED")
         assert isinstance(settings.EMBEDDING_ENABLED, bool)
 
-    def test_openai_config_complete(self):
+    def test_openai_config_complete(self, requires_openai_api):
         """测试 OpenAI 配置完整性。"""
         from src.core.config import settings
 
@@ -310,10 +310,9 @@ class TestEmbeddingConfiguration:
         assert hasattr(settings, "OPENAI_API_BASE")
         assert hasattr(settings, "OPENAI_EMBED_MODEL")
 
-        if settings.EMBEDDING_ENABLED:
-            # 如果启用了 Embedding，必须配置 API Key
-            assert settings.OPENAI_API_KEY is not None
-            assert len(settings.OPENAI_API_KEY) > 0
+        # requires_openai_api fixture 已确保 API key 存在
+        assert settings.OPENAI_API_KEY is not None
+        assert len(settings.OPENAI_API_KEY) > 0
 
     def test_budget_config_complete(self):
         """测试预算配置完整性。"""
