@@ -127,7 +127,11 @@ class DeviceSession(AggregateRoot):
     def is_active(self, now: datetime | None = None) -> bool:
         """Check if the device session is active."""
         current = now or datetime.now(UTC)
-        return self.revoked_at is None and current < self.expires_at and not self.is_deleted
+        return (
+            self.revoked_at is None
+            and current < self.expires_at
+            and not self.is_deleted
+        )
 
     def mark_revoked(self, now: datetime | None = None) -> None:
         """Revoke the device session."""

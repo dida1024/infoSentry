@@ -67,13 +67,10 @@ class InMemoryUserRepository(UserRepository):
 class InMemoryDeviceSessionRepository(DeviceSessionRepository):
     """In-memory device session repository for tests."""
 
-    def __init__(
-        self, sessions: dict[str, DeviceSession] | None = None
-    ) -> None:
+    def __init__(self, sessions: dict[str, DeviceSession] | None = None) -> None:
         self.sessions = sessions or {}
         self.hash_index = {
-            session.refresh_token_hash: session.id
-            for session in self.sessions.values()
+            session.refresh_token_hash: session.id for session in self.sessions.values()
         }
 
     async def get_by_id(self, session_id: str) -> DeviceSession | None:

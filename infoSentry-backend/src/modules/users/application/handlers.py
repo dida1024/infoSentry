@@ -206,9 +206,13 @@ class ConsumeMagicLinkHandler:
         )
         self.logger.info(f"User logged in: {user.email}")
 
-        return user, access_token, RefreshTokenPayload(
-            token=refresh_token,
-            expires_at=refresh_token_expires_at,
+        return (
+            user,
+            access_token,
+            RefreshTokenPayload(
+                token=refresh_token,
+                expires_at=refresh_token_expires_at,
+            ),
         )
 
 

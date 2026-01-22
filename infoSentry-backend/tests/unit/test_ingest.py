@@ -454,6 +454,7 @@ class TestIngestService:
         self, ingest_service, mock_item_repo, sample_source
     ):
         """测试混合情况（部分新、部分重复）。"""
+
         # 设置 mock：第一个成功创建，第二个已存在
         def create_if_not_exists_side_effect(item):
             if item.url == "https://example.com/new":

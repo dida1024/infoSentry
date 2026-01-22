@@ -205,26 +205,31 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
         model = self.mapper.to_model(item)
 
         # 构建 INSERT ... ON CONFLICT DO NOTHING 语句
-        stmt = pg_insert(ItemModel).values(
-            id=model.id,
-            created_at=model.created_at,
-            updated_at=model.updated_at,
-            is_deleted=model.is_deleted,
-            source_id=model.source_id,
-            url=model.url,
-            url_hash=model.url_hash,
-            title=model.title,
-            snippet=model.snippet,
-            summary=model.summary,
-            published_at=model.published_at,
-            ingested_at=model.ingested_at,
-            embedding=model.embedding,
-            embedding_status=model.embedding_status,
-            embedding_model=model.embedding_model,
-            raw_data=model.raw_data,
-        ).on_conflict_do_nothing(
-            index_elements=["url_hash"],
-        ).returning(ItemModel)
+        stmt = (
+            pg_insert(ItemModel)
+            .values(
+                id=model.id,
+                created_at=model.created_at,
+                updated_at=model.updated_at,
+                is_deleted=model.is_deleted,
+                source_id=model.source_id,
+                url=model.url,
+                url_hash=model.url_hash,
+                title=model.title,
+                snippet=model.snippet,
+                summary=model.summary,
+                published_at=model.published_at,
+                ingested_at=model.ingested_at,
+                embedding=model.embedding,
+                embedding_status=model.embedding_status,
+                embedding_model=model.embedding_model,
+                raw_data=model.raw_data,
+            )
+            .on_conflict_do_nothing(
+                index_elements=["url_hash"],
+            )
+            .returning(ItemModel)
+        )
 
         result = await self.session.execute(stmt)
         inserted_row = result.scalar_one_or_none()
