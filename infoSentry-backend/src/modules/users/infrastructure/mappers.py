@@ -1,8 +1,14 @@
 """User entity-model mappers."""
 
 from src.core.infrastructure.database.mapper import BaseMapper
-from src.modules.users.domain.entities import MagicLink, User, UserBudgetDaily
+from src.modules.users.domain.entities import (
+    DeviceSession,
+    MagicLink,
+    User,
+    UserBudgetDaily,
+)
 from src.modules.users.infrastructure.models import (
+    DeviceSessionModel,
     MagicLinkModel,
     UserBudgetDailyModel,
     UserModel,
@@ -65,6 +71,42 @@ class MagicLinkMapper(BaseMapper[MagicLink, MagicLinkModel]):
             expires_at=entity.expires_at,
             is_used=entity.is_used,
             used_at=entity.used_at,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+            is_deleted=entity.is_deleted,
+        )
+
+
+class DeviceSessionMapper(BaseMapper[DeviceSession, DeviceSessionModel]):
+    """Device session entity-model mapper."""
+
+    def to_domain(self, model: DeviceSessionModel) -> DeviceSession:
+        return DeviceSession(
+            id=model.id,
+            user_id=model.user_id,
+            refresh_token_hash=model.refresh_token_hash,
+            device_id=model.device_id,
+            user_agent=model.user_agent,
+            ip_address=model.ip_address,
+            expires_at=model.expires_at,
+            last_seen_at=model.last_seen_at,
+            revoked_at=model.revoked_at,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+            is_deleted=model.is_deleted,
+        )
+
+    def to_model(self, entity: DeviceSession) -> DeviceSessionModel:
+        return DeviceSessionModel(
+            id=entity.id,
+            user_id=entity.user_id,
+            refresh_token_hash=entity.refresh_token_hash,
+            device_id=entity.device_id,
+            user_agent=entity.user_agent,
+            ip_address=entity.ip_address,
+            expires_at=entity.expires_at,
+            last_seen_at=entity.last_seen_at,
+            revoked_at=entity.revoked_at,
             created_at=entity.created_at,
             updated_at=entity.updated_at,
             is_deleted=entity.is_deleted,

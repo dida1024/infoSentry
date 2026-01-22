@@ -3,7 +3,12 @@
 from abc import abstractmethod
 
 from src.core.domain.repository import BaseRepository
-from src.modules.users.domain.entities import MagicLink, User, UserBudgetDaily
+from src.modules.users.domain.entities import (
+    DeviceSession,
+    MagicLink,
+    User,
+    UserBudgetDaily,
+)
 
 
 class UserRepository(BaseRepository[User]):
@@ -36,6 +41,17 @@ class MagicLinkRepository(BaseRepository[MagicLink]):
     @abstractmethod
     async def invalidate_all_for_email(self, email: str) -> int:
         """Invalidate all magic links for an email. Returns count of invalidated links."""
+        pass
+
+
+class DeviceSessionRepository(BaseRepository[DeviceSession]):
+    """Device session repository interface."""
+
+    @abstractmethod
+    async def get_by_refresh_token_hash(
+        self, refresh_token_hash: str
+    ) -> DeviceSession | None:
+        """Get device session by refresh token hash."""
         pass
 
 

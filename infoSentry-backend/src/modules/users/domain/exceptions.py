@@ -39,3 +39,38 @@ class InvalidMagicLinkError(DomainException):
 
     def __init__(self) -> None:
         super().__init__("Invalid magic link")
+
+
+class RefreshTokenMissingError(DomainException):
+    """Raised when refresh token cookie is missing."""
+
+    def __init__(self) -> None:
+        super().__init__("Refresh token is missing")
+
+
+class DeviceSessionNotFoundError(DomainException):
+    """Raised when device session is not found."""
+
+    def __init__(self) -> None:
+        super().__init__("Device session not found")
+
+
+class DeviceSessionExpiredError(DomainException):
+    """Raised when device session has expired."""
+
+    def __init__(self) -> None:
+        super().__init__("Device session has expired")
+
+
+class DeviceSessionRevokedError(DomainException):
+    """Raised when device session has been revoked."""
+
+    def __init__(self) -> None:
+        super().__init__("Device session has been revoked")
+
+
+class DeviceSessionRiskBlockedError(DomainException):
+    """Raised when device session is blocked by risk checks."""
+
+    def __init__(self) -> None:
+        super().__init__("Device session requires re-authentication")

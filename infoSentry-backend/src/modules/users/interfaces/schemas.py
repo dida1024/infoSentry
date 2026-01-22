@@ -37,6 +37,21 @@ class ConsumeTokenResponse(BaseModel):
     session: SessionResponse
 
 
+class RefreshSessionResponse(BaseModel):
+    """Response after refreshing session."""
+
+    ok: bool = True
+    access_token: str = Field(..., description="JWT访问令牌")
+    expires_at: datetime = Field(..., description="令牌过期时间")
+
+
+class LogoutResponse(BaseModel):
+    """Response after logout."""
+
+    ok: bool = True
+    message: str = "已退出登录"
+
+
 class UserResponse(BaseModel):
     """User info response."""
 

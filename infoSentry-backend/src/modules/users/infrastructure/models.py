@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, UniqueConstraint
+from sqlalchemy import DateTime, Enum, Text, UniqueConstraint
 from sqlmodel import Field
 
 from src.core.infrastructure.database.base_model import BaseModel
@@ -48,6 +48,31 @@ class MagicLinkModel(BaseModel, table=True):
     )
     is_used: bool = Field(default=False, nullable=False)
     used_at: datetime | None = Field(
+        default=None,
+        sa_type=DateTime(timezone=True),
+        nullable=True,
+    )
+
+
+class DeviceSessionModel(BaseModel, table=True):
+    """Device session database model."""
+
+    __tablename__ = "user_device_sessions"
+
+    user_id: str = Field(nullable=False, index=True)
+    refresh_token_hash: str = Field(nullable=False, index=True, unique=True)
+    device_id: str = Field(nullable=False, index=True)
+    user_agent: str | None = Field(default=None, sa_type=Text(), nullable=True)
+    ip_address: str | None = Field(default=None, nullable=True)
+    expires_at: datetime = Field(
+        sa_type=DateTime(timezone=True),
+        nullable=False,
+    )
+    last_seen_at: datetime = Field(
+        sa_type=DateTime(timezone=True),
+        nullable=False,
+    )
+    revoked_at: datetime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         nullable=True,

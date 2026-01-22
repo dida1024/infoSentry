@@ -9,18 +9,26 @@ from sqlmodel import col, select
 
 from src.core.domain.events import EventBus
 from src.core.infrastructure.database.event_aware_repository import EventAwareRepository
-from src.modules.users.domain.entities import MagicLink, User, UserBudgetDaily
+from src.modules.users.domain.entities import (
+    DeviceSession,
+    MagicLink,
+    User,
+    UserBudgetDaily,
+)
 from src.modules.users.domain.repository import (
+    DeviceSessionRepository,
     MagicLinkRepository,
     UserBudgetDailyRepository,
     UserRepository,
 )
 from src.modules.users.infrastructure.mappers import (
+    DeviceSessionMapper,
     MagicLinkMapper,
     UserBudgetDailyMapper,
     UserMapper,
 )
 from src.modules.users.infrastructure.models import (
+    DeviceSessionModel,
     MagicLinkModel,
     UserBudgetDailyModel,
     UserModel,
@@ -277,6 +285,127 @@ class PostgreSQLMagicLinkRepository(
 
         total_count = rows[0].total_count
         models = [row.MagicLinkModel for row in rows]
+        return self.mapper.to_domain_list(models), total_count
+
+
+class PostgreSQLDeviceSessionRepository(
+    EventAwareRepository[DeviceSession], DeviceSessionRepository
+):
+    """PostgreSQL device session repository implementation."""
+
+    def __init__(
+        self,
+        session: AsyncSession,
+        mapper: DeviceSessionMapper,
+        event_publisher: EventBus,
+    ):
+        super().__init__(event_publisher)
+        self.session = session
+        self.mapper = mapper
+        self.logger = logger
+
+    async def get_by_id(self, session_id: str) -> DeviceSession | None:
+        statement = select(DeviceSessionModel).where(
+            DeviceSessionModel.id == session_id,
+            col(DeviceSessionModel.is_deleted).is_(False),
+        )
+        result = await self.session.execute(statement)
+        model = result.scalar_one_or_none()
+        return self.mapper.to_domain(model) if model else None
+
+    async def get_by_refresh_token_hash(
+        self, refresh_token_hash: str
+    ) -> DeviceSession | None:
+        statement = select(DeviceSessionModel).where(
+            DeviceSessionModel.refresh_token_hash == refresh_token_hash,
+            col(DeviceSessionModel.is_deleted).is_(False),
+        )
+        result = await self.session.execute(statement)
+        model = result.scalar_one_or_none()
+        return self.mapper.to_domain(model) if model else None
+
+    async def create(self, device_session: DeviceSession) -> DeviceSession:
+        model = self.mapper.to_model(device_session)
+        self.session.add(model)
+        await self.session.flush()
+        await self.session.refresh(model)
+        await self._publish_events_from_entity(device_session)
+        return self.mapper.to_domain(model)
+
+    async def update(self, device_session: DeviceSession) -> DeviceSession:
+        statement = select(DeviceSessionModel).where(
+            DeviceSessionModel.id == device_session.id
+        )
+        result = await self.session.execute(statement)
+        existing = result.scalar_one_or_none()
+        if not existing:
+            raise ValueError(f"DeviceSession with id {device_session.id} not found")
+
+        existing.user_id = device_session.user_id
+        existing.refresh_token_hash = device_session.refresh_token_hash
+        existing.device_id = device_session.device_id
+        existing.user_agent = device_session.user_agent
+        existing.ip_address = device_session.ip_address
+        existing.expires_at = device_session.expires_at
+        existing.last_seen_at = device_session.last_seen_at
+        existing.revoked_at = device_session.revoked_at
+        existing.updated_at = device_session.updated_at
+        existing.is_deleted = device_session.is_deleted
+
+        self.session.add(existing)
+        await self.session.flush()
+        await self.session.refresh(existing)
+        await self._publish_events_from_entity(device_session)
+        return self.mapper.to_domain(existing)
+
+    async def delete(self, device_session: DeviceSession | str) -> bool:
+        session_id = (
+            device_session.id
+            if isinstance(device_session, DeviceSession)
+            else device_session
+        )
+        statement = select(DeviceSessionModel).where(
+            DeviceSessionModel.id == session_id,
+            col(DeviceSessionModel.is_deleted).is_(False),
+        )
+        result = await self.session.execute(statement)
+        model = result.scalar_one_or_none()
+        if not model:
+            return False
+
+        model.is_deleted = True
+        self.session.add(model)
+        await self.session.flush()
+        return True
+
+    async def list_all(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        include_deleted: bool = False,
+    ) -> tuple[list[DeviceSession], int]:
+        statement = select(
+            DeviceSessionModel,
+            func.count(DeviceSessionModel.id).over().label("total_count"),
+        )
+
+        if not include_deleted:
+            statement = statement.where(col(DeviceSessionModel.is_deleted).is_(False))
+
+        statement = (
+            statement.offset((page - 1) * page_size)
+            .limit(page_size)
+            .order_by(DeviceSessionModel.created_at.desc())
+        )
+
+        result = await self.session.execute(statement)
+        rows = result.all()
+
+        if not rows:
+            return [], 0
+
+        total_count = rows[0].total_count
+        models = [row.DeviceSessionModel for row in rows]
         return self.mapper.to_domain_list(models), total_count
 
 

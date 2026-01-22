@@ -9,17 +9,21 @@ from src.core.infrastructure.security.jwt import get_token_service
 from src.modules.users.application.budget_service import UserBudgetUsageService
 from src.modules.users.application.handlers import (
     ConsumeMagicLinkHandler,
+    RefreshSessionHandler,
     RequestMagicLinkHandler,
+    RevokeSessionHandler,
     UpdateProfileHandler,
 )
 from src.modules.users.domain.ports import MagicLinkEmailQueue
 from src.modules.users.infrastructure.email_queue import CeleryMagicLinkEmailQueue
 from src.modules.users.infrastructure.mappers import (
+    DeviceSessionMapper,
     MagicLinkMapper,
     UserBudgetDailyMapper,
     UserMapper,
 )
 from src.modules.users.infrastructure.repositories import (
+    PostgreSQLDeviceSessionRepository,
     PostgreSQLMagicLinkRepository,
     PostgreSQLUserBudgetDailyRepository,
     PostgreSQLUserRepository,
@@ -32,6 +36,10 @@ def get_user_mapper() -> UserMapper:
 
 def get_magic_link_mapper() -> MagicLinkMapper:
     return MagicLinkMapper()
+
+
+def get_device_session_mapper() -> DeviceSessionMapper:
+    return DeviceSessionMapper()
 
 
 def get_user_budget_daily_mapper() -> UserBudgetDailyMapper:
@@ -54,6 +62,13 @@ async def get_magic_link_repository(
     mapper: MagicLinkMapper = Depends(get_magic_link_mapper),
 ) -> PostgreSQLMagicLinkRepository:
     return PostgreSQLMagicLinkRepository(session, mapper, get_event_bus())
+
+
+async def get_device_session_repository(
+    session: AsyncSession = Depends(get_db_session),
+    mapper: DeviceSessionMapper = Depends(get_device_session_mapper),
+) -> PostgreSQLDeviceSessionRepository:
+    return PostgreSQLDeviceSessionRepository(session, mapper, get_event_bus())
 
 
 async def get_user_budget_daily_repository(
@@ -82,9 +97,15 @@ async def get_consume_magic_link_handler(
         get_magic_link_repository
     ),
     token_service=Depends(get_token_service),
+    device_session_repository: PostgreSQLDeviceSessionRepository = Depends(
+        get_device_session_repository
+    ),
 ) -> ConsumeMagicLinkHandler:
     return ConsumeMagicLinkHandler(
-        user_repository, magic_link_repository, token_service
+        user_repository,
+        magic_link_repository,
+        token_service,
+        device_session_repository,
     )
 
 
@@ -92,6 +113,28 @@ async def get_update_profile_handler(
     user_repository: PostgreSQLUserRepository = Depends(get_user_repository),
 ) -> UpdateProfileHandler:
     return UpdateProfileHandler(user_repository)
+
+
+async def get_refresh_session_handler(
+    user_repository: PostgreSQLUserRepository = Depends(get_user_repository),
+    device_session_repository: PostgreSQLDeviceSessionRepository = Depends(
+        get_device_session_repository
+    ),
+    token_service=Depends(get_token_service),
+) -> RefreshSessionHandler:
+    return RefreshSessionHandler(
+        user_repository,
+        device_session_repository,
+        token_service,
+    )
+
+
+async def get_revoke_session_handler(
+    device_session_repository: PostgreSQLDeviceSessionRepository = Depends(
+        get_device_session_repository
+    ),
+) -> RevokeSessionHandler:
+    return RevokeSessionHandler(device_session_repository)
 
 
 async def get_user_budget_usage_service(

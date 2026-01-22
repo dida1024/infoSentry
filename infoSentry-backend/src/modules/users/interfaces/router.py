@@ -1,8 +1,8 @@
 """User API routes."""
 
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 
 from src.core.application.security import get_current_user_id
 from src.core.config import settings
@@ -10,25 +10,34 @@ from src.core.interfaces.http.response import ApiResponse
 from src.modules.users.application.budget_service import UserBudgetUsageService
 from src.modules.users.application.commands import (
     ConsumeMagicLinkCommand,
+    RefreshSessionCommand,
     RequestMagicLinkCommand,
+    RevokeSessionCommand,
     UpdateProfileCommand,
 )
 from src.modules.users.application.dependencies import (
     get_consume_magic_link_handler,
+    get_refresh_session_handler,
     get_request_magic_link_handler,
+    get_revoke_session_handler,
     get_update_profile_handler,
     get_user_budget_usage_service,
     get_user_query_service,
 )
 from src.modules.users.application.handlers import (
     ConsumeMagicLinkHandler,
+    RefreshSessionHandler,
     RequestMagicLinkHandler,
+    RevokeSessionHandler,
     UpdateProfileHandler,
 )
 from src.modules.users.application.query_service import UserQueryService
+from src.modules.users.domain.exceptions import RefreshTokenMissingError
 from src.modules.users.interfaces.schemas import (
     ConsumeTokenResponse,
+    LogoutResponse,
     MagicLinkResponse,
+    RefreshSessionResponse,
     RequestMagicLinkRequest,
     SessionResponse,
     UpdateProfileRequest,
@@ -38,6 +47,52 @@ from src.modules.users.interfaces.schemas import (
 )
 
 router = APIRouter(tags=["auth"])
+
+
+def _get_request_ip(request: Request) -> str | None:
+    if settings.TRUST_PROXY_HEADERS:
+        forwarded_for = request.headers.get("x-forwarded-for")
+        if forwarded_for:
+            return forwarded_for.split(",")[0].strip()
+        real_ip = request.headers.get("x-real-ip")
+        if real_ip:
+            return real_ip
+    if not request.client:
+        return None
+    return request.client.host
+
+
+def _get_user_agent(request: Request) -> str | None:
+    return request.headers.get("user-agent")
+
+
+def _set_refresh_cookie(response: Response, token: str, expires_at: datetime) -> None:
+    normalized_expires = (
+        expires_at if expires_at.tzinfo else expires_at.replace(tzinfo=UTC)
+    )
+    now = datetime.now(normalized_expires.tzinfo or UTC)
+    max_age = max(0, int((normalized_expires - now).total_seconds()))
+    response.set_cookie(
+        key=settings.REFRESH_COOKIE_NAME,
+        value=token,
+        httponly=settings.REFRESH_COOKIE_HTTPONLY,
+        secure=settings.REFRESH_COOKIE_SECURE,
+        samesite=settings.REFRESH_COOKIE_SAMESITE,
+        domain=settings.REFRESH_COOKIE_DOMAIN,
+        path=settings.REFRESH_COOKIE_PATH,
+        max_age=max_age,
+        expires=normalized_expires,
+    )
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=settings.REFRESH_COOKIE_NAME,
+        domain=settings.REFRESH_COOKIE_DOMAIN,
+        path=settings.REFRESH_COOKIE_PATH,
+        samesite=settings.REFRESH_COOKIE_SAMESITE,
+        secure=settings.REFRESH_COOKIE_SECURE,
+    )
 
 
 @router.post(
@@ -66,16 +121,25 @@ async def request_magic_link(
     description="使用 Magic Link Token 完成登录",
 )
 async def consume_magic_link(
+    request: Request,
+    response: Response,
     token: str = Query(..., description="Magic link token"),
     handler: ConsumeMagicLinkHandler = Depends(get_consume_magic_link_handler),
 ) -> ConsumeTokenResponse:
     """Consume magic link and complete login."""
-    command = ConsumeMagicLinkCommand(token=token)
-    user, access_token = await handler.handle(command)
+    client_ip = _get_request_ip(request)
+    user_agent = _get_user_agent(request)
+    command = ConsumeMagicLinkCommand(
+        token=token,
+        ip_address=client_ip,
+        user_agent=user_agent,
+    )
+    user, access_token, refresh_payload = await handler.handle(command)
 
     expires_at = datetime.now() + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
+    _set_refresh_cookie(response, refresh_payload.token, refresh_payload.expires_at)
 
     return ConsumeTokenResponse(
         session=SessionResponse(
@@ -85,6 +149,62 @@ async def consume_magic_link(
             expires_at=expires_at,
         )
     )
+
+
+@router.post(
+    "/auth/refresh",
+    response_model=RefreshSessionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="刷新登录会话",
+    description="使用 refresh cookie 刷新访问令牌",
+)
+async def refresh_session(
+    request: Request,
+    response: Response,
+    handler: RefreshSessionHandler = Depends(get_refresh_session_handler),
+) -> RefreshSessionResponse:
+    """Refresh login session."""
+    refresh_token = request.cookies.get(settings.REFRESH_COOKIE_NAME)
+    if not refresh_token:
+        raise RefreshTokenMissingError()
+
+    command = RefreshSessionCommand(
+        refresh_token=refresh_token,
+        ip_address=_get_request_ip(request),
+        user_agent=_get_user_agent(request),
+    )
+    access_token, refresh_payload = await handler.handle(command)
+
+    expires_at = datetime.now() + timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+    _set_refresh_cookie(response, refresh_payload.token, refresh_payload.expires_at)
+    return RefreshSessionResponse(
+        access_token=access_token,
+        expires_at=expires_at,
+    )
+
+
+@router.post(
+    "/auth/logout",
+    response_model=LogoutResponse,
+    status_code=status.HTTP_200_OK,
+    summary="退出登录",
+    description="撤销 refresh 会话并清除登录状态",
+)
+async def logout(
+    request: Request,
+    response: Response,
+    handler: RevokeSessionHandler = Depends(get_revoke_session_handler),
+) -> LogoutResponse:
+    """Logout current session."""
+    refresh_token = request.cookies.get(settings.REFRESH_COOKIE_NAME)
+    if refresh_token:
+        command = RevokeSessionCommand(refresh_token=refresh_token)
+        await handler.handle(command)
+
+    _clear_refresh_cookie(response)
+    return LogoutResponse()
 
 
 @router.get(

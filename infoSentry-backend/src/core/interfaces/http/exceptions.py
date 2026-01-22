@@ -13,9 +13,14 @@ from src.core.domain.exceptions import (
     ValidationError,
 )
 from src.modules.users.domain.exceptions import (
+    DeviceSessionExpiredError,
+    DeviceSessionNotFoundError,
+    DeviceSessionRevokedError,
+    DeviceSessionRiskBlockedError,
     InvalidMagicLinkError,
     MagicLinkAlreadyUsedError,
     MagicLinkExpiredError,
+    RefreshTokenMissingError,
 )
 
 
@@ -78,6 +83,21 @@ async def domain_exception_handler(
     elif isinstance(exc, MagicLinkExpiredError):
         status_code = status.HTTP_400_BAD_REQUEST
         error_code = "MAGIC_LINK_EXPIRED"
+    elif isinstance(exc, RefreshTokenMissingError):
+        status_code = status.HTTP_401_UNAUTHORIZED
+        error_code = "REFRESH_TOKEN_MISSING"
+    elif isinstance(exc, DeviceSessionNotFoundError):
+        status_code = status.HTTP_401_UNAUTHORIZED
+        error_code = "DEVICE_SESSION_NOT_FOUND"
+    elif isinstance(exc, DeviceSessionExpiredError):
+        status_code = status.HTTP_401_UNAUTHORIZED
+        error_code = "DEVICE_SESSION_EXPIRED"
+    elif isinstance(exc, DeviceSessionRevokedError):
+        status_code = status.HTTP_401_UNAUTHORIZED
+        error_code = "DEVICE_SESSION_REVOKED"
+    elif isinstance(exc, DeviceSessionRiskBlockedError):
+        status_code = status.HTTP_401_UNAUTHORIZED
+        error_code = "DEVICE_SESSION_RISK"
 
     return JSONResponse(
         status_code=status_code,

@@ -44,6 +44,40 @@
 
 ---
 
+### POST /api/auth/refresh
+刷新登录会话（使用 httpOnly refresh cookie）
+
+**Response:**
+```json
+{
+  "ok": true,
+  "access_token": "jwt...",
+  "expires_at": "2025-01-28T00:00:00Z"
+}
+```
+
+**Error codes:**
+- `REFRESH_TOKEN_MISSING`
+- `DEVICE_SESSION_NOT_FOUND`
+- `DEVICE_SESSION_EXPIRED`
+- `DEVICE_SESSION_REVOKED`
+- `DEVICE_SESSION_RISK`
+
+---
+
+### POST /api/auth/logout
+退出登录（撤销 refresh 会话并清除 cookie）
+
+**Response:**
+```json
+{
+  "ok": true,
+  "message": "已退出登录"
+}
+```
+
+---
+
 ## 2. Goals
 
 ### GET /api/goals

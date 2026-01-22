@@ -39,6 +39,17 @@ class Settings(BaseSettings):
     SECRET_KEY: str = secrets.token_urlsafe(32)
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
     MAGIC_LINK_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    REFRESH_TOKEN_BYTES: int = 64
+    REFRESH_COOKIE_NAME: str = "refresh_token"
+    REFRESH_COOKIE_PATH: str = "/"
+    REFRESH_COOKIE_DOMAIN: str | None = None
+    REFRESH_COOKIE_SECURE: bool = False
+    REFRESH_COOKIE_HTTPONLY: bool = True
+    REFRESH_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
+    REFRESH_STRICT_IP: bool = True
+    REFRESH_STRICT_UA: bool = True
+    TRUST_PROXY_HEADERS: bool = False
     FRONTEND_HOST: str = "http://localhost:3000"
     BACKEND_HOST: str = "http://localhost:8000"
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
@@ -147,6 +158,10 @@ class Settings(BaseSettings):
         if self.ENVIRONMENT == "production":
             if self.SECRET_KEY in insecure_keys or len(self.SECRET_KEY) < 32:
                 raise ValueError("SECRET_KEY must be set and at least 32 characters")
+            if not self.REFRESH_COOKIE_SECURE:
+                raise ValueError(
+                    "REFRESH_COOKIE_SECURE must be True in production environment"
+                )
         return self
 
     EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
@@ -189,6 +204,7 @@ class Settings(BaseSettings):
     INGEST_ERROR_BACKOFF_BASE: int = 60  # 错误退避基础秒数
     INGEST_ERROR_BACKOFF_MAX: int = 3600  # 错误退避最大秒数（1小时）
     INGEST_MAX_ERROR_STREAK: int = 5  # 连续错误次数阈值告警
+    INGEST_LOCK_TTL_SEC: int = 600  # 抓取任务锁过期时间（10 分钟）
 
     # Push Settings
     IMMEDIATE_COALESCE_MINUTES: int = 5

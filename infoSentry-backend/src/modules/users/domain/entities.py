@@ -112,6 +112,54 @@ class MagicLink(AggregateRoot):
         self._update_timestamp()
 
 
+class DeviceSession(AggregateRoot):
+    """Device session for refresh-token based login."""
+
+    user_id: str = Field(..., description="用户ID")
+    refresh_token_hash: str = Field(..., description="Refresh token 哈希")
+    device_id: str = Field(..., description="设备ID")
+    user_agent: str | None = Field(default=None, description="User agent")
+    ip_address: str | None = Field(default=None, description="IP 地址")
+    expires_at: datetime = Field(..., description="Refresh token 过期时间")
+    last_seen_at: datetime = Field(..., description="最近一次访问时间")
+    revoked_at: datetime | None = Field(default=None, description="撤销时间")
+
+    def is_active(self, now: datetime | None = None) -> bool:
+        """Check if the device session is active."""
+        current = now or datetime.now(UTC)
+        return self.revoked_at is None and current < self.expires_at and not self.is_deleted
+
+    def mark_revoked(self, now: datetime | None = None) -> None:
+        """Revoke the device session."""
+        if self.revoked_at is not None:
+            return
+        current = now or datetime.now(UTC)
+        self.revoked_at = current
+        self._update_timestamp()
+
+    def rotate_refresh_token(self, new_hash: str, now: datetime | None = None) -> None:
+        """Rotate refresh token hash and update last seen timestamp."""
+        current = now or datetime.now(UTC)
+        self.refresh_token_hash = new_hash
+        self.last_seen_at = current
+        self._update_timestamp()
+
+    def update_last_seen(
+        self,
+        ip_address: str | None,
+        user_agent: str | None,
+        now: datetime | None = None,
+    ) -> None:
+        """Update last seen info for session."""
+        current = now or datetime.now(UTC)
+        self.last_seen_at = current
+        if ip_address is not None:
+            self.ip_address = ip_address
+        if user_agent is not None:
+            self.user_agent = user_agent
+        self._update_timestamp()
+
+
 class UserBudgetDaily(BaseEntity):
     """User daily AI budget usage - 用户每日 AI 预算使用。"""
 

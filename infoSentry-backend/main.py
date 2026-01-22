@@ -160,6 +160,9 @@ app.dependency_overrides[users_app_deps.get_user_repository] = (
 app.dependency_overrides[users_app_deps.get_magic_link_repository] = (
     users_infra_deps.get_magic_link_repository
 )
+app.dependency_overrides[users_app_deps.get_device_session_repository] = (
+    users_infra_deps.get_device_session_repository
+)
 app.dependency_overrides[users_app_deps.get_user_budget_daily_repository] = (
     users_infra_deps.get_user_budget_daily_repository
 )

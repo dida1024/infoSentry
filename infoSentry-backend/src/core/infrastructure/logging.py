@@ -6,6 +6,7 @@
 """
 
 import sys
+from datetime import datetime
 from typing import Any
 
 import structlog
@@ -326,6 +327,92 @@ class BusinessEvents:
             email=email,
             magic_link_id=magic_link_id,
             success=success,
+            **extra,
+        )
+
+    @classmethod
+    def device_session_created(
+        cls,
+        user_id: str,
+        session_id: str,
+        device_id: str,
+        expires_at: datetime,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        **extra: Any,
+    ) -> None:
+        """记录设备会话创建事件。"""
+        cls._log.info(
+            "device_session_created",
+            event_type="auth_session",
+            user_id=user_id,
+            session_id=session_id,
+            device_id=device_id,
+            expires_at=expires_at,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            **extra,
+        )
+
+    @classmethod
+    def device_session_refreshed(
+        cls,
+        user_id: str,
+        session_id: str,
+        device_id: str,
+        expires_at: datetime,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        **extra: Any,
+    ) -> None:
+        """记录设备会话刷新事件。"""
+        cls._log.info(
+            "device_session_refreshed",
+            event_type="auth_session",
+            user_id=user_id,
+            session_id=session_id,
+            device_id=device_id,
+            expires_at=expires_at,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            **extra,
+        )
+
+    @classmethod
+    def device_session_revoked(
+        cls,
+        user_id: str,
+        session_id: str,
+        device_id: str,
+        **extra: Any,
+    ) -> None:
+        """记录设备会话撤销事件。"""
+        cls._log.info(
+            "device_session_revoked",
+            event_type="auth_session",
+            user_id=user_id,
+            session_id=session_id,
+            device_id=device_id,
+            **extra,
+        )
+
+    @classmethod
+    def device_session_risk_blocked(
+        cls,
+        user_id: str,
+        session_id: str,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        **extra: Any,
+    ) -> None:
+        """记录设备会话风险拦截事件。"""
+        cls._log.warning(
+            "device_session_risk_blocked",
+            event_type="auth_session",
+            user_id=user_id,
+            session_id=session_id,
+            ip_address=ip_address,
+            user_agent=user_agent,
             **extra,
         )
 
