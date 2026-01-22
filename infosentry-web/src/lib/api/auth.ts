@@ -30,6 +30,17 @@ export interface ConsumeMagicLinkResponse {
   user: User;
 }
 
+export interface RefreshSessionResponse {
+  ok: boolean;
+  access_token: string;
+  expires_at: string;
+}
+
+export interface LogoutResponse {
+  ok: boolean;
+  message: string;
+}
+
 export const authApi = {
   /**
    * 请求发送 Magic Link
@@ -55,8 +66,28 @@ export const authApi = {
    * 获取当前用户信息
    */
   getCurrentUser: async (): Promise<User> => {
-    const response = await api.get<{ code: number; data: User }>("/users/me");
+    const response = await api.get<{ code: number; data: User }>(
+      "/users/me",
+      { skipAuthRedirect: true }
+    );
     return response.data;
   },
+
+  /**
+   * 刷新登录会话
+   */
+  refreshSession: async (): Promise<RefreshSessionResponse> =>
+    api.post<RefreshSessionResponse>("/auth/refresh", undefined, {
+      skipAuthRedirect: true,
+      skipAuthClear: true,
+    }),
+
+  /**
+   * 退出登录
+   */
+  logout: async (): Promise<LogoutResponse> =>
+    api.post<LogoutResponse>("/auth/logout", undefined, {
+      skipAuthRedirect: true,
+    }),
 };
 

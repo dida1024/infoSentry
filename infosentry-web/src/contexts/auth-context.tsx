@@ -39,10 +39,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
         try {
           const currentUser = await authApi.getCurrentUser();
           setUser(currentUser);
+          setIsLoading(false);
+          return;
         } catch {
-          // Token 无效，清除
+          // Token 无效，清除后尝试 refresh
           localStorage.removeItem("token");
         }
+      }
+
+      try {
+        const refreshed = await authApi.refreshSession();
+        localStorage.setItem("token", refreshed.access_token);
+        const currentUser = await authApi.getCurrentUser();
+        setUser(currentUser);
+      } catch {
+        // refresh 失败则保持未登录状态
       }
       setIsLoading(false);
     };
@@ -57,6 +68,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = () => {
+    void authApi.logout();
     localStorage.removeItem("token");
     setUser(null);
     router.push("/login");
@@ -66,8 +78,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const currentUser = await authApi.getCurrentUser();
       setUser(currentUser);
+      return;
     } catch {
-      logout();
+      try {
+        const refreshed = await authApi.refreshSession();
+        localStorage.setItem("token", refreshed.access_token);
+        const currentUser = await authApi.getCurrentUser();
+        setUser(currentUser);
+        return;
+      } catch {
+        logout();
+      }
     }
   };
 

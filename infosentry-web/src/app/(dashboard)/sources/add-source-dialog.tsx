@@ -14,7 +14,7 @@ const schema = z.object({
     .number()
     .min(5, "抓取间隔不能小于 5 分钟")
     .max(1440, "抓取间隔不能超过 24 小时"),
-  is_private: z.boolean().default(false),
+  is_private: z.boolean(),
 });
 
 type FormData = z.infer<typeof schema>;

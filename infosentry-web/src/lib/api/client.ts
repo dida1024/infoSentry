@@ -4,6 +4,13 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
 import { API_BASE_URL } from "@/lib/constants";
 
+declare module "axios" {
+  export interface AxiosRequestConfig {
+    skipAuthRedirect?: boolean;
+    skipAuthClear?: boolean;
+  }
+}
+
 // 创建 Axios 实例
 const axiosInstance: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -11,6 +18,7 @@ const axiosInstance: AxiosInstance = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true,
 });
 
 // 请求拦截器 - 添加 Token
@@ -34,8 +42,13 @@ axiosInstance.interceptors.response.use(
     if (error.response?.status === 401) {
       // Token 过期，清除并跳转登录
       if (typeof window !== "undefined") {
-        localStorage.removeItem("token");
-        window.location.href = "/login";
+        const config = error.config as AxiosRequestConfig | undefined;
+        if (!config?.skipAuthClear) {
+          localStorage.removeItem("token");
+        }
+        if (!config?.skipAuthRedirect) {
+          window.location.href = "/login";
+        }
       }
     }
     return Promise.reject(error);
