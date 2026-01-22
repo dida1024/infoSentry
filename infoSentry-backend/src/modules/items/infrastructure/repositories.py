@@ -4,6 +4,7 @@ from datetime import datetime
 
 from loguru import logger
 from sqlalchemy import func, or_, text
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
@@ -189,6 +190,51 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
         await self.session.refresh(model)
         await self._publish_events_from_entity(item)
         return self.mapper.to_domain(model)
+
+    async def create_if_not_exists(self, item: Item) -> Item | None:
+        """Create item if url_hash doesn't exist.
+
+        使用 PostgreSQL INSERT ... ON CONFLICT DO NOTHING 实现原子操作。
+
+        Args:
+            item: 要创建的 Item 实体
+
+        Returns:
+            成功创建返回 Item，如果已存在返回 None
+        """
+        model = self.mapper.to_model(item)
+
+        # 构建 INSERT ... ON CONFLICT DO NOTHING 语句
+        stmt = pg_insert(ItemModel).values(
+            id=model.id,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+            is_deleted=model.is_deleted,
+            source_id=model.source_id,
+            url=model.url,
+            url_hash=model.url_hash,
+            title=model.title,
+            snippet=model.snippet,
+            summary=model.summary,
+            published_at=model.published_at,
+            ingested_at=model.ingested_at,
+            embedding=model.embedding,
+            embedding_status=model.embedding_status,
+            embedding_model=model.embedding_model,
+            raw_data=model.raw_data,
+        ).on_conflict_do_nothing(
+            index_elements=["url_hash"],
+        ).returning(ItemModel)
+
+        result = await self.session.execute(stmt)
+        inserted_row = result.scalar_one_or_none()
+
+        if inserted_row is None:
+            # 冲突，记录已存在
+            return None
+
+        await self._publish_events_from_entity(item)
+        return self.mapper.to_domain(inserted_row)
 
     async def update(self, item: Item) -> Item:
         statement = select(ItemModel).where(ItemModel.id == item.id)

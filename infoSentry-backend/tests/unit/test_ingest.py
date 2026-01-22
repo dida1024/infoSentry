@@ -411,10 +411,9 @@ class TestIngestService:
     async def test_dedupe_and_save_new_items(
         self, ingest_service, mock_item_repo, sample_source
     ):
-        """测试去重并保存新条目。"""
-        # 设置 mock：所有 URL 都是新的
-        mock_item_repo.exists_by_url_hash.return_value = False
-        mock_item_repo.create.side_effect = lambda item: item
+        """测试去重并保存新条目（使用原子插入）。"""
+        # 设置 mock：create_if_not_exists 返回创建的 item（表示成功创建）
+        mock_item_repo.create_if_not_exists.side_effect = lambda item: item
 
         fetched_items = [
             FetchedItem(url="https://example.com/1", title="Article 1"),
@@ -428,14 +427,14 @@ class TestIngestService:
 
         assert len(new_items) == 2
         assert duplicate_count == 0
-        assert mock_item_repo.create.call_count == 2
+        assert mock_item_repo.create_if_not_exists.call_count == 2
 
     async def test_dedupe_and_save_duplicate_items(
         self, ingest_service, mock_item_repo, sample_source
     ):
-        """测试去重逻辑能正确识别重复条目。"""
-        # 设置 mock：所有 URL 都是重复的
-        mock_item_repo.exists_by_url_hash.return_value = True
+        """测试去重逻辑能正确识别重复条目（使用原子插入）。"""
+        # 设置 mock：create_if_not_exists 返回 None（表示 url_hash 已存在）
+        mock_item_repo.create_if_not_exists.return_value = None
 
         fetched_items = [
             FetchedItem(url="https://example.com/1", title="Article 1"),
@@ -449,15 +448,21 @@ class TestIngestService:
 
         assert len(new_items) == 0
         assert duplicate_count == 2
-        assert mock_item_repo.create.call_count == 0
+        assert mock_item_repo.create_if_not_exists.call_count == 2
 
     async def test_dedupe_and_save_mixed(
         self, ingest_service, mock_item_repo, sample_source
     ):
         """测试混合情况（部分新、部分重复）。"""
-        # 设置 mock：第一个是新的，第二个是重复的
-        mock_item_repo.exists_by_url_hash.side_effect = [False, True]
-        mock_item_repo.create.side_effect = lambda item: item
+        # 设置 mock：第一个成功创建，第二个已存在
+        def create_if_not_exists_side_effect(item):
+            if item.url == "https://example.com/new":
+                return item
+            return None  # 已存在
+
+        mock_item_repo.create_if_not_exists.side_effect = (
+            create_if_not_exists_side_effect
+        )
 
         fetched_items = [
             FetchedItem(url="https://example.com/new", title="New Article"),
@@ -472,6 +477,44 @@ class TestIngestService:
         assert len(new_items) == 1
         assert duplicate_count == 1
         assert new_items[0].url == "https://example.com/new"
+
+    async def test_dedupe_and_save_atomic_prevents_race_condition(
+        self, ingest_service, mock_item_repo, sample_source
+    ):
+        """测试原子插入能够防止竞态条件。
+
+        模拟并发场景：多个相同 URL 同时尝试插入，
+        只有第一个成功，其他都被识别为重复。
+        """
+        call_count = 0
+
+        def create_if_not_exists_side_effect(item):
+            nonlocal call_count
+            call_count += 1
+            # 只有第一次调用成功，模拟并发时只有一个成功
+            if call_count == 1:
+                return item
+            return None
+
+        mock_item_repo.create_if_not_exists.side_effect = (
+            create_if_not_exists_side_effect
+        )
+
+        # 模拟三个相同 URL 的条目（可能来自并发抓取）
+        fetched_items = [
+            FetchedItem(url="https://example.com/same", title="Article 1"),
+            FetchedItem(url="https://example.com/same", title="Article 1"),
+            FetchedItem(url="https://example.com/same", title="Article 1"),
+        ]
+
+        new_items, duplicate_count = await ingest_service._dedupe_and_save(
+            source=sample_source,
+            fetched_items=fetched_items,
+        )
+
+        # 只应该有 1 个新条目，2 个重复
+        assert len(new_items) == 1
+        assert duplicate_count == 2
 
     async def test_ingest_source_by_id_not_found(
         self, ingest_service, mock_source_repo
@@ -542,3 +585,86 @@ class TestIngestResult:
         )
 
         assert result.is_success is True
+
+
+# ============================================
+# Redis 锁测试
+# ============================================
+
+
+class TestRedisIngestLock:
+    """Redis Ingest 锁测试。"""
+
+    def test_ingest_lock_key_format(self):
+        """测试 Ingest 锁 key 格式。"""
+        from src.core.infrastructure.redis.keys import RedisKeys
+
+        key = RedisKeys.ingest_lock("source-123")
+        assert key == "lock:ingest:source-123"
+
+    def test_ingest_lock_key_unique_per_source(self):
+        """测试不同 Source 产生不同的锁 key。"""
+        from src.core.infrastructure.redis.keys import RedisKeys
+
+        key1 = RedisKeys.ingest_lock("source-123")
+        key2 = RedisKeys.ingest_lock("source-456")
+        assert key1 != key2
+
+
+# ============================================
+# 调度更新测试
+# ============================================
+
+
+class TestSchedulerNextFetchUpdate:
+    """测试调度时更新 next_fetch_at。"""
+
+    def test_source_schedule_next_fetch(self):
+        """测试 Source 的 next_fetch 调度逻辑。"""
+        source = Source(
+            id="source-123",
+            type=SourceType.RSS,
+            name="Test Source",
+            enabled=True,
+            fetch_interval_sec=900,  # 15 分钟
+            config={"feed_url": "https://example.com/feed.xml"},
+        )
+
+        # 初始状态 next_fetch_at 应为 None
+        assert source.next_fetch_at is None
+
+        # 模拟 mark_fetch_success
+        source.mark_fetch_success(items_count=5)
+
+        # next_fetch_at 应该被设置为未来时间
+        assert source.next_fetch_at is not None
+        time_diff = (source.next_fetch_at - datetime.now()).total_seconds()
+        # 应该在 15 分钟左右（允许一些误差）
+        assert 890 < time_diff < 910
+
+    def test_source_schedule_with_backoff(self):
+        """测试错误退避调度逻辑。"""
+        source = Source(
+            id="source-123",
+            type=SourceType.RSS,
+            name="Test Source",
+            enabled=True,
+            fetch_interval_sec=900,
+            config={"feed_url": "https://example.com/feed.xml"},
+        )
+
+        # 模拟连续错误
+        source.mark_fetch_error()
+        assert source.error_streak == 1
+
+        # 第一次错误：退避 = 2^1 * 900 = 1800 秒
+        first_next_fetch = source.next_fetch_at
+
+        source.mark_fetch_error()
+        assert source.error_streak == 2
+
+        # 第二次错误：退避 = 2^2 * 900 = 3600 秒
+        second_next_fetch = source.next_fetch_at
+
+        # 第二次退避应该比第一次长
+        assert second_next_fetch > first_next_fetch

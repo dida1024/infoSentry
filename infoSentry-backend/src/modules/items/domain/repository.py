@@ -55,6 +55,20 @@ class ItemRepository(BaseRepository[Item]):
         """Search similar items by embedding."""
         pass
 
+    @abstractmethod
+    async def create_if_not_exists(self, item: Item) -> Item | None:
+        """Create item if url_hash doesn't exist.
+
+        使用原子操作避免竞态条件。
+
+        Args:
+            item: 要创建的 Item 实体
+
+        Returns:
+            成功创建返回 Item，如果已存在返回 None
+        """
+        pass
+
 
 class GoalItemMatchRepository(BaseRepository[GoalItemMatch]):
     """Goal-Item match repository interface."""

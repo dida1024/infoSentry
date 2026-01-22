@@ -280,6 +280,22 @@ def sample_match_data() -> dict[str, Any]:
 
 
 @pytest.fixture
+def requires_openai_api():
+    """需要真实 OpenAI API 的测试使用此 fixture。
+
+    当 OPENAI_API_KEY 未配置或 EMBEDDING_ENABLED=false 时自动跳过测试。
+    用于集成测试，确保在 CI 环境或无 API key 时优雅跳过。
+    """
+    from src.core.config import settings
+
+    if not settings.OPENAI_API_KEY:
+        pytest.skip("OPENAI_API_KEY 未配置，跳过需要真实 API 的测试")
+
+    if not settings.EMBEDDING_ENABLED:
+        pytest.skip("EMBEDDING_ENABLED=false，跳过测试")
+
+
+@pytest.fixture
 def mock_openai_client() -> MagicMock:
     """Mock OpenAI 客户端。"""
     client = MagicMock()

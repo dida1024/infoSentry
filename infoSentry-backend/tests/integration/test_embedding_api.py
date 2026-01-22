@@ -32,16 +32,19 @@ pytestmark = [pytest.mark.integration, pytest.mark.anyio]
 
 
 class TestOpenAIConnection:
-    """测试 OpenAI API 基本连接。"""
+    """测试 OpenAI API 基本连接。
 
-    async def test_api_authentication(self):
+    注意：这些测试需要真实的 OpenAI API Key。
+    当 OPENAI_API_KEY 未配置时会自动跳过。
+    """
+
+    async def test_api_authentication(self, requires_openai_api):
         """测试 API 认证是否正确配置。"""
         from openai import AsyncOpenAI
 
         from src.core.config import settings
 
-        # 检查配置
-        assert settings.OPENAI_API_KEY is not None, "OPENAI_API_KEY 未配置"
+        # requires_openai_api fixture 已确保 API key 存在
         assert settings.OPENAI_API_BASE is not None, "OPENAI_API_BASE 未配置"
         assert settings.OPENAI_EMBED_MODEL is not None, "OPENAI_EMBED_MODEL 未配置"
 
@@ -54,14 +57,11 @@ class TestOpenAIConnection:
         # 验证客户端可以创建
         assert client is not None
 
-    async def test_embedding_generation(self):
+    async def test_embedding_generation(self, requires_openai_api):
         """测试基本的 Embedding 生成。"""
         from openai import AsyncOpenAI
 
         from src.core.config import settings
-
-        if not settings.EMBEDDING_ENABLED:
-            pytest.skip("EMBEDDING_ENABLED=false，跳过测试")
 
         client = AsyncOpenAI(
             api_key=settings.OPENAI_API_KEY,
@@ -91,14 +91,11 @@ class TestOpenAIConnection:
         finally:
             await client.close()
 
-    async def test_batch_embedding_generation(self):
+    async def test_batch_embedding_generation(self, requires_openai_api):
         """测试批量 Embedding 生成。"""
         from openai import AsyncOpenAI
 
         from src.core.config import settings
-
-        if not settings.EMBEDDING_ENABLED:
-            pytest.skip("EMBEDDING_ENABLED=false，跳过测试")
 
         client = AsyncOpenAI(
             api_key=settings.OPENAI_API_KEY,
@@ -175,11 +172,18 @@ class TestBudgetServiceIntegration:
 
 
 class TestEmbeddingServiceIntegration:
-    """测试 EmbeddingService 端到端流程。"""
+    """测试 EmbeddingService 端到端流程。
+
+    注意：这些测试需要真实的 OpenAI API Key 和 Redis。
+    当 OPENAI_API_KEY 未配置时会自动跳过。
+    """
 
     @pytest.fixture
-    async def embedding_service(self, redis_client):
-        """创建 EmbeddingService 实例。"""
+    async def embedding_service(self, redis_client, requires_openai_api):
+        """创建 EmbeddingService 实例。
+
+        requires_openai_api fixture 确保 API key 已配置。
+        """
         from unittest.mock import AsyncMock
 
         from src.modules.items.application.budget_service import BudgetService
@@ -205,9 +209,6 @@ class TestEmbeddingServiceIntegration:
     async def test_embed_single_item(self, embedding_service):
         """测试嵌入单个 Item。"""
         from src.core.config import settings
-
-        if not settings.EMBEDDING_ENABLED:
-            pytest.skip("EMBEDDING_ENABLED=false，跳过测试")
 
         # 创建测试 Item
         test_item = Item(
@@ -239,11 +240,6 @@ class TestEmbeddingServiceIntegration:
 
     async def test_embed_item_with_long_text(self, embedding_service):
         """测试嵌入长文本 Item。"""
-        from src.core.config import settings
-
-        if not settings.EMBEDDING_ENABLED:
-            pytest.skip("EMBEDDING_ENABLED=false，跳过测试")
-
         # 创建包含长文本的 Item
         long_snippet = "测试内容 " * 1000  # 创建长文本
         test_item = Item(
@@ -267,11 +263,6 @@ class TestEmbeddingServiceIntegration:
 
     async def test_embed_item_without_text(self, embedding_service):
         """测试嵌入无文本的 Item。"""
-        from src.core.config import settings
-
-        if not settings.EMBEDDING_ENABLED:
-            pytest.skip("EMBEDDING_ENABLED=false，跳过测试")
-
         # 创建无文本的 Item
         test_item = Item(
             id="test-item-003",

@@ -321,6 +321,39 @@ class RedisClient:
         key = RedisKeys.lock(resource)
         return await self.delete(key) > 0
 
+    # ============ Ingest 任务锁 ============
+
+    async def acquire_ingest_lock(
+        self,
+        source_id: str,
+        ttl: int = 600,
+    ) -> bool:
+        """尝试获取 Source 抓取任务锁。
+
+        用于防止同一 Source 被并发抓取。
+
+        Args:
+            source_id: 信息源 ID
+            ttl: 锁过期时间（秒），默认 10 分钟
+
+        Returns:
+            获取成功返回 True
+        """
+        key = RedisKeys.ingest_lock(source_id)
+        return await self.set(key, "1", ex=ttl, nx=True)
+
+    async def release_ingest_lock(self, source_id: str) -> bool:
+        """释放 Source 抓取任务锁。
+
+        Args:
+            source_id: 信息源 ID
+
+        Returns:
+            释放成功返回 True
+        """
+        key = RedisKeys.ingest_lock(source_id)
+        return await self.delete(key) > 0
+
 
 @asynccontextmanager
 async def get_async_redis_client(

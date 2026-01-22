@@ -215,6 +215,8 @@ class IngestService:
     ) -> tuple[list[Item], int]:
         """去重并保存新条目。
 
+        使用原子操作（INSERT ... ON CONFLICT DO NOTHING）避免竞态条件。
+
         Args:
             source: 源实体
             fetched_items: 抓取到的条目列表
@@ -229,12 +231,6 @@ class IngestService:
             # 计算 URL hash
             url_hash = self._compute_url_hash(fetched.url)
 
-            # 检查是否已存在
-            exists = await self.item_repository.exists_by_url_hash(url_hash)
-            if exists:
-                duplicate_count += 1
-                continue
-
             # 创建新 Item 实体
             item = Item(
                 source_id=source.id,
@@ -248,13 +244,12 @@ class IngestService:
                 raw_data=fetched.raw_data,
             )
 
-            # 保存到数据库
-            try:
-                saved_item = await self.item_repository.create(item)
+            # 使用原子插入：如果 url_hash 已存在则跳过
+            saved_item = await self.item_repository.create_if_not_exists(item)
+            if saved_item is not None:
                 new_items.append(saved_item)
-            except Exception as e:
-                # 可能是并发导致的唯一键冲突
-                logger.warning(f"Failed to save item {fetched.url}: {e}")
+            else:
+                # url_hash 已存在，记为重复
                 duplicate_count += 1
 
         return new_items, duplicate_count

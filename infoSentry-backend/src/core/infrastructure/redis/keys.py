@@ -110,3 +110,17 @@ class RedisKeys:
             格式化的 Redis key
         """
         return f"{cls.GOAL_EMBEDDING_PREFIX}:{goal_id}:{content_hash}"
+
+    @classmethod
+    def ingest_lock(cls, source_id: str) -> str:
+        """生成 Source 抓取任务锁 key。
+
+        用于防止同一 Source 被并发抓取。
+
+        Args:
+            source_id: 信息源 ID
+
+        Returns:
+            格式化的 Redis key
+        """
+        return f"{cls.LOCK_PREFIX}:ingest:{source_id}"
