@@ -58,6 +58,7 @@ services:
     image: pgvector/pgvector:pg16
     container_name: infosentry-postgres
     restart: unless-stopped
+    platform: linux/amd64
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-infosentry}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
@@ -82,6 +83,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: infosentry-redis
+    platform: linux/amd64
     restart: unless-stopped
     command: redis-server --appendonly yes --appendfsync everysec --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
@@ -140,6 +142,7 @@ services:
         NEXT_PUBLIC_API_URL: ${BACKEND_HOST:-http://localhost:8000}
     container_name: infosentry-web
     restart: unless-stopped
+    platform: linux/amd64
     environment:
       NEXT_PUBLIC_API_URL: ${BACKEND_HOST:-http://localhost:8000}
       NODE_ENV: production
@@ -155,7 +158,6 @@ services:
       start_period: 60s
     networks:
       - infosentry-network
-    platform: linux/amd64
     deploy:
       resources:
         limits:
@@ -170,6 +172,7 @@ services:
       context: ./infoSentry-backend
       dockerfile: Dockerfile
     container_name: infosentry-worker-ingest
+    platform: linux/amd64
     restart: unless-stopped
     command: uv run celery -A src.core.infrastructure.celery.app worker -Q q_ingest -c 2 -l INFO -n worker_ingest@%h
     environment:
@@ -193,6 +196,7 @@ services:
       dockerfile: Dockerfile
     container_name: infosentry-worker-embed-match
     restart: unless-stopped
+    platform: linux/amd64
     command: uv run celery -A src.core.infrastructure.celery.app worker -Q q_embed,q_match -c 1 -l INFO -n worker_embed_match@%h
     environment:
       <<: *common-env
