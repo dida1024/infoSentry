@@ -11,6 +11,18 @@ class ItemRepository(BaseRepository[Item]):
     """Item repository interface."""
 
     @abstractmethod
+    async def get_by_ids(self, item_ids: list[str]) -> dict[str, Item]:
+        """Get items by IDs (batch query).
+
+        Args:
+            item_ids: List of item IDs to fetch
+
+        Returns:
+            Dict mapping item_id -> Item for found items
+        """
+        pass
+
+    @abstractmethod
     async def get_by_url_hash(self, url_hash: str) -> Item | None:
         """Get item by URL hash."""
         pass

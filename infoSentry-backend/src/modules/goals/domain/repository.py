@@ -40,6 +40,18 @@ class GoalPushConfigRepository(BaseRepository[GoalPushConfig]):
         """Get push config for a goal."""
         pass
 
+    @abstractmethod
+    async def get_by_goal_ids(self, goal_ids: list[str]) -> dict[str, GoalPushConfig]:
+        """Get push configs for multiple goals (batch query).
+
+        Args:
+            goal_ids: List of goal IDs to fetch
+
+        Returns:
+            Dict mapping goal_id -> GoalPushConfig for found configs
+        """
+        pass
+
 
 class GoalPriorityTermRepository(BaseRepository[GoalPriorityTerm]):
     """Goal priority term repository interface."""
@@ -51,6 +63,21 @@ class GoalPriorityTermRepository(BaseRepository[GoalPriorityTerm]):
         term_type: TermType | None = None,
     ) -> list[GoalPriorityTerm]:
         """List terms for a goal."""
+        pass
+
+    @abstractmethod
+    async def list_by_goal_ids(
+        self,
+        goal_ids: list[str],
+    ) -> dict[str, list[GoalPriorityTerm]]:
+        """List terms for multiple goals (batch query).
+
+        Args:
+            goal_ids: List of goal IDs to fetch
+
+        Returns:
+            Dict mapping goal_id -> list of GoalPriorityTerm
+        """
         pass
 
     @abstractmethod

@@ -1,6 +1,6 @@
 """Source repository implementations."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from loguru import logger
 from sqlalchemy import exists, func
@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
 from src.core.domain.events import EventBus
+from src.core.domain.exceptions import EntityNotFoundError
 from src.core.infrastructure.database.event_aware_repository import EventAwareRepository
 from src.modules.sources.domain.entities import Source, SourceSubscription, SourceType
 from src.modules.sources.domain.repository import (
@@ -46,6 +47,19 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
         return self.mapper.to_domain(model) if model else None
+
+    async def get_by_ids(self, source_ids: list[str]) -> dict[str, Source]:
+        """Get sources by IDs (batch query)."""
+        if not source_ids:
+            return {}
+
+        statement = select(SourceModel).where(
+            SourceModel.id.in_(source_ids),
+            col(SourceModel.is_deleted).is_(False),
+        )
+        result = await self.session.execute(statement)
+        models = result.scalars().all()
+        return {model.id: self.mapper.to_domain(model) for model in models}
 
     async def get_by_name(self, name: str) -> Source | None:
         statement = select(SourceModel).where(
@@ -149,7 +163,7 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
         limit: int = 10,
     ) -> list[Source]:
         if before_time is None:
-            before_time = datetime.now()
+            before_time = datetime.now(UTC)
 
         statement = (
             select(SourceModel)
@@ -189,7 +203,7 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
         result = await self.session.execute(statement)
         existing = result.scalar_one_or_none()
         if not existing:
-            raise ValueError(f"Source with id {source.id} not found")
+            raise EntityNotFoundError("Source", source.id)
 
         existing.type = source.type
         existing.name = source.name
@@ -361,7 +375,7 @@ class PostgreSQLSourceSubscriptionRepository(
         result = await self.session.execute(statement)
         existing = result.scalar_one_or_none()
         if not existing:
-            raise ValueError(f"SourceSubscription with id {subscription.id} not found")
+            raise EntityNotFoundError("SourceSubscription", subscription.id)
 
         existing.user_id = subscription.user_id
         existing.source_id = subscription.source_id

@@ -11,6 +11,18 @@ class SourceRepository(BaseRepository[Source]):
     """Source repository interface."""
 
     @abstractmethod
+    async def get_by_ids(self, source_ids: list[str]) -> dict[str, Source]:
+        """Get sources by IDs (batch query).
+
+        Args:
+            source_ids: List of source IDs to fetch
+
+        Returns:
+            Dict mapping source_id -> Source for found sources
+        """
+        pass
+
+    @abstractmethod
     async def get_by_name(self, name: str) -> Source | None:
         """Get source by name."""
         pass

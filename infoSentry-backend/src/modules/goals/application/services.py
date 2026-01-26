@@ -10,7 +10,13 @@ from src.modules.goals.application.models import (
     GoalMatchListData,
     ItemData,
 )
-from src.modules.goals.domain.entities import Goal, GoalStatus, TermType
+from src.modules.goals.domain.entities import (
+    Goal,
+    GoalPriorityTerm,
+    GoalPushConfig,
+    GoalStatus,
+    TermType,
+)
 from src.modules.goals.domain.exceptions import GoalNotFoundError
 from src.modules.goals.domain.repository import (
     GoalPriorityTermRepository,
@@ -90,12 +96,20 @@ class GoalMatchQueryService:
                 page_size=page_size,
             )
 
-        # Batch fetch items and sources
+        # Batch fetch items and sources (avoid N+1 queries)
+        item_ids = [match.item_id for match in matches]
+        items_by_id = await self.item_repo.get_by_ids(item_ids)
+
+        # Collect source IDs from fetched items
+        source_ids = list({item.source_id for item in items_by_id.values()})
+        sources_by_id = await self.source_repo.get_by_ids(source_ids)
+
+        # Build items map
         items_map: dict[str, ItemData] = {}
         for match in matches:
-            item = await self.item_repo.get_by_id(match.item_id)
+            item = items_by_id.get(match.item_id)
             if item:
-                source = await self.source_repo.get_by_id(item.source_id)
+                source = sources_by_id.get(item.source_id)
                 items_map[match.item_id] = ItemData(
                     id=item.id,
                     url=item.url,
@@ -145,10 +159,24 @@ class GoalQueryService:
         self.push_config_repo = push_config_repository
         self.term_repo = term_repository
 
-    async def build_goal_data(self, goal: Goal) -> GoalData:
-        """Build goal data with config and terms."""
-        push_config = await self.push_config_repo.get_by_goal_id(goal.id)
-        terms = await self.term_repo.list_by_goal(goal.id)
+    async def build_goal_data(
+        self,
+        goal: Goal,
+        push_config: GoalPushConfig | None = None,
+        terms: list[GoalPriorityTerm] | None = None,
+    ) -> GoalData:
+        """Build goal data with config and terms.
+
+        Args:
+            goal: Goal entity
+            push_config: Pre-fetched push config (if None, will fetch)
+            terms: Pre-fetched terms (if None, will fetch)
+        """
+        # Fetch if not provided (for single goal queries)
+        if push_config is None:
+            push_config = await self.push_config_repo.get_by_goal_id(goal.id)
+        if terms is None:
+            terms = await self.term_repo.list_by_goal(goal.id)
 
         priority_terms = [t.term for t in terms if t.term_type == TermType.MUST]
         negative_terms = [t.term for t in terms if t.term_type == TermType.NEGATIVE]
@@ -180,7 +208,22 @@ class GoalQueryService:
             page_size=page_size,
         )
 
-        items = [await self.build_goal_data(goal) for goal in goals]
+        if not goals:
+            return GoalListData(items=[], total=total, page=page, page_size=page_size)
+
+        # Batch fetch push configs and terms to avoid N+1 queries
+        goal_ids = [goal.id for goal in goals]
+        push_configs_by_goal = await self.push_config_repo.get_by_goal_ids(goal_ids)
+        terms_by_goal = await self.term_repo.list_by_goal_ids(goal_ids)
+
+        items = [
+            await self.build_goal_data(
+                goal,
+                push_config=push_configs_by_goal.get(goal.id),
+                terms=terms_by_goal.get(goal.id, []),
+            )
+            for goal in goals
+        ]
 
         return GoalListData(
             items=items,

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
 from src.core.domain.events import EventBus
+from src.core.domain.exceptions import EntityNotFoundError
 from src.core.infrastructure.database.event_aware_repository import EventAwareRepository
 from src.modules.items.domain.entities import EmbeddingStatus, GoalItemMatch, Item
 from src.modules.items.domain.repository import GoalItemMatchRepository, ItemRepository
@@ -38,6 +39,19 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
         result = await self.session.execute(statement)
         model = result.scalar_one_or_none()
         return self.mapper.to_domain(model) if model else None
+
+    async def get_by_ids(self, item_ids: list[str]) -> dict[str, Item]:
+        """Get items by IDs (batch query)."""
+        if not item_ids:
+            return {}
+
+        statement = select(ItemModel).where(
+            ItemModel.id.in_(item_ids),
+            col(ItemModel.is_deleted).is_(False),
+        )
+        result = await self.session.execute(statement)
+        models = result.scalars().all()
+        return {model.id: self.mapper.to_domain(model) for model in models}
 
     async def get_by_url_hash(self, url_hash: str) -> Item | None:
         statement = select(ItemModel).where(
@@ -244,7 +258,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
         result = await self.session.execute(statement)
         existing = result.scalar_one_or_none()
         if not existing:
-            raise ValueError(f"Item with id {item.id} not found")
+            raise EntityNotFoundError("Item", item.id)
 
         existing.title = item.title
         existing.snippet = item.snippet
@@ -396,7 +410,7 @@ class PostgreSQLGoalItemMatchRepository(
         result = await self.session.execute(statement)
         existing = result.scalar_one_or_none()
         if not existing:
-            raise ValueError(f"GoalItemMatch with id {match.id} not found")
+            raise EntityNotFoundError("GoalItemMatch", match.id)
 
         existing.match_score = match.match_score
         existing.features_json = match.features_json

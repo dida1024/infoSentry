@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
 from src.core.domain.events import EventBus
+from src.core.domain.exceptions import EntityNotFoundError
 from src.core.infrastructure.database.event_aware_repository import EventAwareRepository
 from src.modules.goals.domain.entities import (
     Goal,
@@ -109,7 +110,7 @@ class PostgreSQLGoalRepository(EventAwareRepository[Goal], GoalRepository):
         result = await self.session.execute(statement)
         existing = result.scalar_one_or_none()
         if not existing:
-            raise ValueError(f"Goal with id {goal.id} not found")
+            raise EntityNotFoundError("Goal", goal.id)
 
         existing.name = goal.name
         existing.description = goal.description
@@ -204,6 +205,19 @@ class PostgreSQLGoalPushConfigRepository(
         model = result.scalar_one_or_none()
         return self.mapper.to_domain(model) if model else None
 
+    async def get_by_goal_ids(self, goal_ids: list[str]) -> dict[str, GoalPushConfig]:
+        """Get push configs for multiple goals (batch query)."""
+        if not goal_ids:
+            return {}
+
+        statement = select(GoalPushConfigModel).where(
+            GoalPushConfigModel.goal_id.in_(goal_ids),
+            col(GoalPushConfigModel.is_deleted).is_(False),
+        )
+        result = await self.session.execute(statement)
+        models = result.scalars().all()
+        return {model.goal_id: self.mapper.to_domain(model) for model in models}
+
     async def create(self, config: GoalPushConfig) -> GoalPushConfig:
         model = self.mapper.to_model(config)
         self.session.add(model)
@@ -218,7 +232,7 @@ class PostgreSQLGoalPushConfigRepository(
         result = await self.session.execute(statement)
         existing = result.scalar_one_or_none()
         if not existing:
-            raise ValueError(f"GoalPushConfig with id {config.id} not found")
+            raise EntityNotFoundError("GoalPushConfig", config.id)
 
         existing.batch_windows = config.batch_windows
         existing.digest_send_time = config.digest_send_time
@@ -296,6 +310,31 @@ class PostgreSQLGoalPriorityTermRepository(
         models = result.scalars().all()
         return self.mapper.to_domain_list(list(models))
 
+    async def list_by_goal_ids(
+        self,
+        goal_ids: list[str],
+    ) -> dict[str, list[GoalPriorityTerm]]:
+        """List terms for multiple goals (batch query)."""
+        if not goal_ids:
+            return {}
+
+        statement = select(GoalPriorityTermModel).where(
+            GoalPriorityTermModel.goal_id.in_(goal_ids),
+            col(GoalPriorityTermModel.is_deleted).is_(False),
+        )
+        result = await self.session.execute(statement)
+        models = result.scalars().all()
+
+        # Group by goal_id
+        terms_by_goal: dict[str, list[GoalPriorityTerm]] = {}
+        for model in models:
+            term = self.mapper.to_domain(model)
+            if model.goal_id not in terms_by_goal:
+                terms_by_goal[model.goal_id] = []
+            terms_by_goal[model.goal_id].append(term)
+
+        return terms_by_goal
+
     async def delete_all_for_goal(self, goal_id: str) -> int:
         statement = select(GoalPriorityTermModel).where(
             GoalPriorityTermModel.goal_id == goal_id,
@@ -338,7 +377,7 @@ class PostgreSQLGoalPriorityTermRepository(
         result = await self.session.execute(statement)
         existing = result.scalar_one_or_none()
         if not existing:
-            raise ValueError(f"GoalPriorityTerm with id {term.id} not found")
+            raise EntityNotFoundError("GoalPriorityTerm", term.id)
 
         existing.term = term.term
         existing.term_type = term.term_type
