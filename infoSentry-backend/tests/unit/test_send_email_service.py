@@ -541,7 +541,8 @@ class TestGoalSendEmailService:
         # 验证 - 失败但不抛异常
         assert result.success is False
         assert result.email_sent is False
-        assert "SMTP Error" in result.message
+        # 服务返回用户友好的消息，不暴露内部错误详情
+        assert "邮件发送失败" in result.message
 
         # 确保没有更新决策
         mocks["decision_repo"].create.assert_not_called()

@@ -639,7 +639,8 @@ class TestSchedulerNextFetchUpdate:
 
         # next_fetch_at 应该被设置为未来时间
         assert source.next_fetch_at is not None
-        time_diff = (source.next_fetch_at - datetime.now()).total_seconds()
+        # 使用带时区的 datetime 进行比较
+        time_diff = (source.next_fetch_at - datetime.now(UTC)).total_seconds()
         # 应该在 15 分钟左右（允许一些误差）
         assert 890 < time_diff < 910
 

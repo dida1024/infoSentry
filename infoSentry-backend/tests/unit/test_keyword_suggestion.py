@@ -158,7 +158,9 @@ class TestKeywordSuggestionService:
         mock_client.chat.completions.create.assert_called_once()
 
     async def test_suggest_keywords_api_failure(self):
-        """测试 API 调用失败返回空列表。"""
+        """测试 API 调用失败抛出 KeywordSuggestionError。"""
+        from src.modules.goals.application.keyword_service import KeywordSuggestionError
+
         mock_client = AsyncMock()
         mock_client.chat.completions.create = AsyncMock(
             side_effect=Exception("API Error")
@@ -167,12 +169,14 @@ class TestKeywordSuggestionService:
         service = KeywordSuggestionService(
             prompt_store=_prompt_store(), openai_client=mock_client
         )
-        result = await service.suggest_keywords(
-            description="追踪 AI 领域的重要新闻和技术突破",
-            max_keywords=5,
-        )
 
-        assert result == []
+        with pytest.raises(KeywordSuggestionError) as exc_info:
+            await service.suggest_keywords(
+                description="追踪 AI 领域的重要新闻和技术突破",
+                max_keywords=5,
+            )
+
+        assert "API Error" in str(exc_info.value)
 
     async def test_suggest_keywords_max_keywords_limit(self):
         """测试最大关键词数量限制。"""
