@@ -72,14 +72,12 @@ class GoalSendEmailService:
 
     Features:
     - Send emails for all unsent matched items
-    - Rate limiting (5 per hour per goal)
+    - Rate limiting (configurable per hour per goal)
     - Dry run mode for preview
     - Updates push_decision status to SENT
     """
 
     RATE_LIMIT_RESOURCE = "goal_email"
-    RATE_LIMIT_PER_HOUR = 5
-    DEFAULT_LOOKBACK_HOURS = 24
 
     def __init__(
         self,
@@ -148,9 +146,9 @@ class GoalSendEmailService:
                 identifier=identifier,
                 window=window,
             )
-            if current >= self.RATE_LIMIT_PER_HOUR:
+            if current >= settings.GOAL_EMAIL_RATE_LIMIT_PER_HOUR:
                 raise RateLimitExceededError(
-                    f"Rate limit exceeded: {current}/{self.RATE_LIMIT_PER_HOUR} per hour"
+                    f"Rate limit exceeded: {current}/{settings.GOAL_EMAIL_RATE_LIMIT_PER_HOUR} per hour"
                 )
 
         # 3. Get user email
@@ -160,7 +158,7 @@ class GoalSendEmailService:
 
         # 4. Query matches and existing decisions
         since = since or (
-            datetime.now(UTC) - timedelta(hours=self.DEFAULT_LOOKBACK_HOURS)
+            datetime.now(UTC) - timedelta(hours=settings.GOAL_EMAIL_LOOKBACK_HOURS)
         )
         matches_with_decisions = await self._list_matches_with_decisions(
             goal_id=goal_id,
@@ -223,13 +221,16 @@ class GoalSendEmailService:
 
         if not result.success:
             # Don't update decisions if email failed
-            logger.error(f"Failed to send goal email: {result.error}")
+            # Log detailed error internally, but don't expose to users
+            logger.error(
+                f"Failed to send goal email for goal_id={goal_id}: {result.error}"
+            )
             return SendEmailResult(
                 success=False,
                 email_sent=False,
                 items_count=len(email_items),
                 decisions_updated=0,
-                message=f"邮件发送失败: {result.error}",
+                message="邮件发送失败，请稍后重试",
             )
 
         # 9. Update rate limit count (successful sends only)
@@ -238,8 +239,8 @@ class GoalSendEmailService:
                 resource=self.RATE_LIMIT_RESOURCE,
                 identifier=identifier,
                 window=window,
-                limit=self.RATE_LIMIT_PER_HOUR,
-                ttl=3600,
+                limit=settings.GOAL_EMAIL_RATE_LIMIT_PER_HOUR,
+                ttl=settings.GOAL_EMAIL_RATE_LIMIT_TTL,
             )
             if not allowed:
                 get_business_logger().warning(
@@ -248,7 +249,7 @@ class GoalSendEmailService:
                     goal_id=goal_id,
                     user_id=user_id,
                     current=count,
-                    limit=self.RATE_LIMIT_PER_HOUR,
+                    limit=settings.GOAL_EMAIL_RATE_LIMIT_PER_HOUR,
                 )
 
         # 10. Update/create push decisions
@@ -428,7 +429,7 @@ class GoalSendEmailService:
                     },
                     decided_at=now,
                     sent_at=now,
-                    dedupe_key=f"manual:{goal_id}:{match.item_id}:{int(now.timestamp())}",
+                    dedupe_key=f"manual:{goal_id}:{match.item_id}:{int(now.timestamp() * 1000000)}",
                 )
                 await self.decision_repo.create(decision)
                 updated_count += 1

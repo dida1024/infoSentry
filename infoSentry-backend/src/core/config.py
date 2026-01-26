@@ -218,6 +218,15 @@ class Settings(BaseSettings):
     BOUNDARY_LOW: float = 0.88  # LLM判别边界区间下限
     BOUNDARY_HIGH: float = 0.93  # LLM判别边界区间上限
 
+    # Goal Email Rate Limiting
+    GOAL_EMAIL_RATE_LIMIT_PER_HOUR: int = 5  # 每目标每小时最多发送次数
+    GOAL_EMAIL_LOOKBACK_HOURS: int = 24  # 默认回溯小时数
+    GOAL_EMAIL_RATE_LIMIT_TTL: int = 3600  # 限流 Redis TTL (秒)
+
+    # Default Push Windows (HH:MM 格式，逗号分隔)
+    DEFAULT_BATCH_WINDOWS: str = "12:30,18:30"
+    DEFAULT_DIGEST_SEND_TIME: str = "09:00"
+
     # Celery Settings
     CELERY_BROKER_URL: str | None = None  # 默认使用 REDIS_URL
     CELERY_RESULT_BACKEND: str | None = None  # 默认使用 REDIS_URL
