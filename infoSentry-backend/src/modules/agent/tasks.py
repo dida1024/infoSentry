@@ -14,6 +14,7 @@ from loguru import logger
 
 from src.core.config import settings
 from src.core.infrastructure.celery.queues import Queues
+from src.core.infrastructure.celery.retry import DEFAULT_RETRYABLE_EXCEPTIONS
 
 
 @shared_task(
@@ -21,7 +22,7 @@ from src.core.infrastructure.celery.queues import Queues
     bind=True,
     max_retries=3,
     default_retry_delay=30,
-    autoretry_for=(Exception,),
+    autoretry_for=DEFAULT_RETRYABLE_EXCEPTIONS,
     retry_backoff=True,
     queue=Queues.AGENT,
 )

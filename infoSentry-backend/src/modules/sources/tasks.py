@@ -14,6 +14,7 @@ from redis.exceptions import RedisError
 
 from src.core.config import settings
 from src.core.infrastructure.celery.queues import Queues
+from src.core.infrastructure.celery.retry import DEFAULT_RETRYABLE_EXCEPTIONS
 from src.core.infrastructure.logging import get_business_logger
 
 
@@ -102,7 +103,7 @@ async def _check_and_dispatch_fetches_async() -> None:
     bind=True,
     max_retries=3,
     default_retry_delay=60,
-    autoretry_for=(Exception,),
+    autoretry_for=DEFAULT_RETRYABLE_EXCEPTIONS,
     retry_backoff=True,
     retry_backoff_max=600,
     queue=Queues.INGEST,

@@ -7,6 +7,10 @@ from loguru import logger
 
 from src.core.config import settings
 from src.core.infrastructure.celery.queues import Queues
+from src.core.infrastructure.celery.retry import (
+    DEFAULT_RETRYABLE_EXCEPTIONS,
+    RetryableTaskError,
+)
 from src.core.infrastructure.logging import BusinessEvents
 
 
@@ -15,7 +19,7 @@ from src.core.infrastructure.logging import BusinessEvents
     bind=True,
     max_retries=3,
     default_retry_delay=60,
-    autoretry_for=(Exception,),
+    autoretry_for=DEFAULT_RETRYABLE_EXCEPTIONS,
     retry_backoff=True,
     queue=Queues.EMAIL,
 )
@@ -109,7 +113,7 @@ async def _send_magic_link_email_async(
                 success=False,
                 error=result.error or "send_failed",
             )
-            raise Exception(
+            raise RetryableTaskError(
                 f"Failed to send magic link email: {result.error or 'send_failed'}"
             )
         except Exception as exc:

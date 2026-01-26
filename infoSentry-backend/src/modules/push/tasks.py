@@ -19,6 +19,10 @@ from loguru import logger
 
 from src.core.config import settings
 from src.core.infrastructure.celery.queues import Queues
+from src.core.infrastructure.celery.retry import (
+    DEFAULT_RETRYABLE_EXCEPTIONS,
+    RetryableTaskError,
+)
 
 
 @shared_task(
@@ -116,7 +120,7 @@ async def _check_and_coalesce_immediate_async() -> None:
     bind=True,
     max_retries=3,
     default_retry_delay=60,
-    autoretry_for=(Exception,),
+    autoretry_for=DEFAULT_RETRYABLE_EXCEPTIONS,
     retry_backoff=True,
     queue=Queues.EMAIL,
 )
@@ -188,7 +192,9 @@ async def _send_immediate_email_async(goal_id: str, decision_ids: list[str]) -> 
                 logger.info(f"Immediate email sent for goal {goal_id}")
             else:
                 logger.error(f"Failed to send immediate email for goal {goal_id}")
-                raise Exception(f"Failed to send immediate email for goal {goal_id}")
+                raise RetryableTaskError(
+                    f"Failed to send immediate email for goal {goal_id}"
+                )
 
         except Exception as e:
             logger.exception(f"Error in send_immediate_email: {e}")
@@ -201,7 +207,7 @@ async def _send_immediate_email_async(goal_id: str, decision_ids: list[str]) -> 
     bind=True,
     max_retries=3,
     default_retry_delay=60,
-    autoretry_for=(Exception,),
+    autoretry_for=DEFAULT_RETRYABLE_EXCEPTIONS,
     retry_backoff=True,
     queue=Queues.EMAIL,
 )
@@ -273,7 +279,9 @@ async def _send_batch_email_async(goal_id: str, window_time: str) -> None:
                 logger.info(f"Batch email sent for goal {goal_id}")
             else:
                 logger.error(f"Failed to send batch email for goal {goal_id}")
-                raise Exception(f"Failed to send batch email for goal {goal_id}")
+                raise RetryableTaskError(
+                    f"Failed to send batch email for goal {goal_id}"
+                )
 
         except Exception as e:
             logger.exception(f"Error in send_batch_email: {e}")
@@ -286,7 +294,7 @@ async def _send_batch_email_async(goal_id: str, window_time: str) -> None:
     bind=True,
     max_retries=3,
     default_retry_delay=60,
-    autoretry_for=(Exception,),
+    autoretry_for=DEFAULT_RETRYABLE_EXCEPTIONS,
     retry_backoff=True,
     queue=Queues.EMAIL,
 )
@@ -357,7 +365,9 @@ async def _send_digest_email_async(goal_id: str) -> None:
                 logger.info(f"Digest email sent for goal {goal_id}")
             else:
                 logger.error(f"Failed to send digest email for goal {goal_id}")
-                raise Exception(f"Failed to send digest email for goal {goal_id}")
+                raise RetryableTaskError(
+                    f"Failed to send digest email for goal {goal_id}"
+                )
 
         except Exception as e:
             logger.exception(f"Error in send_digest_email: {e}")
