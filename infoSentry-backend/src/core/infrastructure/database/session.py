@@ -49,7 +49,8 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     session = AsyncSession(async_engine, expire_on_commit=False)
     try:
         yield session
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Database session error, rolling back: {type(e).__name__}: {e}")
         await session.rollback()
         raise
     finally:
