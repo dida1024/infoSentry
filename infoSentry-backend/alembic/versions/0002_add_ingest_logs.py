@@ -10,8 +10,9 @@ Create Date: 2025-01-06
 - 符合可观测性要求
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0002_add_ingest_logs"

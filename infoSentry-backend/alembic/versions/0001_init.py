@@ -5,9 +5,10 @@ Revises:
 Create Date: 2025-01-05
 """
 
-from alembic import op
 import sqlalchemy as sa
 from pgvector.sqlalchemy import Vector
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0001_init"

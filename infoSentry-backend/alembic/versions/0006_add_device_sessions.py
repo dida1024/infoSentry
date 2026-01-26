@@ -5,8 +5,9 @@ Revises: 0005_add_source_subscriptions
 Create Date: 2026-01-22
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0006_add_device_sessions"

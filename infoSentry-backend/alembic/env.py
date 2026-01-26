@@ -2,35 +2,15 @@
 
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlmodel import SQLModel
 
+from alembic import context
 from src.core.config import settings
 
 # Import all models to ensure they are registered
-from src.modules.users.infrastructure.models import UserModel, MagicLinkModel
-from src.modules.sources.infrastructure.models import SourceModel, IngestLogModel
-from src.modules.goals.infrastructure.models import (
-    GoalModel,
-    GoalPushConfigModel,
-    GoalPriorityTermModel,
-)
-from src.modules.items.infrastructure.models import ItemModel, GoalItemMatchModel
-from src.modules.push.infrastructure.models import (
-    PushDecisionModel,
-    ClickEventModel,
-    ItemFeedbackModel,
-    BlockedSourceModel,
-)
-from src.modules.agent.infrastructure.models import (
-    AgentRunModel,
-    AgentToolCallModel,
-    AgentActionLedgerModel,
-    BudgetDailyModel,
-)
 
 config = context.config
 

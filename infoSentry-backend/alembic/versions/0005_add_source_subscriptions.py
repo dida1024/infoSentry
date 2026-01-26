@@ -5,8 +5,9 @@ Revises: 0004_add_source_owner_private
 Create Date: 2026-01-21
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0005_add_source_subscriptions"
