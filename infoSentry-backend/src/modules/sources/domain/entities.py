@@ -90,7 +90,9 @@ class Source(AggregateRoot):
         """Schedule the next fetch based on interval."""
         from datetime import timedelta
 
-        self.next_fetch_at = datetime.now(UTC) + timedelta(seconds=self.fetch_interval_sec)
+        self.next_fetch_at = datetime.now(UTC) + timedelta(
+            seconds=self.fetch_interval_sec
+        )
 
     def _schedule_next_fetch_with_backoff(self) -> None:
         """Schedule the next fetch with exponential backoff."""
