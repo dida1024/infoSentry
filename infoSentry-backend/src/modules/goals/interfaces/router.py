@@ -297,7 +297,7 @@ async def delete_goal(
 
 @router.post(
     "/{goal_id}/pause",
-    response_model=GoalStatusResponse,
+    response_model=ApiResponse[GoalStatusResponse],
     summary="暂停Goal",
     description="暂停追踪目标",
 )
@@ -305,16 +305,16 @@ async def pause_goal(
     goal_id: str,
     user_id: str = Depends(get_current_user_id),
     handler: PauseGoalHandler = Depends(get_pause_goal_handler),
-) -> GoalStatusResponse:
+) -> ApiResponse[GoalStatusResponse]:
     """Pause a goal."""
     command = PauseGoalCommand(goal_id=goal_id, user_id=user_id)
     goal = await handler.handle(command)
-    return GoalStatusResponse(status=goal.status)
+    return ApiResponse.success(data=GoalStatusResponse(status=goal.status))
 
 
 @router.post(
     "/{goal_id}/resume",
-    response_model=GoalStatusResponse,
+    response_model=ApiResponse[GoalStatusResponse],
     summary="恢复Goal",
     description="恢复已暂停的追踪目标",
 )
@@ -322,11 +322,11 @@ async def resume_goal(
     goal_id: str,
     user_id: str = Depends(get_current_user_id),
     handler: ResumeGoalHandler = Depends(get_resume_goal_handler),
-) -> GoalStatusResponse:
+) -> ApiResponse[GoalStatusResponse]:
     """Resume a goal."""
     command = ResumeGoalCommand(goal_id=goal_id, user_id=user_id)
     goal = await handler.handle(command)
-    return GoalStatusResponse(status=goal.status)
+    return ApiResponse.success(data=GoalStatusResponse(status=goal.status))
 
 
 class GoalMatchListResponse(PaginatedResponse[GoalItemMatchResponse]):

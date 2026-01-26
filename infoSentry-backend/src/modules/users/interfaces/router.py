@@ -97,7 +97,7 @@ def _clear_refresh_cookie(response: Response) -> None:
 
 @router.post(
     "/auth/request_link",
-    response_model=MagicLinkResponse,
+    response_model=ApiResponse[MagicLinkResponse],
     status_code=status.HTTP_200_OK,
     summary="请求 Magic Link",
     description="发送 Magic Link 到用户邮箱用于登录",
@@ -105,17 +105,18 @@ def _clear_refresh_cookie(response: Response) -> None:
 async def request_magic_link(
     request: RequestMagicLinkRequest,
     handler: RequestMagicLinkHandler = Depends(get_request_magic_link_handler),
-) -> MagicLinkResponse:
+) -> ApiResponse[MagicLinkResponse]:
     """Request magic link for login."""
     command = RequestMagicLinkCommand(email=request.email)
     await handler.handle(command)
 
-    return MagicLinkResponse()
+    response = MagicLinkResponse()
+    return ApiResponse.success(data=response, message=response.message)
 
 
 @router.get(
     "/auth/consume",
-    response_model=ConsumeTokenResponse,
+    response_model=ApiResponse[ConsumeTokenResponse],
     status_code=status.HTTP_200_OK,
     summary="消费 Magic Link",
     description="使用 Magic Link Token 完成登录",
@@ -125,7 +126,7 @@ async def consume_magic_link(
     response: Response,
     token: str = Query(..., description="Magic link token"),
     handler: ConsumeMagicLinkHandler = Depends(get_consume_magic_link_handler),
-) -> ConsumeTokenResponse:
+) -> ApiResponse[ConsumeTokenResponse]:
     """Consume magic link and complete login."""
     client_ip = _get_request_ip(request)
     user_agent = _get_user_agent(request)
@@ -136,12 +137,12 @@ async def consume_magic_link(
     )
     user, access_token, refresh_payload = await handler.handle(command)
 
-    expires_at = datetime.now() + timedelta(
+    expires_at = datetime.now(UTC) + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
     _set_refresh_cookie(response, refresh_payload.token, refresh_payload.expires_at)
 
-    return ConsumeTokenResponse(
+    response_body = ConsumeTokenResponse(
         session=SessionResponse(
             user_id=user.id,
             email=user.email,
@@ -149,11 +150,12 @@ async def consume_magic_link(
             expires_at=expires_at,
         )
     )
+    return ApiResponse.success(data=response_body)
 
 
 @router.post(
     "/auth/refresh",
-    response_model=RefreshSessionResponse,
+    response_model=ApiResponse[RefreshSessionResponse],
     status_code=status.HTTP_200_OK,
     summary="刷新登录会话",
     description="使用 refresh cookie 刷新访问令牌",
@@ -162,7 +164,7 @@ async def refresh_session(
     request: Request,
     response: Response,
     handler: RefreshSessionHandler = Depends(get_refresh_session_handler),
-) -> RefreshSessionResponse:
+) -> ApiResponse[RefreshSessionResponse]:
     """Refresh login session."""
     refresh_token = request.cookies.get(settings.REFRESH_COOKIE_NAME)
     if not refresh_token:
@@ -175,19 +177,20 @@ async def refresh_session(
     )
     access_token, refresh_payload = await handler.handle(command)
 
-    expires_at = datetime.now() + timedelta(
+    expires_at = datetime.now(UTC) + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
     _set_refresh_cookie(response, refresh_payload.token, refresh_payload.expires_at)
-    return RefreshSessionResponse(
+    response_body = RefreshSessionResponse(
         access_token=access_token,
         expires_at=expires_at,
     )
+    return ApiResponse.success(data=response_body)
 
 
 @router.post(
     "/auth/logout",
-    response_model=LogoutResponse,
+    response_model=ApiResponse[LogoutResponse],
     status_code=status.HTTP_200_OK,
     summary="退出登录",
     description="撤销 refresh 会话并清除登录状态",
@@ -196,7 +199,7 @@ async def logout(
     request: Request,
     response: Response,
     handler: RevokeSessionHandler = Depends(get_revoke_session_handler),
-) -> LogoutResponse:
+) -> ApiResponse[LogoutResponse]:
     """Logout current session."""
     refresh_token = request.cookies.get(settings.REFRESH_COOKIE_NAME)
     if refresh_token:
@@ -204,7 +207,8 @@ async def logout(
         await handler.handle(command)
 
     _clear_refresh_cookie(response)
-    return LogoutResponse()
+    response_body = LogoutResponse()
+    return ApiResponse.success(data=response_body, message=response_body.message)
 
 
 @router.get(

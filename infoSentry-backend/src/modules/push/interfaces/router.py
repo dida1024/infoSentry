@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import RedirectResponse
 
 from src.core.application.security import get_current_user_id
+from src.core.interfaces.http.response import ApiResponse
 from src.modules.push.application.dependencies import get_notification_service
 from src.modules.push.application.services import NotificationService
 from src.modules.push.interfaces.schemas import (
@@ -18,7 +19,7 @@ router = APIRouter(tags=["notifications"])
 
 @router.get(
     "/notifications",
-    response_model=NotificationListResponse,
+    response_model=ApiResponse[NotificationListResponse],
     summary="获取通知列表",
     description="获取推送通知列表，支持分页和过滤",
 )
@@ -30,7 +31,7 @@ async def list_notifications(
     ),
     user_id: str = Depends(get_current_user_id),
     service: NotificationService = Depends(get_notification_service),
-) -> NotificationListResponse:
+) -> ApiResponse[NotificationListResponse]:
     """List notifications for user."""
     result = await service.list_notifications(
         user_id=user_id,
@@ -39,13 +40,14 @@ async def list_notifications(
         notification_status=notification_status,
     )
 
-    return NotificationListResponse(
+    response = NotificationListResponse(
         notifications=[
             NotificationResponse(**n.model_dump()) for n in result.notifications
         ],
         next_cursor=result.next_cursor,
         has_more=result.has_more,
     )
+    return ApiResponse.success(data=response)
 
 
 @router.post(
@@ -66,7 +68,7 @@ async def mark_notification_read(
 
 @router.post(
     "/items/{item_id}/feedback",
-    response_model=FeedbackResponse,
+    response_model=ApiResponse[FeedbackResponse],
     summary="提交反馈",
     description="对条目提交反馈（like/dislike）",
 )
@@ -75,7 +77,7 @@ async def submit_feedback(
     request: FeedbackRequest,
     user_id: str = Depends(get_current_user_id),
     service: NotificationService = Depends(get_notification_service),
-) -> FeedbackResponse:
+) -> ApiResponse[FeedbackResponse]:
     """Submit feedback for an item."""
     feedback_id = await service.submit_feedback(
         item_id=item_id,
@@ -84,7 +86,7 @@ async def submit_feedback(
         block_source=request.block_source,
         user_id=user_id,
     )
-    return FeedbackResponse(feedback_id=feedback_id)
+    return ApiResponse.success(data=FeedbackResponse(feedback_id=feedback_id))
 
 
 @router.get(

@@ -4,6 +4,22 @@
 
 ---
 
+## 0. Success Response Envelope
+
+实际实现中，成功响应统一包裹为：
+
+```json
+{
+  "code": 200,
+  "message": "Operation successful",
+  "data": { ... },
+  "meta": { ... }
+}
+```
+
+为便于阅读，本文档中的成功响应示例默认展示 `data` 内容（除非特别说明）。
+重定向（如 `/r/{item_id}`）与 `204 No Content` 响应不适用。
+
 ## 1. Auth
 
 ### POST /api/auth/request_link

@@ -2,7 +2,7 @@
  * 认证 API
  */
 import { api } from "./client";
-import type { User } from "@/types";
+import type { ApiResponse, User } from "@/types";
 
 export interface RequestMagicLinkRequest {
   email: string;
@@ -45,19 +45,28 @@ export const authApi = {
   /**
    * 请求发送 Magic Link
    */
-  requestMagicLink: (data: RequestMagicLinkRequest) =>
-    api.post<RequestMagicLinkResponse>("/auth/request_link", data),
+  requestMagicLink: async (
+    data: RequestMagicLinkRequest
+  ): Promise<RequestMagicLinkResponse> => {
+    const response = await api.post<ApiResponse<RequestMagicLinkResponse>>(
+      "/auth/request_link",
+      data
+    );
+    return response.data;
+  },
 
   /**
    * 消费 Magic Link Token
    */
   consumeMagicLink: async (token: string): Promise<ConsumeMagicLinkResponse> => {
-    const response = await api.get<ConsumeMagicLinkApiResponse>(`/auth/consume?token=${token}`);
+    const response = await api.get<ApiResponse<ConsumeMagicLinkApiResponse>>(
+      `/auth/consume?token=${token}`
+    );
     return {
-      access_token: response.session.access_token,
+      access_token: response.data.session.access_token,
       user: {
-        id: response.session.user_id,
-        email: response.session.email,
+        id: response.data.session.user_id,
+        email: response.data.session.email,
       },
     };
   },
@@ -76,18 +85,30 @@ export const authApi = {
   /**
    * 刷新登录会话
    */
-  refreshSession: async (): Promise<RefreshSessionResponse> =>
-    api.post<RefreshSessionResponse>("/auth/refresh", undefined, {
-      skipAuthRedirect: true,
-      skipAuthClear: true,
-    }),
+  refreshSession: async (): Promise<RefreshSessionResponse> => {
+    const response = await api.post<ApiResponse<RefreshSessionResponse>>(
+      "/auth/refresh",
+      undefined,
+      {
+        skipAuthRedirect: true,
+        skipAuthClear: true,
+      }
+    );
+    return response.data;
+  },
 
   /**
    * 退出登录
    */
-  logout: async (): Promise<LogoutResponse> =>
-    api.post<LogoutResponse>("/auth/logout", undefined, {
-      skipAuthRedirect: true,
-    }),
+  logout: async (): Promise<LogoutResponse> => {
+    const response = await api.post<ApiResponse<LogoutResponse>>(
+      "/auth/logout",
+      undefined,
+      {
+        skipAuthRedirect: true,
+      }
+    );
+    return response.data;
+  },
 };
 

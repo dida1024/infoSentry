@@ -2,7 +2,7 @@
  * Notifications API
  */
 import { api } from "./client";
-import type { PaginatedResponse, ItemFeedback, PushDecision, Item, Goal } from "@/types";
+import type { ApiResponse, PaginatedResponse, PushDecision, Item, Goal } from "@/types";
 
 export interface FeedbackRequest {
   goal_id: string;
@@ -44,10 +44,15 @@ interface NotificationItem {
 }
 
 // 后端返回的通知列表响应格式
-interface NotificationListApiResponse {
+interface NotificationListPayload {
   notifications: NotificationItem[];
   next_cursor?: string;
   has_more: boolean;
+}
+
+interface FeedbackResponse {
+  ok: boolean;
+  feedback_id: string;
 }
 
 // 转换为前端 Notification 类型
@@ -66,10 +71,14 @@ export const notificationsApi = {
     page?: number;
     page_size?: number;
   }): Promise<PaginatedResponse<Notification>> => {
-    const response = await api.get<NotificationListApiResponse>("/notifications", { params });
+    const response = await api.get<ApiResponse<NotificationListPayload>>(
+      "/notifications",
+      { params }
+    );
+    const payload = response.data;
     
     // 转换为前端期望的格式
-    const items: Notification[] = response.notifications.map((n) => ({
+    const items: Notification[] = payload.notifications.map((n) => ({
       id: n.id,
       goal_id: n.goal_id,
       item_id: n.item_id,
@@ -103,7 +112,7 @@ export const notificationsApi = {
       total: items.length,
       page: params?.page || 1,
       page_size: params?.page_size || 20,
-      total_pages: response.has_more ? (params?.page || 1) + 1 : params?.page || 1,
+      total_pages: payload.has_more ? (params?.page || 1) + 1 : params?.page || 1,
     };
   },
 
@@ -122,7 +131,15 @@ export const notificationsApi = {
   /**
    * 提交反馈
    */
-  submitFeedback: (itemId: string, data: FeedbackRequest) =>
-    api.post<ItemFeedback>(`/items/${itemId}/feedback`, data),
+  submitFeedback: async (
+    itemId: string,
+    data: FeedbackRequest
+  ): Promise<FeedbackResponse> => {
+    const response = await api.post<ApiResponse<FeedbackResponse>>(
+      `/items/${itemId}/feedback`,
+      data
+    );
+    return response.data;
+  },
 };
 

@@ -126,12 +126,22 @@ export const goalsApi = {
   /**
    * 暂停 Goal
    */
-  pause: (id: string) => api.post<GoalStatusResponse>(`/goals/${id}/pause`),
+  pause: async (id: string): Promise<GoalStatusResponse> => {
+    const response = await api.post<ApiWrapper<GoalStatusResponse>>(
+      `/goals/${id}/pause`
+    );
+    return response.data;
+  },
 
   /**
    * 恢复 Goal
    */
-  resume: (id: string) => api.post<GoalStatusResponse>(`/goals/${id}/resume`),
+  resume: async (id: string): Promise<GoalStatusResponse> => {
+    const response = await api.post<ApiWrapper<GoalStatusResponse>>(
+      `/goals/${id}/resume`
+    );
+    return response.data;
+  },
 
   /**
    * 获取 Goal 的匹配 Items
