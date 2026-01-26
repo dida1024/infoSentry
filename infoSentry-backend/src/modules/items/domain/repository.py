@@ -85,6 +85,7 @@ class GoalItemMatchRepository(BaseRepository[GoalItemMatch]):
         self,
         goal_id: str,
         min_score: float | None = None,
+        since: datetime | None = None,
         page: int = 1,
         page_size: int = 50,
     ) -> tuple[list[GoalItemMatch], int]:
@@ -102,25 +103,12 @@ class GoalItemMatchRepository(BaseRepository[GoalItemMatch]):
         pass
 
     @abstractmethod
-    async def list_unsent_matches(
+    async def list_top_by_goal(
         self,
         goal_id: str,
-        min_score: float = 0.0,
+        min_score: float,
         since: datetime | None = None,
-        limit: int = 20,
-        include_sent: bool = False,
-    ) -> list[tuple[GoalItemMatch, str | None]]:
-        """List matches without SENT push_decision.
-
-        Args:
-            goal_id: Goal ID to filter by
-            min_score: Minimum match score
-            since: Only include matches computed since this time
-            limit: Maximum number of results
-            include_sent: If True, also include items with SENT status
-
-        Returns:
-            List of (GoalItemMatch, existing_decision_id) tuples.
-            decision_id is None if no push_decision exists for that item.
-        """
+        limit: int = 10,
+    ) -> list[GoalItemMatch]:
+        """List top matching items for a goal."""
         pass

@@ -29,6 +29,12 @@ from src.modules.goals.interfaces.schemas import (
 )
 from src.modules.items.domain.entities import GoalItemMatch
 from src.modules.push.application.email_service import EmailResult
+from src.modules.push.domain.entities import (
+    PushChannel,
+    PushDecision,
+    PushDecisionRecord,
+    PushStatus,
+)
 
 pytestmark = pytest.mark.anyio
 
@@ -105,6 +111,23 @@ def _make_goal_item_match(
         features_json={"cosine_similarity": score},
         reasons_json={"summary": f"匹配分数: {score:.2f}"},
         computed_at=datetime.now(UTC),
+    )
+
+
+def _make_push_decision(
+    goal_id: str,
+    item_id: str,
+    status: PushStatus,
+) -> PushDecisionRecord:
+    """创建 PushDecisionRecord 实体。"""
+    return PushDecisionRecord(
+        goal_id=goal_id,
+        item_id=item_id,
+        decision=PushDecision.IMMEDIATE,
+        status=status,
+        channel=PushChannel.EMAIL,
+        reason_json={"test": True},
+        decided_at=datetime.now(UTC),
     )
 
 
@@ -317,7 +340,7 @@ class TestGoalSendEmailService:
 
         mocks["goal_repo"].get_by_id = AsyncMock(return_value=goal)
         mocks["user_repo"].get_by_id = AsyncMock(return_value=user)
-        mocks["match_repo"].list_unsent_matches = AsyncMock(
+        service._list_matches_with_decisions = AsyncMock(
             return_value=[(match, None)]  # 没有现有决策
         )
         mocks["item_repo"].get_by_id = AsyncMock(return_value=item)
@@ -413,7 +436,7 @@ class TestGoalSendEmailService:
         mocks["goal_repo"].get_by_id = AsyncMock(return_value=goal)
         mocks["redis"].get_rate_limit_count = AsyncMock(return_value=0)
         mocks["user_repo"].get_by_id = AsyncMock(return_value=user)
-        mocks["match_repo"].list_unsent_matches = AsyncMock(return_value=[])
+        service._list_matches_with_decisions = AsyncMock(return_value=[])
 
         with pytest.raises(NoItemsToSendError):
             await service.send_immediately(
@@ -434,9 +457,7 @@ class TestGoalSendEmailService:
 
         mocks["goal_repo"].get_by_id = AsyncMock(return_value=goal)
         mocks["user_repo"].get_by_id = AsyncMock(return_value=user)
-        mocks["match_repo"].list_unsent_matches = AsyncMock(
-            return_value=[(match, None)]
-        )
+        service._list_matches_with_decisions = AsyncMock(return_value=[(match, None)])
         mocks["item_repo"].get_by_id = AsyncMock(return_value=item)
         mocks["source_repo"].get_by_id = AsyncMock(return_value=source)
         # Dry run 不检查速率限制
@@ -477,9 +498,7 @@ class TestGoalSendEmailService:
 
         mocks["goal_repo"].get_by_id = AsyncMock(return_value=goal)
         mocks["user_repo"].get_by_id = AsyncMock(return_value=user)
-        mocks["match_repo"].list_unsent_matches = AsyncMock(
-            return_value=[(match, None)]
-        )
+        service._list_matches_with_decisions = AsyncMock(return_value=[(match, None)])
         mocks["item_repo"].get_by_id = AsyncMock(return_value=item)
         mocks["source_repo"].get_by_id = AsyncMock(return_value=source)
         mocks["redis"].get_rate_limit_count = AsyncMock(return_value=0)
@@ -504,9 +523,7 @@ class TestGoalSendEmailService:
 
         mocks["goal_repo"].get_by_id = AsyncMock(return_value=goal)
         mocks["user_repo"].get_by_id = AsyncMock(return_value=user)
-        mocks["match_repo"].list_unsent_matches = AsyncMock(
-            return_value=[(match, None)]
-        )
+        service._list_matches_with_decisions = AsyncMock(return_value=[(match, None)])
         mocks["item_repo"].get_by_id = AsyncMock(return_value=item)
         mocks["source_repo"].get_by_id = AsyncMock(return_value=source)
         mocks["redis"].get_rate_limit_count = AsyncMock(return_value=0)
@@ -544,7 +561,7 @@ class TestGoalSendEmailService:
         mocks["goal_repo"].get_by_id = AsyncMock(return_value=goal)
         mocks["user_repo"].get_by_id = AsyncMock(return_value=user)
         # 有现有决策 ID
-        mocks["match_repo"].list_unsent_matches = AsyncMock(
+        service._list_matches_with_decisions = AsyncMock(
             return_value=[(match, "existing-decision-id")]
         )
         mocks["item_repo"].get_by_id = AsyncMock(return_value=item)
@@ -584,7 +601,7 @@ class TestGoalSendEmailService:
 
         mocks["goal_repo"].get_by_id = AsyncMock(return_value=goal)
         mocks["user_repo"].get_by_id = AsyncMock(return_value=user)
-        mocks["match_repo"].list_unsent_matches = AsyncMock(return_value=matches)
+        service._list_matches_with_decisions = AsyncMock(return_value=matches)
         mocks["item_repo"].get_by_id = AsyncMock(side_effect=lambda id: items.get(id))
         mocks["source_repo"].get_by_id = AsyncMock(return_value=source)
         mocks["redis"].get_rate_limit_count = AsyncMock(return_value=0)
@@ -620,9 +637,7 @@ class TestGoalSendEmailService:
 
         mocks["goal_repo"].get_by_id = AsyncMock(return_value=goal)
         mocks["user_repo"].get_by_id = AsyncMock(return_value=user)
-        mocks["match_repo"].list_unsent_matches = AsyncMock(
-            return_value=[(match, None)]
-        )
+        service._list_matches_with_decisions = AsyncMock(return_value=[(match, None)])
         mocks["item_repo"].get_by_id = AsyncMock(return_value=item)
         mocks["source_repo"].get_by_id = AsyncMock(return_value=source)
         mocks["redis"].get_rate_limit_count = AsyncMock(return_value=0)
@@ -646,7 +661,7 @@ class TestGoalSendEmailService:
         )
 
         # 验证过滤参数传递
-        mocks["match_repo"].list_unsent_matches.assert_called_once_with(
+        service._list_matches_with_decisions.assert_called_once_with(
             goal_id="goal-1",
             min_score=0.7,
             since=since,
@@ -654,6 +669,96 @@ class TestGoalSendEmailService:
             include_sent=True,
         )
         mocks["redis"].rate_limit_check.assert_called_once()
+
+    async def test_list_matches_with_decisions_excludes_sent(self) -> None:
+        """测试默认排除已 SENT 决策。"""
+        service, mocks = _create_service_with_mocks()
+
+        match_sent = _make_goal_item_match(item_id="item-sent")
+        match_pending = _make_goal_item_match(item_id="item-pending")
+        match_none = _make_goal_item_match(item_id="item-none")
+        matches = [match_sent, match_pending, match_none]
+
+        mocks["match_repo"].list_by_goal = AsyncMock(
+            return_value=(matches, len(matches))
+        )
+        decision_sent = _make_push_decision(
+            goal_id="goal-1",
+            item_id="item-sent",
+            status=PushStatus.SENT,
+        )
+        decision_pending = _make_push_decision(
+            goal_id="goal-1",
+            item_id="item-pending",
+            status=PushStatus.PENDING,
+        )
+        mocks["decision_repo"].list_by_goal_and_item_ids = AsyncMock(
+            return_value=[decision_sent, decision_pending]
+        )
+
+        result = await service._list_matches_with_decisions(
+            goal_id="goal-1",
+            min_score=0.0,
+            since=None,
+            limit=10,
+            include_sent=False,
+        )
+
+        assert result == [
+            (match_pending, decision_pending.id),
+            (match_none, None),
+        ]
+        mocks["match_repo"].list_by_goal.assert_called_once_with(
+            goal_id="goal-1",
+            min_score=0.0,
+            since=None,
+            page=1,
+            page_size=20,
+        )
+        mocks["decision_repo"].list_by_goal_and_item_ids.assert_called_once_with(
+            goal_id="goal-1",
+            item_ids=["item-sent", "item-pending", "item-none"],
+        )
+
+    async def test_list_matches_with_decisions_include_sent(self) -> None:
+        """测试 include_sent=True 返回全部决策。"""
+        service, mocks = _create_service_with_mocks()
+
+        match_sent = _make_goal_item_match(item_id="item-sent")
+        match_pending = _make_goal_item_match(item_id="item-pending")
+        match_none = _make_goal_item_match(item_id="item-none")
+        matches = [match_sent, match_pending, match_none]
+
+        mocks["match_repo"].list_by_goal = AsyncMock(
+            return_value=(matches, len(matches))
+        )
+        decision_sent = _make_push_decision(
+            goal_id="goal-1",
+            item_id="item-sent",
+            status=PushStatus.SENT,
+        )
+        decision_pending = _make_push_decision(
+            goal_id="goal-1",
+            item_id="item-pending",
+            status=PushStatus.PENDING,
+        )
+        mocks["decision_repo"].list_by_goal_and_item_ids = AsyncMock(
+            return_value=[decision_sent, decision_pending]
+        )
+
+        result = await service._list_matches_with_decisions(
+            goal_id="goal-1",
+            min_score=0.0,
+            since=None,
+            limit=10,
+            include_sent=True,
+        )
+
+        assert result == [
+            (match_sent, decision_sent.id),
+            (match_pending, decision_pending.id),
+            (match_none, None),
+        ]
 
 
 # ============================================
@@ -676,9 +781,7 @@ class TestSendEmailIntegrationScenarios:
 
         mocks["goal_repo"].get_by_id = AsyncMock(return_value=goal)
         mocks["user_repo"].get_by_id = AsyncMock(return_value=user)
-        mocks["match_repo"].list_unsent_matches = AsyncMock(
-            return_value=[(match, None)]
-        )
+        service._list_matches_with_decisions = AsyncMock(return_value=[(match, None)])
         mocks["item_repo"].get_by_id = AsyncMock(return_value=item)
         mocks["source_repo"].get_by_id = AsyncMock(return_value=source)
 
@@ -705,9 +808,7 @@ class TestSendEmailIntegrationScenarios:
 
         mocks["goal_repo"].get_by_id = AsyncMock(return_value=goal)
         mocks["user_repo"].get_by_id = AsyncMock(return_value=user)
-        mocks["match_repo"].list_unsent_matches = AsyncMock(
-            return_value=[(match, None)]
-        )
+        service._list_matches_with_decisions = AsyncMock(return_value=[(match, None)])
         mocks["item_repo"].get_by_id = AsyncMock(return_value=item)
         mocks["source_repo"].get_by_id = AsyncMock(return_value=source)
 

@@ -144,6 +144,29 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
 
         return [self.mapper.to_entity(m) for m in models], total
 
+    async def list_by_goal_and_item_ids(
+        self,
+        goal_id: str,
+        item_ids: list[str],
+    ) -> list[PushDecisionRecord]:
+        """List decisions by goal and item IDs."""
+        if not item_ids:
+            return []
+
+        stmt = (
+            select(PushDecisionModel)
+            .where(
+                and_(
+                    PushDecisionModel.goal_id == goal_id,
+                    PushDecisionModel.item_id.in_(item_ids),
+                )
+            )
+            .order_by(PushDecisionModel.decided_at.desc())
+        )
+        result = await self.session.execute(stmt)
+        models = result.scalars().all()
+        return [self.mapper.to_entity(m) for m in models]
+
     async def list_pending_batch(
         self,
         goal_id: str,

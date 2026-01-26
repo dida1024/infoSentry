@@ -35,6 +35,15 @@ class PushDecisionRepository(BaseRepository[PushDecisionRecord]):
         pass
 
     @abstractmethod
+    async def list_by_goal_and_item_ids(
+        self,
+        goal_id: str,
+        item_ids: list[str],
+    ) -> list[PushDecisionRecord]:
+        """List decisions by goal and item IDs."""
+        pass
+
+    @abstractmethod
     async def list_pending_batch(
         self,
         goal_id: str,

@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from loguru import logger
-from sqlalchemy import func, or_, text
+from sqlalchemy import func, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
@@ -14,8 +14,6 @@ from src.modules.items.domain.entities import EmbeddingStatus, GoalItemMatch, It
 from src.modules.items.domain.repository import GoalItemMatchRepository, ItemRepository
 from src.modules.items.infrastructure.mappers import GoalItemMatchMapper, ItemMapper
 from src.modules.items.infrastructure.models import GoalItemMatchModel, ItemModel
-from src.modules.push.domain.entities import PushStatus
-from src.modules.push.infrastructure.models import PushDecisionModel
 
 
 class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
@@ -329,6 +327,7 @@ class PostgreSQLGoalItemMatchRepository(
         self,
         goal_id: str,
         min_score: float | None = None,
+        since: datetime | None = None,
         page: int = 1,
         page_size: int = 50,
     ) -> tuple[list[GoalItemMatch], int]:
@@ -342,6 +341,8 @@ class PostgreSQLGoalItemMatchRepository(
 
         if min_score is not None:
             statement = statement.where(GoalItemMatchModel.match_score >= min_score)
+        if since:
+            statement = statement.where(GoalItemMatchModel.computed_at >= since)
 
         statement = (
             statement.order_by(
@@ -464,63 +465,3 @@ class PostgreSQLGoalItemMatchRepository(
         result = await self.session.execute(statement)
         models = result.scalars().all()
         return self.mapper.to_domain_list(list(models))
-
-    async def list_unsent_matches(
-        self,
-        goal_id: str,
-        min_score: float = 0.0,
-        since: datetime | None = None,
-        limit: int = 20,
-        include_sent: bool = False,
-    ) -> list[tuple[GoalItemMatch, str | None]]:
-        """List matches without SENT push_decision.
-
-        Uses LEFT JOIN to get matches along with their push_decision status.
-        Filters out items that already have SENT status (unless include_sent=True).
-
-        Returns:
-            List of (GoalItemMatch, existing_decision_id) tuples.
-        """
-        # Build the LEFT JOIN query
-        statement = (
-            select(GoalItemMatchModel, PushDecisionModel.id, PushDecisionModel.status)
-            .outerjoin(
-                PushDecisionModel,
-                (GoalItemMatchModel.goal_id == PushDecisionModel.goal_id)
-                & (GoalItemMatchModel.item_id == PushDecisionModel.item_id),
-            )
-            .where(
-                GoalItemMatchModel.goal_id == goal_id,
-                GoalItemMatchModel.match_score >= min_score,
-                col(GoalItemMatchModel.is_deleted).is_(False),
-            )
-        )
-
-        if since:
-            statement = statement.where(GoalItemMatchModel.computed_at >= since)
-
-        # Filter out SENT items unless include_sent is True
-        if not include_sent:
-            statement = statement.where(
-                or_(
-                    col(PushDecisionModel.status).is_(None),
-                    PushDecisionModel.status != PushStatus.SENT,
-                )
-            )
-
-        statement = statement.order_by(
-            GoalItemMatchModel.match_score.desc(),
-            GoalItemMatchModel.computed_at.desc(),
-        ).limit(limit)
-
-        result = await self.session.execute(statement)
-        rows = result.all()
-
-        matches_with_decisions: list[tuple[GoalItemMatch, str | None]] = []
-        for row in rows:
-            match_model = row[0]
-            decision_id = row[1]  # Could be None if no decision exists
-            match_entity = self.mapper.to_domain(match_model)
-            matches_with_decisions.append((match_entity, decision_id))
-
-        return matches_with_decisions

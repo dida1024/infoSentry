@@ -158,11 +158,11 @@ class GoalSendEmailService:
         if not user or not user.email:
             raise UserNoEmailError("User has no email configured")
 
-        # 4. Query unsent matches
+        # 4. Query matches and existing decisions
         since = since or (
             datetime.now(UTC) - timedelta(hours=self.DEFAULT_LOOKBACK_HOURS)
         )
-        matches_with_decisions = await self.match_repo.list_unsent_matches(
+        matches_with_decisions = await self._list_matches_with_decisions(
             goal_id=goal_id,
             min_score=min_score,
             since=since,
@@ -324,6 +324,73 @@ class GoalSendEmailService:
             )
 
         return email_items
+
+    async def _list_matches_with_decisions(
+        self,
+        goal_id: str,
+        min_score: float,
+        since: datetime | None,
+        limit: int,
+        include_sent: bool,
+    ) -> list[tuple[GoalItemMatch, str | None]]:
+        """Collect matches and attach existing decision IDs."""
+        page = 1
+        page_size = max(limit * 2, limit)
+        matches_with_decisions: list[tuple[GoalItemMatch, str | None]] = []
+
+        while len(matches_with_decisions) < limit:
+            matches, _ = await self.match_repo.list_by_goal(
+                goal_id=goal_id,
+                min_score=min_score,
+                since=since,
+                page=page,
+                page_size=page_size,
+            )
+            if not matches:
+                break
+
+            decisions = await self.decision_repo.list_by_goal_and_item_ids(
+                goal_id=goal_id,
+                item_ids=[match.item_id for match in matches],
+            )
+            decisions_by_item: dict[str, list[PushDecisionRecord]] = {}
+            for decision in decisions:
+                decisions_by_item.setdefault(decision.item_id, []).append(decision)
+
+            for decision_list in decisions_by_item.values():
+                decision_list.sort(key=lambda d: d.decided_at, reverse=True)
+
+            for match in matches:
+                decisions_for_item = decisions_by_item.get(match.item_id, [])
+                if include_sent:
+                    if decisions_for_item:
+                        for decision in decisions_for_item:
+                            matches_with_decisions.append((match, decision.id))
+                    else:
+                        matches_with_decisions.append((match, None))
+                else:
+                    if not decisions_for_item:
+                        matches_with_decisions.append((match, None))
+                    else:
+                        unsent_decisions = [
+                            decision
+                            for decision in decisions_for_item
+                            if decision.status != PushStatus.SENT
+                        ]
+                        if not unsent_decisions:
+                            continue
+                        for decision in unsent_decisions:
+                            matches_with_decisions.append((match, decision.id))
+
+                if len(matches_with_decisions) >= limit:
+                    break
+
+            if len(matches) < page_size:
+                break
+
+            page += 1
+
+        return matches_with_decisions[:limit]
 
     async def _update_push_decisions(
         self,
