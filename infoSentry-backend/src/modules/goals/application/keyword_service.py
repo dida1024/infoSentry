@@ -20,6 +20,12 @@ from src.core.config import settings
 from src.core.domain.ports.prompt_store import PromptStore
 
 
+class KeywordSuggestionError(Exception):
+    """Error raised when keyword suggestion fails unexpectedly."""
+
+    pass
+
+
 class KeywordSuggestionOutput(BaseModel):
     """关键词建议输出 Schema。"""
 
@@ -97,9 +103,14 @@ class KeywordSuggestionService:
             keywords = self._validate_output(result, max_keywords)
             return keywords
 
-        except Exception as e:
-            self._logger.exception(f"Keyword suggestion failed: {e}")
+        except (json.JSONDecodeError, ValidationError) as e:
+            # Expected errors from LLM output parsing - return empty list
+            self._logger.warning(f"Keyword suggestion output parsing failed: {e}")
             return []
+        except Exception as e:
+            # Unexpected errors - log and re-raise to avoid silent failures
+            self._logger.exception(f"Keyword suggestion failed unexpectedly: {e}")
+            raise KeywordSuggestionError(f"Keyword suggestion failed: {e}") from e
 
     def _build_messages(
         self, *, description: str, max_keywords: int
