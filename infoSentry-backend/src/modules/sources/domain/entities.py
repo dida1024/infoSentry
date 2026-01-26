@@ -1,6 +1,6 @@
 """Source domain entities."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum, StrEnum
 from typing import Any
 
@@ -70,7 +70,7 @@ class Source(AggregateRoot):
 
     def mark_fetch_success(self, items_count: int) -> None:
         """Mark a successful fetch."""
-        self.last_fetch_at = datetime.now()
+        self.last_fetch_at = datetime.now(UTC)
         self.error_streak = 0
         if items_count == 0:
             self.empty_streak += 1
@@ -81,7 +81,7 @@ class Source(AggregateRoot):
 
     def mark_fetch_error(self) -> None:
         """Mark a failed fetch."""
-        self.last_fetch_at = datetime.now()
+        self.last_fetch_at = datetime.now(UTC)
         self.error_streak += 1
         self._schedule_next_fetch_with_backoff()
         self._update_timestamp()
@@ -90,7 +90,7 @@ class Source(AggregateRoot):
         """Schedule the next fetch based on interval."""
         from datetime import timedelta
 
-        self.next_fetch_at = datetime.now() + timedelta(seconds=self.fetch_interval_sec)
+        self.next_fetch_at = datetime.now(UTC) + timedelta(seconds=self.fetch_interval_sec)
 
     def _schedule_next_fetch_with_backoff(self) -> None:
         """Schedule the next fetch with exponential backoff."""
@@ -99,7 +99,7 @@ class Source(AggregateRoot):
         # 指数退避: 2^error_streak * interval, 最大 4 小时
         backoff_multiplier = min(2**self.error_streak, 8)
         delay_seconds = min(self.fetch_interval_sec * backoff_multiplier, 14400)
-        self.next_fetch_at = datetime.now() + timedelta(seconds=delay_seconds)
+        self.next_fetch_at = datetime.now(UTC) + timedelta(seconds=delay_seconds)
 
     def update_config(self, config: dict[str, Any]) -> None:
         """Update source configuration."""

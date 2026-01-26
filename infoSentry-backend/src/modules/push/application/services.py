@@ -1,7 +1,7 @@
 """Push application services."""
 
 import base64
-from datetime import datetime
+from datetime import UTC, datetime
 
 from loguru import logger
 
@@ -258,7 +258,7 @@ class NotificationService:
                     user_id=user_id,
                     goal_id=goal_id,
                     source_id=item.source_id,
-                    blocked_at=datetime.now(),
+                    blocked_at=datetime.now(UTC),
                 )
                 await self.blocked_source_repo.create(blocked)
 
@@ -292,7 +292,7 @@ class NotificationService:
             item_id=item_id,
             goal_id=goal_id,
             channel=push_channel,
-            clicked_at=datetime.now(),
+            clicked_at=datetime.now(UTC),
             user_agent=user_agent,
             ip_address=ip_address,
         )

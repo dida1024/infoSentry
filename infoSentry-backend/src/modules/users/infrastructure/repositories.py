@@ -1,6 +1,6 @@
 """User repository implementations."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from loguru import logger
 from sqlalchemy import func
@@ -190,7 +190,7 @@ class PostgreSQLMagicLinkRepository(
         statement = select(MagicLinkModel).where(
             MagicLinkModel.email == email,
             col(MagicLinkModel.is_used).is_(False),
-            MagicLinkModel.expires_at > datetime.now(),
+            MagicLinkModel.expires_at > datetime.now(UTC),
             col(MagicLinkModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
@@ -209,7 +209,7 @@ class PostgreSQLMagicLinkRepository(
         count = 0
         for model in models:
             model.is_used = True
-            model.used_at = datetime.now()
+            model.used_at = datetime.now(UTC)
             self.session.add(model)
             count += 1
 

@@ -1,6 +1,6 @@
 """Base entity class for all domain entities."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
@@ -10,12 +10,17 @@ if TYPE_CHECKING:
     from src.core.domain.events import DomainEvent
 
 
+def _utc_now() -> datetime:
+    """Return current UTC datetime."""
+    return datetime.now(UTC)
+
+
 class BaseEntity(BaseModel):
     """Base entity class for all domain entities."""
 
     id: str = Field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=_utc_now)
+    updated_at: datetime = Field(default_factory=_utc_now)
     is_deleted: bool = Field(default=False)
 
     model_config = ConfigDict(
@@ -37,7 +42,7 @@ class BaseEntity(BaseModel):
 
     def _update_timestamp(self) -> None:
         """Update the updated_at timestamp."""
-        self.updated_at = datetime.now()
+        self.updated_at = datetime.now(UTC)
 
     def _add_domain_event(self, event: "DomainEvent") -> None:
         """Add a domain event to be published."""

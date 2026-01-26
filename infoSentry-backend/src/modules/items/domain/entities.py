@@ -1,12 +1,17 @@
 """Item domain entities."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
 from pydantic import Field
 
 from src.core.domain.aggregate_root import AggregateRoot
+
+
+def _utc_now() -> datetime:
+    """Return current UTC datetime."""
+    return datetime.now(UTC)
 
 
 class EmbeddingStatus(str, Enum):
@@ -28,7 +33,7 @@ class Item(AggregateRoot):
     snippet: str | None = Field(default=None, description="摘要片段")
     summary: str | None = Field(default=None, description="AI生成的摘要")
     published_at: datetime | None = Field(default=None, description="发布时间")
-    ingested_at: datetime = Field(default_factory=datetime.now, description="入库时间")
+    ingested_at: datetime = Field(default_factory=_utc_now, description="入库时间")
 
     # Embedding
     embedding: list[float] | None = Field(default=None, description="向量嵌入")
@@ -71,7 +76,7 @@ class GoalItemMatch(AggregateRoot):
     match_score: float = Field(..., ge=0, le=1, description="匹配分数")
     features_json: dict[str, Any] = Field(default_factory=dict, description="特征值")
     reasons_json: dict[str, Any] = Field(default_factory=dict, description="匹配原因")
-    computed_at: datetime = Field(default_factory=datetime.now, description="计算时间")
+    computed_at: datetime = Field(default_factory=_utc_now, description="计算时间")
 
     def update_score(
         self,
@@ -83,5 +88,5 @@ class GoalItemMatch(AggregateRoot):
         self.match_score = score
         self.features_json = features
         self.reasons_json = reasons
-        self.computed_at = datetime.now()
+        self.computed_at = datetime.now(UTC)
         self._update_timestamp()

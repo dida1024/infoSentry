@@ -1,6 +1,6 @@
 """IngestLog 仓储实现。"""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +36,7 @@ class IngestLogRepository:
         log = IngestLogModel(
             source_id=result.source_id,
             started_at=started_at,
-            completed_at=datetime.now(),
+            completed_at=datetime.now(UTC),
             status=result.status,
             items_fetched=result.items_fetched,
             items_new=result.items_new,

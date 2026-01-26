@@ -1,6 +1,6 @@
 """Push PostgreSQL repository implementations."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import and_, func, or_, select
@@ -282,7 +282,7 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
         """Batch update decision status."""
         from sqlalchemy import update
 
-        values: dict[str, Any] = {"status": status, "updated_at": datetime.now()}
+        values: dict[str, Any] = {"status": status, "updated_at": datetime.now(UTC)}
         if sent_at:
             values["sent_at"] = sent_at
 
