@@ -191,6 +191,7 @@ async def _match_item_async(item_id: str) -> None:
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session
     from src.core.infrastructure.redis.client import get_async_redis_client
+    from src.modules.agent.tasks import handle_match_computed
     from src.modules.goals.infrastructure.mappers import (
         GoalMapper,
         GoalPriorityTermMapper,
@@ -199,7 +200,10 @@ async def _match_item_async(item_id: str) -> None:
         PostgreSQLGoalPriorityTermRepository,
         PostgreSQLGoalRepository,
     )
-    from src.modules.items.application.match_service import MatchService
+    from src.modules.items.application.match_service import (
+        MatchResult,
+        MatchService,
+    )
     from src.modules.items.infrastructure.mappers import GoalItemMatchMapper, ItemMapper
     from src.modules.items.infrastructure.repositories import (
         PostgreSQLGoalItemMatchRepository,
@@ -240,18 +244,28 @@ async def _match_item_async(item_id: str) -> None:
             await session.commit()
 
             # 统计结果
-            valid_matches = [r for r in results if r.is_valid and r.score > 0]
+            valid_matches: list[MatchResult] = [
+                r for r in results if r.is_valid and r.score > 0
+            ]
             logger.info(
                 f"Matched item {item_id} to {len(valid_matches)} goals "
                 f"(total: {len(results)})"
             )
 
-            # 高分匹配记录日志
+            # 高分匹配：记录日志并触发 Agent 处理
             for r in valid_matches:
                 if r.score >= settings.BATCH_THRESHOLD:
                     logger.info(
                         f"  -> goal={r.goal_id}, score={r.score:.4f}, "
                         f"reason={r.reasons.summary}"
+                    )
+
+                    # 触发 Agent 决策（Immediate 推送流程）
+                    handle_match_computed.delay(
+                        goal_id=r.goal_id,
+                        item_id=r.item_id,
+                        match_score=r.score,
+                        match_features=r.features.to_dict(),  # type: ignore[operator]
                     )
 
         except Exception as e:

@@ -1,9 +1,10 @@
 """Domain events infrastructure."""
 
+import inspect
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Protocol, TypeVar, cast
 from uuid import uuid4
 
 from loguru import logger
@@ -50,6 +51,10 @@ class EventBusProtocol(Protocol):
     async def publish_all(self, events: list[DomainEvent]) -> None: ...
 
     def clear_handlers(self) -> None: ...
+
+
+HandlerFunc = Callable[[DomainEvent], Awaitable[None] | None]
+THandlerFunc = TypeVar("THandlerFunc", bound=HandlerFunc)
 
 
 class EventBus:
@@ -131,14 +136,17 @@ def reset_global_event_bus() -> None:
     _event_bus = EventBus()
 
 
-def subscribe_to_event(event_type: type[DomainEvent]) -> Callable:
+def subscribe_to_event(
+    event_type: type[DomainEvent],
+) -> Callable[[THandlerFunc], THandlerFunc]:
     """Decorator to subscribe a function as an event handler."""
 
-    def decorator(handler_func: Callable[[DomainEvent], None]) -> Callable:
+    def decorator(handler_func: THandlerFunc) -> THandlerFunc:
         class FunctionHandler(DomainEventHandler):
             async def handle(self, event: DomainEvent) -> None:
-                if callable(handler_func):
-                    await handler_func(event)
+                result = handler_func(event)
+                if inspect.isawaitable(result):
+                    await cast(Awaitable[None], result)
 
         get_event_bus().subscribe(event_type, FunctionHandler())
         return handler_func
