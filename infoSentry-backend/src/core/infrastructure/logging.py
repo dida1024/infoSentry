@@ -136,9 +136,77 @@ class BusinessEvents:
 
         BusinessEvents.item_ingested(source_id="src_123", item_id="item_456", url="...")
         BusinessEvents.item_embedded(item_id="item_456", tokens_used=500)
+
+        # 通用事件日志
+        BusinessEvents.log_event("custom_event", event_data={"key": "value"})
     """
 
     _log = structlog.get_logger("business.events")
+
+    # ============================================================================
+    # 通用事件日志方法（供 BusinessEventLogger 端口适配器使用）
+    # ============================================================================
+
+    @classmethod
+    def log_event(
+        cls,
+        event_name: str,
+        event_data: dict[str, Any] | None = None,
+        user_id: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """记录通用业务事件。"""
+        extra = {**(event_data or {}), **kwargs}
+        if user_id:
+            extra["user_id"] = user_id
+        cls._log.info(event_name, event_type="custom", **extra)
+
+    @classmethod
+    def log_domain_event(
+        cls,
+        event: Any,  # DomainEvent，避免循环导入
+        **kwargs: Any,
+    ) -> None:
+        """记录领域事件。"""
+        event_type = getattr(event, "event_type", type(event).__name__)
+        event_id = getattr(event, "event_id", None)
+        occurred_at = getattr(event, "occurred_at", None)
+
+        cls._log.info(
+            "domain_event",
+            event_type=event_type,
+            event_id=event_id,
+            occurred_at=str(occurred_at) if occurred_at else None,
+            **kwargs,
+        )
+
+    @classmethod
+    def log_error(
+        cls,
+        error: Exception,
+        context: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """记录错误事件。"""
+        extra = {**(context or {}), **kwargs}
+        cls._log.error(
+            "error_occurred",
+            event_type="error",
+            error_type=type(error).__name__,
+            error_message=str(error),
+            **extra,
+        )
+
+    @classmethod
+    def log_warning(
+        cls,
+        message: str,
+        context: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """记录警告事件。"""
+        extra = {**(context or {}), **kwargs}
+        cls._log.warning(message, event_type="warning", **extra)
 
     @classmethod
     def item_ingested(

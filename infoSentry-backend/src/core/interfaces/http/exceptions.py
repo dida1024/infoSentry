@@ -1,27 +1,14 @@
-"""HTTP exception handlers."""
+"""HTTP exception handlers.
+
+提供统一的异常处理机制，将领域异常转换为标准 HTTP 响应。
+各模块的异常类通过定义 http_status_code 和 error_code 类属性来自定义响应。
+"""
 
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from loguru import logger
 
-from src.core.domain.exceptions import (
-    AuthorizationError,
-    BudgetExceededError,
-    DomainException,
-    DuplicateEntityError,
-    EntityNotFoundError,
-    ValidationError,
-)
-from src.modules.users.domain.exceptions import (
-    DeviceSessionExpiredError,
-    DeviceSessionNotFoundError,
-    DeviceSessionRevokedError,
-    DeviceSessionRiskBlockedError,
-    InvalidMagicLinkError,
-    MagicLinkAlreadyUsedError,
-    MagicLinkExpiredError,
-    RefreshTokenMissingError,
-)
+from src.core.domain.exceptions import DomainException
 
 
 class BizException(Exception):
@@ -55,49 +42,14 @@ async def biz_exception_handler(_request: Request, exc: BizException) -> JSONRes
 async def domain_exception_handler(
     _request: Request, exc: DomainException
 ) -> JSONResponse:
-    """Handle domain exceptions."""
-    status_code = status.HTTP_400_BAD_REQUEST
-    error_code = "DOMAIN_ERROR"
+    """Handle domain exceptions.
 
-    if isinstance(exc, EntityNotFoundError):
-        status_code = status.HTTP_404_NOT_FOUND
-        error_code = "NOT_FOUND"
-    elif isinstance(exc, DuplicateEntityError):
-        status_code = status.HTTP_409_CONFLICT
-        error_code = "DUPLICATE_ENTITY"
-    elif isinstance(exc, ValidationError):
-        status_code = status.HTTP_400_BAD_REQUEST
-        error_code = "VALIDATION_ERROR"
-    elif isinstance(exc, AuthorizationError):
-        status_code = status.HTTP_403_FORBIDDEN
-        error_code = "FORBIDDEN"
-    elif isinstance(exc, BudgetExceededError):
-        status_code = status.HTTP_429_TOO_MANY_REQUESTS
-        error_code = "BUDGET_EXCEEDED"
-    elif isinstance(exc, InvalidMagicLinkError):
-        status_code = status.HTTP_400_BAD_REQUEST
-        error_code = "INVALID_MAGIC_LINK"
-    elif isinstance(exc, MagicLinkAlreadyUsedError):
-        status_code = status.HTTP_400_BAD_REQUEST
-        error_code = "MAGIC_LINK_ALREADY_USED"
-    elif isinstance(exc, MagicLinkExpiredError):
-        status_code = status.HTTP_400_BAD_REQUEST
-        error_code = "MAGIC_LINK_EXPIRED"
-    elif isinstance(exc, RefreshTokenMissingError):
-        status_code = status.HTTP_401_UNAUTHORIZED
-        error_code = "REFRESH_TOKEN_MISSING"
-    elif isinstance(exc, DeviceSessionNotFoundError):
-        status_code = status.HTTP_401_UNAUTHORIZED
-        error_code = "DEVICE_SESSION_NOT_FOUND"
-    elif isinstance(exc, DeviceSessionExpiredError):
-        status_code = status.HTTP_401_UNAUTHORIZED
-        error_code = "DEVICE_SESSION_EXPIRED"
-    elif isinstance(exc, DeviceSessionRevokedError):
-        status_code = status.HTTP_401_UNAUTHORIZED
-        error_code = "DEVICE_SESSION_REVOKED"
-    elif isinstance(exc, DeviceSessionRiskBlockedError):
-        status_code = status.HTTP_401_UNAUTHORIZED
-        error_code = "DEVICE_SESSION_RISK"
+    通过读取异常类的 http_status_code 和 error_code 类属性来确定响应。
+    这样各模块可以定义自己的异常类而不需要修改 core 层代码。
+    """
+    # 从异常类获取 HTTP 状态码和错误代码
+    status_code = getattr(exc, "http_status_code", 400)
+    error_code = getattr(exc, "error_code", "DOMAIN_ERROR")
 
     return JSONResponse(
         status_code=status_code,

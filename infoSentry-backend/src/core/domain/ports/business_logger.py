@@ -15,7 +15,7 @@ class BusinessEventLogger(ABC):
         event_name: str,
         event_data: dict[str, Any] | None = None,
         user_id: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Log a business event."""
         pass
@@ -24,7 +24,7 @@ class BusinessEventLogger(ABC):
     async def log_domain_event(
         self,
         event: DomainEvent,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Log a domain event."""
         pass
@@ -34,7 +34,7 @@ class BusinessEventLogger(ABC):
         self,
         error: Exception,
         context: dict[str, Any] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Log an error with context."""
         pass
@@ -44,7 +44,7 @@ class BusinessEventLogger(ABC):
         self,
         message: str,
         context: dict[str, Any] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Log a warning with context."""
         pass
