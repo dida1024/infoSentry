@@ -156,7 +156,7 @@ async def create_source(
     """Create a new source."""
     command = CreateSourceCommand(
         user_id=user_id,
-        type=request.type.value,
+        type=request.type,
         name=request.name,
         is_private=request.is_private,
         config=request.config,

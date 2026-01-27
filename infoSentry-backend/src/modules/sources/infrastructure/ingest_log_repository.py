@@ -72,13 +72,13 @@ class IngestLogRepository:
         statement = (
             select(
                 IngestLogModel,
-                func.count(IngestLogModel.id).over().label("total_count"),
+                func.count(col(IngestLogModel.id)).over().label("total_count"),
             )
             .where(
                 IngestLogModel.source_id == source_id,
                 col(IngestLogModel.is_deleted).is_(False),
             )
-            .order_by(IngestLogModel.started_at.desc())
+            .order_by(col(IngestLogModel.started_at).desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -104,7 +104,7 @@ class IngestLogRepository:
                 IngestLogModel.status == IngestStatus.FAILED,
                 col(IngestLogModel.is_deleted).is_(False),
             )
-            .order_by(IngestLogModel.started_at.desc())
+            .order_by(col(IngestLogModel.started_at).desc())
             .limit(limit)
         )
 
@@ -118,10 +118,10 @@ class IngestLogRepository:
     ) -> dict:
         """获取源的统计信息。"""
         statement = select(
-            func.count(IngestLogModel.id).label("total_runs"),
-            func.sum(IngestLogModel.items_fetched).label("total_fetched"),
-            func.sum(IngestLogModel.items_new).label("total_new"),
-            func.avg(IngestLogModel.duration_ms).label("avg_duration_ms"),
+            func.count(col(IngestLogModel.id)).label("total_runs"),
+            func.sum(col(IngestLogModel.items_fetched)).label("total_fetched"),
+            func.sum(col(IngestLogModel.items_new)).label("total_new"),
+            func.avg(col(IngestLogModel.duration_ms)).label("avg_duration_ms"),
         ).where(
             IngestLogModel.source_id == source_id,
             col(IngestLogModel.is_deleted).is_(False),
@@ -146,7 +146,7 @@ class IngestLogRepository:
         since: datetime,
     ) -> int:
         """统计某个时间以来的错误次数。"""
-        statement = select(func.count(IngestLogModel.id)).where(
+        statement = select(func.count(col(IngestLogModel.id))).where(
             IngestLogModel.source_id == source_id,
             IngestLogModel.status == IngestStatus.FAILED,
             IngestLogModel.started_at >= since,
