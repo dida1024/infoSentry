@@ -41,6 +41,16 @@ export interface LogoutResponse {
   message: string;
 }
 
+export interface UpdateProfileRequest {
+  display_name?: string;
+  timezone?: string;
+}
+
+export interface UpdateProfileResponse {
+  ok: boolean;
+  user: User;
+}
+
 export const authApi = {
   /**
    * 请求发送 Magic Link
@@ -107,6 +117,17 @@ export const authApi = {
       {
         skipAuthRedirect: true,
       }
+    );
+    return response.data;
+  },
+
+  /**
+   * 更新用户资料
+   */
+  updateProfile: async (data: UpdateProfileRequest): Promise<User> => {
+    const response = await api.put<{ code: number; data: User }>(
+      "/users/me",
+      data
     );
     return response.data;
   },

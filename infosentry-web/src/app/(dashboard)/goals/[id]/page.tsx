@@ -2,20 +2,29 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Mail, Pencil, ThumbsUp, ThumbsDown, ExternalLink, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Mail,
+  Pencil,
+  ThumbsUp,
+  ThumbsDown,
+  ExternalLink,
+  Trash2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { PageHeader } from "@/components/layout";
+import { toast } from "sonner";
+import { PageHeader, PageShell, SectionHeader } from "@/components/layout";
 import {
   Button,
   Card,
   CardContent,
-  CardHeader,
   Badge,
   ListSkeleton,
   EmptyState,
   Alert,
 } from "@/components/ui";
 import { useGoal, useGoalMatches, useDeleteGoal } from "@/hooks/use-goals";
+import { useSubmitFeedback } from "@/hooks/use-notifications";
 import { SendGoalEmailDialog } from "./send-goal-email-dialog";
 import type { GoalItemMatch } from "@/types";
 
@@ -25,9 +34,31 @@ const statusConfig = {
   archived: { label: "已归档", variant: "default" as const },
 };
 
-function MatchItem({ match }: { match: GoalItemMatch }) {
+function MatchItem({ match, goalId }: { match: GoalItemMatch; goalId: string }) {
   const item = match.item;
+  const submitFeedback = useSubmitFeedback();
+
   if (!item) return null;
+
+  const handleFeedback = (type: "LIKE" | "DISLIKE") => {
+    submitFeedback.mutate(
+      {
+        itemId: item.id,
+        data: {
+          goal_id: goalId,
+          feedback: type,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success(type === "LIKE" ? "已标记为有帮助" : "已标记为不相关");
+        },
+        onError: () => {
+          toast.error("反馈提交失败，请重试");
+        },
+      }
+    );
+  };
 
   const reasons = match.reasons_json as {
     reason?: string;
@@ -35,7 +66,7 @@ function MatchItem({ match }: { match: GoalItemMatch }) {
   };
 
   return (
-    <div className="py-4 border-b border-gray-100 last:border-0">
+    <div className="py-4 border-b border-[var(--color-border)] last:border-0">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
@@ -43,7 +74,7 @@ function MatchItem({ match }: { match: GoalItemMatch }) {
               href={item.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm font-medium text-gray-900 hover:text-blue-600 flex items-center gap-1"
+              className="text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-accent)] flex items-center gap-1"
             >
               {item.title}
               <ExternalLink className="h-3 w-3" />
@@ -52,18 +83,18 @@ function MatchItem({ match }: { match: GoalItemMatch }) {
           </div>
 
           {item.snippet && (
-            <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+            <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2 mb-2">
               {item.snippet}
             </p>
           )}
 
           {reasons?.reason && (
-            <p className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
+            <p className="text-xs text-[var(--color-text-tertiary)] bg-[var(--color-bg-tertiary)] px-2 py-1 rounded">
               匹配原因：{reasons.reason}
             </p>
           )}
 
-          <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+          <div className="flex items-center gap-4 mt-2 text-xs text-[var(--color-text-tertiary)]">
             {item.source_name && <span>{item.source_name}</span>}
             {item.published_at && (
               <span>
@@ -75,14 +106,20 @@ function MatchItem({ match }: { match: GoalItemMatch }) {
 
         <div className="flex items-center gap-1">
           <button
-            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+            onClick={() => handleFeedback("LIKE")}
+            disabled={submitFeedback.isPending}
+            className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-success)] hover:bg-[var(--color-success-bg)] rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="喜欢"
+            aria-label="喜欢"
           >
             <ThumbsUp className="h-4 w-4" />
           </button>
           <button
-            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+            onClick={() => handleFeedback("DISLIKE")}
+            disabled={submitFeedback.isPending}
+            className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-error)] hover:bg-[var(--color-error-bg)] rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="不喜欢"
+            aria-label="不喜欢"
           >
             <ThumbsDown className="h-4 w-4" />
           </button>
@@ -113,36 +150,37 @@ export default function GoalDetailPage({
     }
     try {
       await deleteGoal.mutateAsync(id);
+      toast.success("目标已删除");
       router.push("/goals");
     } catch {
-      // Error handled by mutation
+      toast.error("删除失败，请重试");
     }
   };
 
   if (goalLoading) {
     return (
-      <div>
+      <PageShell>
         <div className="mb-6">
           <Link
             href="/goals"
-            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+            className="inline-flex items-center gap-1 text-sm text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]"
           >
             <ArrowLeft className="h-4 w-4" />
             返回目标列表
           </Link>
         </div>
         <ListSkeleton count={1} />
-      </div>
+      </PageShell>
     );
   }
 
   if (goalError || !goal) {
     return (
-      <div>
+      <PageShell>
         <div className="mb-6">
           <Link
             href="/goals"
-            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+            className="inline-flex items-center gap-1 text-sm text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]"
           >
             <ArrowLeft className="h-4 w-4" />
             返回目标列表
@@ -151,16 +189,16 @@ export default function GoalDetailPage({
         <Alert variant="error">
           加载失败：目标不存在或已被删除
         </Alert>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div>
+    <PageShell className="space-y-6">
       <div className="mb-6">
         <Link
           href="/goals"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+          className="inline-flex items-center gap-1 text-sm text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]"
         >
           <ArrowLeft className="h-4 w-4" />
           返回目标列表
@@ -202,57 +240,69 @@ export default function GoalDetailPage({
         }
       />
 
-      {/* Goal Info */}
-      <Card className="mb-6">
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <span className="text-gray-500">匹配模式</span>
-              <p className="font-medium">
-                {goal.priority_mode === "STRICT" ? "严格" : "宽松"}
-              </p>
-            </div>
-            <div>
-              <span className="text-gray-500">批量窗口</span>
-              <p className="font-medium">
-                {goal.batch_windows?.length ? goal.batch_windows.join("、") : "—"}
-              </p>
-            </div>
-            <div>
-              <span className="text-gray-500">创建时间</span>
-              <p className="font-medium">
-                {new Date(goal.created_at).toLocaleDateString("zh-CN")}
-              </p>
-            </div>
-            <div>
-              <span className="text-gray-500">更新时间</span>
-              <p className="font-medium">
-                {new Date(goal.updated_at).toLocaleDateString("zh-CN")}
-              </p>
-            </div>
-          </div>
-
-          {(priorityTerms.length > 0 || negativeTerms.length > 0) && (
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <span className="text-sm text-gray-500 block mb-2">
-                关键词
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {priorityTerms.map((term, idx) => (
-                  <Badge key={`p:${term}:${idx}`} variant="default">
-                    {term}
-                  </Badge>
-                ))}
-                {negativeTerms.map((term, idx) => (
-                  <Badge key={`n:${term}:${idx}`} variant="error">
-                    - {term}
-                  </Badge>
-                ))}
+      <section className="space-y-3">
+        <SectionHeader title="目标概览" description="关键信息与关键词" />
+        <Card>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-[var(--color-text-tertiary)]">
+                  匹配模式
+                </span>
+                <p className="font-medium">
+                  {goal.priority_mode === "STRICT" ? "严格" : "宽松"}
+                </p>
+              </div>
+              <div>
+                <span className="text-[var(--color-text-tertiary)]">
+                  批量窗口
+                </span>
+                <p className="font-medium">
+                  {goal.batch_windows?.length
+                    ? goal.batch_windows.join("、")
+                    : "—"}
+                </p>
+              </div>
+              <div>
+                <span className="text-[var(--color-text-tertiary)]">
+                  创建时间
+                </span>
+                <p className="font-medium">
+                  {new Date(goal.created_at).toLocaleDateString("zh-CN")}
+                </p>
+              </div>
+              <div>
+                <span className="text-[var(--color-text-tertiary)]">
+                  更新时间
+                </span>
+                <p className="font-medium">
+                  {new Date(goal.updated_at).toLocaleDateString("zh-CN")}
+                </p>
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            {(priorityTerms.length > 0 || negativeTerms.length > 0) && (
+              <div className="border-t border-[var(--color-border)] pt-4">
+                <span className="text-sm text-[var(--color-text-tertiary)] block mb-2">
+                  关键词
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {priorityTerms.map((term, idx) => (
+                    <Badge key={`p:${term}:${idx}`} variant="default">
+                      {term}
+                    </Badge>
+                  ))}
+                  {negativeTerms.map((term, idx) => (
+                    <Badge key={`n:${term}:${idx}`} variant="error">
+                      - {term}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
 
       {showSendDialog && (
         <SendGoalEmailDialog
@@ -261,30 +311,30 @@ export default function GoalDetailPage({
         />
       )}
 
-      {/* Matches */}
-      <Card>
-        <CardHeader>
-          <h2 className="text-base font-semibold text-gray-900">
-            高分匹配内容
-          </h2>
-        </CardHeader>
-        <CardContent>
-          {matchesLoading ? (
-            <ListSkeleton count={3} />
-          ) : !matches?.items?.length ? (
-            <EmptyState
-              title="暂无匹配内容"
-              description="系统正在持续监测，有新匹配会自动出现"
-            />
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {matches.items.map((match) => (
-                <MatchItem key={match.id} match={match} />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+      <section className="space-y-3">
+        <SectionHeader
+          title="高分匹配内容"
+          description="最新相关内容与反馈"
+        />
+        <Card>
+          <CardContent>
+            {matchesLoading ? (
+              <ListSkeleton count={3} />
+            ) : !matches?.items?.length ? (
+              <EmptyState
+                title="暂无匹配内容"
+                description="系统正在持续监测，有新匹配会自动出现"
+              />
+            ) : (
+              <div className="divide-y divide-[var(--color-border)]">
+                {matches.items.map((match) => (
+                  <MatchItem key={match.id} match={match} goalId={id} />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+    </PageShell>
   );
 }

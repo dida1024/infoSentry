@@ -2,7 +2,7 @@
  * Notifications API
  */
 import { api } from "./client";
-import type { ApiResponse, PaginatedResponse, PushDecision, Item, Goal } from "@/types";
+import type { ApiResponse, PushDecision, Item, Goal } from "@/types";
 
 export interface FeedbackRequest {
   goal_id: string;
@@ -61,22 +61,29 @@ interface Notification extends PushDecision {
   goal?: Goal;
 }
 
+// Cursor 分页响应
+export interface CursorPaginatedResponse<T> {
+  items: T[];
+  next_cursor?: string;
+  has_more: boolean;
+}
+
 export const notificationsApi = {
   /**
-   * 获取通知列表
+   * 获取通知列表（cursor 分页）
    */
   list: async (params?: {
     goal_id?: string;
     status?: string;
-    page?: number;
+    cursor?: string;
     page_size?: number;
-  }): Promise<PaginatedResponse<Notification>> => {
+  }): Promise<CursorPaginatedResponse<Notification>> => {
     const response = await api.get<ApiResponse<NotificationListPayload>>(
       "/notifications",
       { params }
     );
     const payload = response.data;
-    
+
     // 转换为前端期望的格式
     const items: Notification[] = payload.notifications.map((n) => ({
       id: n.id,
@@ -109,10 +116,8 @@ export const notificationsApi = {
 
     return {
       items,
-      total: items.length,
-      page: params?.page || 1,
-      page_size: params?.page_size || 20,
-      total_pages: payload.has_more ? (params?.page || 1) + 1 : params?.page || 1,
+      next_cursor: payload.next_cursor,
+      has_more: payload.has_more,
     };
   },
 
