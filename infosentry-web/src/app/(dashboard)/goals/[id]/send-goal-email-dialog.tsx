@@ -95,17 +95,20 @@ export function SendGoalEmailDialog({ goalId, onClose }: SendGoalEmailDialogProp
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0 bg-black/60"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      <div className="relative bg-white rounded-lg shadow-lg w-full max-w-lg mx-4">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-          <h2 className="text-base font-semibold text-gray-900">发送目标邮件</h2>
+      <div className="relative bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-lg shadow-[var(--shadow-lg)] w-full max-w-lg mx-4">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
+          <h2 className="text-base font-semibold text-[var(--color-text-primary)]">
+            发送目标邮件
+          </h2>
           <button
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600 rounded"
+            className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] rounded"
+            aria-label="关闭"
           >
             <X className="h-5 w-5" />
           </button>
@@ -130,15 +133,17 @@ export function SendGoalEmailDialog({ goalId, onClose }: SendGoalEmailDialogProp
             )}
 
             {preview?.preview && (
-              <div className="border border-gray-200 rounded-md p-3 text-sm bg-gray-50">
-                <div className="font-medium text-gray-800 mb-2">预览内容</div>
-                <div className="text-gray-700">
+              <div className="border border-[var(--color-border)] rounded-md p-3 text-sm bg-[var(--color-surface-2)]">
+                <div className="font-medium text-[var(--color-text-primary)] mb-2">
+                  预览内容
+                </div>
+                <div className="text-[var(--color-text-secondary)]">
                   主题：{preview.preview.subject}
                 </div>
-                <div className="text-gray-700">
+                <div className="text-[var(--color-text-secondary)]">
                   收件人：{preview.preview.to_email || "未配置"}
                 </div>
-                <div className="mt-2 text-gray-700">
+                <div className="mt-2 text-[var(--color-text-secondary)]">
                   {preview.preview.item_titles.length > 0 ? (
                     <ul className="list-disc pl-5 space-y-1">
                       {preview.preview.item_titles.map((title, index) => (
@@ -181,17 +186,17 @@ export function SendGoalEmailDialog({ goalId, onClose }: SendGoalEmailDialogProp
               {...register("limit", { valueAsNumber: true })}
             />
 
-            <label className="flex items-center gap-2 text-sm text-gray-700">
+            <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
               <input
                 type="checkbox"
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
                 {...register("include_sent")}
               />
               包含已发送项目
             </label>
           </div>
 
-          <div className="flex justify-between gap-3 px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+          <div className="flex justify-between gap-3 px-4 py-3 border-t border-[var(--color-border)] bg-[var(--color-surface-2)] rounded-b-lg">
             <Button variant="secondary" type="button" onClick={onClose}>
               关闭
             </Button>

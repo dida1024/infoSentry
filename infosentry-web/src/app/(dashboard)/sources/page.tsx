@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Plus,
   Play,
@@ -11,7 +11,7 @@ import {
   Search,
   MinusCircle,
 } from "lucide-react";
-import { PageHeader } from "@/components/layout";
+import { PageHeader, PageShell, SectionHeader } from "@/components/layout";
 import {
   Button,
   Card,
@@ -32,6 +32,7 @@ import {
 } from "@/hooks/use-sources";
 import { AddSourceDialog } from "./add-source-dialog";
 import type { PublicSource, Source } from "@/types";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const getSourceUrl = (config: Record<string, unknown>) => {
   const typed = config as {
@@ -96,18 +97,18 @@ function SourceCard({ source }: { source: Source }) {
     : "尚未抓取";
 
   return (
-    <Card className="flex h-full flex-col border border-gray-200 transition hover:border-gray-300 hover:shadow-sm">
+    <Card className="flex h-full flex-col transition-colors hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-2)]">
       <CardContent className="flex flex-1 flex-col gap-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-orange-50 text-orange-600">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
               <Rss className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">
+              <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate">
                 {source.name}
               </p>
-              <p className="text-xs text-gray-500 truncate">
+              <p className="text-xs text-[var(--color-text-tertiary)] truncate">
                 {sourceUrl || "暂无链接"}
               </p>
             </div>
@@ -124,15 +125,15 @@ function SourceCard({ source }: { source: Source }) {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-          <span className="rounded bg-gray-100 px-2 py-1 text-gray-600">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
+          <span className="rounded bg-[var(--color-bg-tertiary)] px-2 py-1 text-[var(--color-text-secondary)]">
             {source.type}
           </span>
-          <span className="rounded bg-gray-100 px-2 py-1">
+          <span className="rounded bg-[var(--color-bg-tertiary)] px-2 py-1">
             抓取间隔 {source.fetch_interval_sec / 60} 分钟
           </span>
           {source.error_streak > 0 && (
-            <span className="inline-flex items-center rounded bg-red-50 px-2 py-1 text-red-600">
+            <span className="inline-flex items-center rounded bg-[var(--color-error-bg)] px-2 py-1 text-[var(--color-error)] border border-[var(--color-error-border)]">
               <AlertCircle className="mr-1 h-3 w-3" />
               错误 {source.error_streak}
             </span>
@@ -141,7 +142,9 @@ function SourceCard({ source }: { source: Source }) {
       </CardContent>
 
       <CardFooter className="flex items-center justify-between">
-        <span className="text-xs text-gray-500">上次抓取: {lastFetchLabel}</span>
+        <span className="text-xs text-[var(--color-text-tertiary)]">
+          上次抓取: {lastFetchLabel}
+        </span>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
@@ -149,6 +152,7 @@ function SourceCard({ source }: { source: Source }) {
             onClick={handleToggle}
             disabled={isToggling}
             title={source.enabled ? "禁用" : "启用"}
+            aria-label={source.enabled ? "禁用信息源" : "启用信息源"}
           >
             {source.enabled ? (
               <Pause className="h-4 w-4" />
@@ -163,7 +167,8 @@ function SourceCard({ source }: { source: Source }) {
               onClick={handleDelete}
               disabled={isDeleting}
               title="删除"
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="text-[var(--color-error)] hover:text-[var(--color-error)] hover:bg-[var(--color-error-bg)]"
+              aria-label="删除信息源"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -201,18 +206,18 @@ function PublicSourceCard({ source }: { source: PublicSource }) {
   };
 
   return (
-    <Card className="flex h-full flex-col border border-gray-200 transition hover:border-gray-300 hover:shadow-sm">
+    <Card className="flex h-full flex-col transition-colors hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-2)]">
       <CardContent className="flex flex-1 flex-col gap-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-orange-50 text-orange-600">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
               <Rss className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">
+              <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate">
                 {source.name}
               </p>
-              <p className="text-xs text-gray-500 truncate">
+              <p className="text-xs text-[var(--color-text-tertiary)] truncate">
                 {sourceUrl || "暂无链接"}
               </p>
             </div>
@@ -220,23 +225,26 @@ function PublicSourceCard({ source }: { source: PublicSource }) {
           <Badge variant="info">公共</Badge>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-          <span className="rounded bg-gray-100 px-2 py-1 text-gray-600">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
+          <span className="rounded bg-[var(--color-bg-tertiary)] px-2 py-1 text-[var(--color-text-secondary)]">
             {source.type}
           </span>
-          <span className="rounded bg-gray-100 px-2 py-1">
+          <span className="rounded bg-[var(--color-bg-tertiary)] px-2 py-1">
             抓取间隔 {source.fetch_interval_sec / 60} 分钟
           </span>
         </div>
       </CardContent>
 
       <CardFooter className="flex items-center justify-between">
-        <span className="text-xs text-gray-500">上次抓取: {lastFetchLabel}</span>
+        <span className="text-xs text-[var(--color-text-tertiary)]">
+          上次抓取: {lastFetchLabel}
+        </span>
         <Button
           variant={source.is_subscribed ? "secondary" : "primary"}
           size="sm"
           onClick={handleSubscribe}
           disabled={isSubscribing || source.is_subscribed}
+          aria-label={source.is_subscribed ? "已添加信息源" : "添加信息源"}
         >
           {source.is_subscribed ? "已添加" : "添加"}
         </Button>
@@ -246,6 +254,9 @@ function PublicSourceCard({ source }: { source: PublicSource }) {
 }
 
 export default function SourcesPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const mySources = useSources();
@@ -267,11 +278,28 @@ export default function SourcesPage() {
   );
   const isSearching = normalizedQuery.length > 0;
 
+  useEffect(() => {
+    setSearchQuery(searchParams.get("q") ?? "");
+  }, [searchParams]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    const nextQuery = value.trim();
+    const params = new URLSearchParams(searchParams);
+    if (nextQuery) {
+      params.set("q", nextQuery);
+    } else {
+      params.delete("q");
+    }
+    const next = params.toString();
+    router.replace(next ? `${pathname}?${next}` : pathname);
+  };
+
   return (
-    <div>
+    <PageShell className="space-y-8">
       <PageHeader
         title="信息源"
-        description="管理你的信息源，支持订阅公共源"
+        description="聚合你的信息入口与订阅来源"
         actions={
           <Button onClick={() => setShowAddDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -280,36 +308,35 @@ export default function SourcesPage() {
         }
       />
 
-      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-end">
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-[var(--color-text-primary)]">
+            搜索信息源
+          </p>
+          <p className="text-xs text-[var(--color-text-tertiary)]">
+            支持名称或链接关键字
+          </p>
+        </div>
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-tertiary)]" />
           <input
             name="source_search"
             type="search"
             value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
+            onChange={(event) => handleSearchChange(event.target.value)}
             placeholder="搜索信息源名称或链接"
-            className="w-full rounded-md border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] py-2 pl-9 pr-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:border-[var(--color-accent)] focus-visible:ring-[var(--color-accent)]"
           />
         </div>
       </div>
 
-      {/* Content */}
       <div className="space-y-10">
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                我的信息源
-              </h2>
-              <p className="text-sm text-gray-500">
-                你已订阅或录入的所有信息源
-              </p>
-            </div>
-            <Badge variant="default">
-              {filteredMySources.length} 个
-            </Badge>
-          </div>
+          <SectionHeader
+            title="我的信息源"
+            description="你已订阅或录入的所有信息源"
+            actions={<Badge variant="default">{filteredMySources.length} 个</Badge>}
+          />
 
           {mySources.isLoading ? (
             <SourcesGridSkeleton />
@@ -318,7 +345,7 @@ export default function SourcesPage() {
               加载失败：{mySources.error.message}
               <button
                 onClick={() => window.location.reload()}
-                className="ml-2 text-red-600 hover:text-red-700 font-medium"
+                className="ml-2 font-medium hover:opacity-80"
               >
                 重试
               </button>
@@ -354,19 +381,13 @@ export default function SourcesPage() {
         </section>
 
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                公共信息源
-              </h2>
-              <p className="text-sm text-gray-500">
-                所有人可订阅的公共信息源
-              </p>
-            </div>
-            <Badge variant="default">
-              {filteredPublicSources.length} 个
-            </Badge>
-          </div>
+          <SectionHeader
+            title="公共信息源"
+            description="所有人可订阅的公共信息源"
+            actions={
+              <Badge variant="default">{filteredPublicSources.length} 个</Badge>
+            }
+          />
 
           {publicSources.isLoading ? (
             <SourcesGridSkeleton />
@@ -375,7 +396,7 @@ export default function SourcesPage() {
               加载失败：{publicSources.error.message}
               <button
                 onClick={() => window.location.reload()}
-                className="ml-2 text-red-600 hover:text-red-700 font-medium"
+                className="ml-2 font-medium hover:opacity-80"
               >
                 重试
               </button>
@@ -409,11 +430,10 @@ export default function SourcesPage() {
         </section>
       </div>
 
-      {/* Add Dialog */}
       {showAddDialog && (
         <AddSourceDialog onClose={() => setShowAddDialog(false)} />
       )}
-    </div>
+    </PageShell>
   );
 }
 

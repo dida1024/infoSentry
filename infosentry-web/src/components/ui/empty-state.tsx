@@ -20,11 +20,17 @@ export function EmptyState({
   return (
     <div className="text-center py-12">
       {icon && (
-        <div className="flex justify-center mb-4 text-gray-400">{icon}</div>
+        <div className="flex justify-center mb-4 text-[var(--color-text-tertiary)]">
+          {icon}
+        </div>
       )}
-      <h3 className="text-sm font-medium text-gray-900 mb-1">{title}</h3>
+      <h3 className="text-sm font-medium text-[var(--color-text-primary)] mb-1">
+        {title}
+      </h3>
       {description && (
-        <p className="text-sm text-gray-500 mb-4">{description}</p>
+        <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+          {description}
+        </p>
       )}
       {action}
     </div>

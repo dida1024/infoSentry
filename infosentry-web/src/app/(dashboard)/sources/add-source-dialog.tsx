@@ -57,21 +57,22 @@ export function AddSourceDialog({ onClose }: AddSourceDialogProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0 bg-black/60"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Dialog */}
-      <div className="relative bg-white rounded-lg shadow-lg w-full max-w-md mx-4">
+      <div className="relative bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-lg shadow-[var(--shadow-lg)] w-full max-w-md mx-4">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-          <h2 className="text-base font-semibold text-gray-900">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
+          <h2 className="text-base font-semibold text-[var(--color-text-primary)]">
             添加 RSS 信息源
           </h2>
           <button
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600 rounded"
+            className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] rounded"
+            aria-label="关闭"
           >
             <X className="h-5 w-5" />
           </button>
@@ -109,16 +110,19 @@ export function AddSourceDialog({ onClose }: AddSourceDialogProps) {
               {...register("fetch_interval_min", { valueAsNumber: true })}
             />
 
-            <div className="flex items-start gap-2 rounded-md border border-gray-200 p-3">
+            <div className="flex items-start gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3">
               <input
                 id="is_private"
                 type="checkbox"
-                className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="mt-1 h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-accent)] focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
                 {...register("is_private")}
               />
-              <label htmlFor="is_private" className="text-sm text-gray-700">
+              <label
+                htmlFor="is_private"
+                className="text-sm text-[var(--color-text-primary)]"
+              >
                 私密信息源
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[var(--color-text-tertiary)]">
                   仅自己可见，其他人不可订阅
                 </p>
               </label>
@@ -126,7 +130,7 @@ export function AddSourceDialog({ onClose }: AddSourceDialogProps) {
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-3 px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+          <div className="flex justify-end gap-3 px-4 py-3 border-t border-[var(--color-border)] bg-[var(--color-surface-2)] rounded-b-lg">
             <Button variant="secondary" type="button" onClick={onClose}>
               取消
             </Button>

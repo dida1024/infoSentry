@@ -10,7 +10,10 @@ type CardProps = HTMLAttributes<HTMLDivElement>;
 export function Card({ className, ...props }: CardProps) {
   return (
     <div
-      className={cn("bg-white border border-gray-200 rounded-lg", className)}
+      className={cn(
+        "bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-lg shadow-[var(--shadow-sm)]",
+        className
+      )}
       {...props}
     />
   );
@@ -19,7 +22,10 @@ export function Card({ className, ...props }: CardProps) {
 export function CardHeader({ className, ...props }: CardProps) {
   return (
     <div
-      className={cn("px-4 py-3 border-b border-gray-200", className)}
+      className={cn(
+        "px-4 py-3 border-b border-[var(--color-border)]",
+        className
+      )}
       {...props}
     />
   );
@@ -33,7 +39,7 @@ export function CardFooter({ className, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        "px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg",
+        "px-4 py-3 border-t border-[var(--color-border)] bg-[var(--color-surface-2)] rounded-b-lg",
         className
       )}
       {...props}

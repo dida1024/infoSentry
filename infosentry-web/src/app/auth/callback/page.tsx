@@ -76,10 +76,12 @@ function CallbackContent() {
   // 正在跳转中，显示加载状态
   if (isRedirecting) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--color-bg-primary)] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-gray-500">登录成功，正在跳转...</p>
+          <div className="animate-spin h-8 w-8 border-2 border-[var(--color-accent)] border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-[var(--color-text-secondary)]">
+            登录成功，正在跳转...
+          </p>
         </div>
       </div>
     );
@@ -87,14 +89,14 @@ function CallbackContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[var(--color-bg-primary)] flex items-center justify-center px-4">
         <div className="w-full max-w-sm text-center">
           <Alert variant="error" className="mb-4">
             {error}
           </Alert>
           <a
             href="/login"
-            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            className="text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-medium"
           >
             返回登录页面
           </a>
@@ -104,10 +106,10 @@ function CallbackContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="min-h-screen bg-[var(--color-bg-primary)] flex items-center justify-center">
       <div className="text-center">
-        <div className="animate-spin h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-        <p className="text-gray-500">正在验证登录...</p>
+        <div className="animate-spin h-8 w-8 border-2 border-[var(--color-accent)] border-t-transparent rounded-full mx-auto mb-4"></div>
+        <p className="text-[var(--color-text-secondary)]">正在验证登录...</p>
       </div>
     </div>
   );
@@ -117,8 +119,8 @@ export default function AuthCallbackPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-gray-500">加载中...</div>
+        <div className="min-h-screen bg-[var(--color-bg-primary)] flex items-center justify-center">
+          <div className="text-[var(--color-text-secondary)]">加载中...</div>
         </div>
       }
     >

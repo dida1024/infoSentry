@@ -6,11 +6,16 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 const styles = {
-  default: "bg-gray-100 text-gray-700",
-  success: "bg-green-100 text-green-700",
-  warning: "bg-yellow-100 text-yellow-700",
-  error: "bg-red-100 text-red-700",
-  info: "bg-blue-100 text-blue-700",
+  default:
+    "bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] border border-[var(--color-border)]",
+  success:
+    "bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success-border)]",
+  warning:
+    "bg-[var(--color-warning-bg)] text-[var(--color-warning)] border border-[var(--color-warning-border)]",
+  error:
+    "bg-[var(--color-error-bg)] text-[var(--color-error)] border border-[var(--color-error-border)]",
+  info:
+    "bg-[var(--color-info-bg)] text-[var(--color-info)] border border-[var(--color-info-border)]",
 };
 
 /**

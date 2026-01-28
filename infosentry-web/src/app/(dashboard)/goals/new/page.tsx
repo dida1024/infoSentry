@@ -7,13 +7,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { PageHeader } from "@/components/layout";
+import { PageHeader, PageShell } from "@/components/layout";
 import {
   Button,
   Input,
   Textarea,
   Card,
   CardContent,
+  CardHeader,
   CardFooter,
   Alert,
 } from "@/components/ui";
@@ -142,11 +143,11 @@ export default function NewGoalPage() {
   };
 
   return (
-    <div>
+    <PageShell className="space-y-6">
       <div className="mb-6">
         <Link
           href="/goals"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+          className="inline-flex items-center gap-1 text-sm text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]"
         >
           <ArrowLeft className="h-4 w-4" />
           返回目标列表
@@ -164,14 +165,22 @@ export default function NewGoalPage() {
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <Card>
-          <CardContent className="space-y-6">
+          <CardHeader>
+            <h2 className="text-base font-semibold text-[var(--color-text-primary)]">
+              AI 辅助
+            </h2>
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              用一句话描述目标，让 AI 自动生成初稿
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label
                   htmlFor="goal-intent"
-                  className="block text-sm font-medium text-gray-700"
+                  className="block text-sm font-medium text-[var(--color-text-secondary)]"
                 >
                   AI 帮写（可选）
                 </label>
@@ -183,7 +192,7 @@ export default function NewGoalPage() {
                     aiIntent.trim().length < 3 ||
                     generateGoalDraft.isPending
                   }
-                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[var(--color-accent)] bg-[var(--color-accent-soft)] rounded-md hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title={
                     !aiIntent || aiIntent.trim().length < 3
                       ? "请先用一句话描述你想关注什么（至少3个字符）"
@@ -206,16 +215,30 @@ export default function NewGoalPage() {
                 }}
                 placeholder="用一句话告诉 AI 你想关注什么，例如：关注 AI 行业投融资、模型发布与监管政策"
                 maxLength={300}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                className="w-full px-3 py-2 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface-1)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:border-[var(--color-accent)] transition-colors"
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-[var(--color-text-tertiary)]">
                 生成后会自动填充目标名称、描述和关键词，你可以再手动微调
               </p>
               {generateGoalDraft.isError && (
-                <p className="text-xs text-red-600">AI 生成失败，请稍后重试</p>
+                <p className="text-xs text-[var(--color-error)]">
+                  AI 生成失败，请稍后重试
+                </p>
               )}
             </div>
+          </CardContent>
+        </Card>
 
+        <Card>
+          <CardHeader>
+            <h2 className="text-base font-semibold text-[var(--color-text-primary)]">
+              目标信息
+            </h2>
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              描述清晰可显著提升匹配效果
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-6">
             <Input
               label="目标名称"
               placeholder="例如：AI 行业动态追踪"
@@ -234,7 +257,7 @@ export default function NewGoalPage() {
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-[var(--color-text-secondary)]">
                   优先关键词（可选）
                 </label>
                 <button
@@ -245,7 +268,7 @@ export default function NewGoalPage() {
                     description.trim().length < 10 ||
                     suggestKeywords.isPending
                   }
-                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[var(--color-accent)] bg-[var(--color-accent-soft)] rounded-md hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title={
                     !description || description.trim().length < 10
                       ? "请先填写目标描述（至少10个字符）"
@@ -259,16 +282,16 @@ export default function NewGoalPage() {
               <textarea
                 placeholder="每行一个关键词（前缀 - 表示排除词），例如：&#10;OpenAI&#10;Claude&#10;-广告"
                 rows={4}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors resize-y min-h-[80px]"
+                className="w-full px-3 py-2 text-sm border border-[var(--color-border)] rounded-md bg-[var(--color-surface-1)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:border-[var(--color-accent)] transition-colors resize-y min-h-[80px]"
                 {...register("priority_terms")}
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-[var(--color-text-tertiary)]">
                 包含这些关键词的信息将获得更高的匹配分数
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)]">
                 匹配模式
               </label>
               <div className="flex gap-4">
@@ -276,22 +299,26 @@ export default function NewGoalPage() {
                   <input
                     type="radio"
                     value="SOFT"
-                    className="h-4 w-4 text-blue-600"
+                    className="h-4 w-4 text-[var(--color-accent)] border-[var(--color-border)]"
                     {...register("priority_mode")}
                   />
-                  <span className="text-sm text-gray-700">宽松</span>
+                  <span className="text-sm text-[var(--color-text-secondary)]">
+                    宽松
+                  </span>
                 </label>
                 <label className="flex items-center gap-2">
                   <input
                     type="radio"
                     value="STRICT"
-                    className="h-4 w-4 text-blue-600"
+                    className="h-4 w-4 text-[var(--color-accent)] border-[var(--color-border)]"
                     {...register("priority_mode")}
                   />
-                  <span className="text-sm text-gray-700">严格</span>
+                  <span className="text-sm text-[var(--color-text-secondary)]">
+                    严格
+                  </span>
                 </label>
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-[var(--color-text-tertiary)]">
                 严格模式：必须包含关键词才会推送；宽松模式：语义相关即可
               </p>
             </div>
@@ -309,7 +336,7 @@ export default function NewGoalPage() {
           </CardFooter>
         </Card>
       </form>
-    </div>
+    </PageShell>
   );
 }
 

@@ -38,21 +38,29 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[var(--color-bg-primary)] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center h-12 w-12 bg-blue-600 rounded-lg mb-4">
-            <span className="text-white text-xl font-semibold">iS</span>
+          <div className="inline-flex items-center justify-center h-12 w-12 bg-[var(--color-accent)] rounded-lg mb-4 shadow-[var(--shadow-sm)]">
+            <span className="text-[var(--color-text-inverse)] text-xl font-semibold">
+              iS
+            </span>
           </div>
-          <h1 className="text-xl font-semibold text-gray-900">infoSentry</h1>
-          <p className="text-sm text-gray-500 mt-1">智能信息追踪与推送系统</p>
+          <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">
+            infoSentry
+          </h1>
+          <p className="text-sm text-[var(--color-text-secondary)] mt-1">
+            智能信息追踪与推送系统
+          </p>
         </div>
 
         {/* Login Form */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h2 className="text-base font-semibold text-gray-900 mb-1">登录</h2>
-          <p className="text-sm text-gray-500 mb-6">
+        <div className="bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-lg p-6 shadow-[var(--shadow-sm)]">
+          <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
+            登录
+          </h2>
+          <p className="text-sm text-[var(--color-text-secondary)] mb-6">
             输入邮箱地址，我们将发送一封包含登录链接的邮件
           </p>
 
@@ -88,7 +96,7 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-xs text-gray-400 text-center mt-6">
+        <p className="text-xs text-[var(--color-text-tertiary)] text-center mt-6">
           登录即表示您同意我们的服务条款和隐私政策
         </p>
       </div>

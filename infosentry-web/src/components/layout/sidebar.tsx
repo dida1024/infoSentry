@@ -17,14 +17,18 @@ export function Sidebar() {
   const { logout, user } = useAuth();
 
   return (
-    <aside className="fixed inset-y-0 left-0 w-56 bg-white border-r border-gray-200 flex flex-col">
+    <aside className="fixed inset-y-0 left-0 w-64 bg-[var(--color-surface-1)] border-r border-[var(--color-border)] flex flex-col">
       {/* Logo */}
-      <div className="h-14 flex items-center px-4 border-b border-gray-200">
-        <Link href="/goals" className="flex items-center gap-2">
-          <div className="h-7 w-7 bg-blue-600 rounded flex items-center justify-center">
-            <span className="text-white text-sm font-semibold">iS</span>
+      <div className="h-16 flex items-center px-5 border-b border-[var(--color-border)]">
+        <Link href="/goals" className="flex items-center gap-3">
+          <div className="h-9 w-9 bg-[var(--color-accent)] rounded-md flex items-center justify-center shadow-[var(--shadow-sm)]">
+            <span className="text-[var(--color-text-inverse)] text-sm font-semibold">
+              iS
+            </span>
           </div>
-          <span className="font-semibold text-gray-900">infoSentry</span>
+          <span className="font-semibold text-[var(--color-text-primary)] tracking-tight">
+            infoSentry
+          </span>
         </Link>
       </div>
 
@@ -40,8 +44,8 @@ export function Sidebar() {
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors",
                     isActive
-                      ? "bg-blue-50 text-blue-700"
-                      : "text-gray-700 hover:bg-gray-100"
+                      ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
+                      : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]"
                   )}
                 >
                   <item.icon className="h-5 w-5 flex-shrink-0" />
@@ -54,10 +58,10 @@ export function Sidebar() {
       </nav>
 
       {/* Bottom section */}
-      <div className="border-t border-gray-200 py-4 px-3 space-y-1">
+      <div className="border-t border-[var(--color-border)] py-4 px-3 space-y-1">
         <Link
           href="/settings"
-          className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+          className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)] rounded-md transition-colors"
         >
           <Settings className="h-5 w-5 flex-shrink-0" />
           设置
@@ -65,7 +69,7 @@ export function Sidebar() {
 
         <button
           onClick={logout}
-          className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)] rounded-md transition-colors"
         >
           <LogOut className="h-5 w-5 flex-shrink-0" />
           退出登录
@@ -73,8 +77,10 @@ export function Sidebar() {
 
         {/* User info */}
         {user && (
-          <div className="mt-4 px-3 py-2 bg-gray-50 rounded-md">
-            <p className="text-xs text-gray-500 truncate">{user.email}</p>
+          <div className="mt-4 px-3 py-2 bg-[var(--color-bg-tertiary)] rounded-md border border-[var(--color-border)]">
+            <p className="text-xs text-[var(--color-text-tertiary)] truncate">
+              {user.email}
+            </p>
           </div>
         )}
       </div>

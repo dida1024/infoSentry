@@ -10,7 +10,10 @@ interface SkeletonProps {
 export function Skeleton({ className }: SkeletonProps) {
   return (
     <div
-      className={cn("animate-pulse bg-gray-200 rounded", className)}
+      className={cn(
+        "animate-pulse bg-[var(--color-surface-3)] rounded",
+        className
+      )}
       aria-hidden="true"
     />
   );
@@ -21,7 +24,7 @@ export function Skeleton({ className }: SkeletonProps) {
  */
 export function CardSkeleton() {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+    <div className="bg-[var(--color-surface-1)] border border-[var(--color-border)] rounded-lg p-4 space-y-3 shadow-[var(--shadow-sm)]">
       <Skeleton className="h-5 w-3/4" />
       <Skeleton className="h-4 w-full" />
       <Skeleton className="h-4 w-2/3" />

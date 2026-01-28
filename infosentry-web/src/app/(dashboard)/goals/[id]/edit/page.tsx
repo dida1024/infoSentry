@@ -8,13 +8,14 @@ import { z } from "zod";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { PageHeader } from "@/components/layout";
+import { PageHeader, PageShell } from "@/components/layout";
 import {
   Button,
   Input,
   Textarea,
   Card,
   CardContent,
+  CardHeader,
   CardFooter,
   Alert,
   ListSkeleton,
@@ -108,44 +109,44 @@ export default function EditGoalPage({
 
   if (isLoading) {
     return (
-      <div>
+      <PageShell>
         <div className="mb-6">
           <Link
             href={`/goals/${id}`}
-            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+            className="inline-flex items-center gap-1 text-sm text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]"
           >
             <ArrowLeft className="h-4 w-4" />
             返回目标详情
           </Link>
         </div>
         <ListSkeleton count={1} />
-      </div>
+      </PageShell>
     );
   }
 
   if (error || !goal) {
     return (
-      <div>
+      <PageShell>
         <div className="mb-6">
           <Link
             href="/goals"
-            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+            className="inline-flex items-center gap-1 text-sm text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]"
           >
             <ArrowLeft className="h-4 w-4" />
             返回目标列表
           </Link>
         </div>
         <Alert variant="error">加载失败：目标不存在或已被删除</Alert>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div>
+    <PageShell className="space-y-6">
       <div className="mb-6">
         <Link
           href={`/goals/${id}`}
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+          className="inline-flex items-center gap-1 text-sm text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]"
         >
           <ArrowLeft className="h-4 w-4" />
           返回目标详情
@@ -160,8 +161,16 @@ export default function EditGoalPage({
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <Card>
+          <CardHeader>
+            <h2 className="text-base font-semibold text-[var(--color-text-primary)]">
+              目标信息
+            </h2>
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              调整目标描述与关键词以优化匹配
+            </p>
+          </CardHeader>
           <CardContent className="space-y-6">
             <Input
               label="目标名称"
@@ -187,7 +196,7 @@ export default function EditGoalPage({
             />
 
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)]">
                 匹配模式
               </label>
               <div className="flex gap-4">
@@ -195,19 +204,23 @@ export default function EditGoalPage({
                   <input
                     type="radio"
                     value="SOFT"
-                    className="h-4 w-4 text-blue-600"
+                    className="h-4 w-4 text-[var(--color-accent)] border-[var(--color-border)]"
                     {...register("priority_mode")}
                   />
-                  <span className="text-sm text-gray-700">宽松</span>
+                  <span className="text-sm text-[var(--color-text-secondary)]">
+                    宽松
+                  </span>
                 </label>
                 <label className="flex items-center gap-2">
                   <input
                     type="radio"
                     value="STRICT"
-                    className="h-4 w-4 text-blue-600"
+                    className="h-4 w-4 text-[var(--color-accent)] border-[var(--color-border)]"
                     {...register("priority_mode")}
                   />
-                  <span className="text-sm text-gray-700">严格</span>
+                  <span className="text-sm text-[var(--color-text-secondary)]">
+                    严格
+                  </span>
                 </label>
               </div>
             </div>
@@ -225,7 +238,7 @@ export default function EditGoalPage({
           </CardFooter>
         </Card>
       </form>
-    </div>
+    </PageShell>
   );
 }
 
