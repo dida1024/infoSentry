@@ -31,6 +31,7 @@ class CreateGoalRequest(BaseModel):
     )
     priority_terms: list[str] | None = Field(None, description="优先词条（多行）")
     negative_terms: list[str] | None = Field(None, description="负面词条")
+    batch_enabled: bool | None = Field(None, description="是否启用批量推送")
     batch_windows: list[str] | None = Field(None, description="批量推送窗口（HH:MM）")
     digest_send_time: str | None = Field(None, description="每日摘要时间（HH:MM）")
 
@@ -42,6 +43,7 @@ class CreateGoalRequest(BaseModel):
                 "priority_mode": "STRICT",
                 "priority_terms": ["GPT", "Claude", "LLM", "大模型"],
                 "negative_terms": ["广告", "招聘"],
+                "batch_enabled": True,
                 "batch_windows": ["12:30", "18:30"],
                 "digest_send_time": "09:00",
             }
@@ -56,6 +58,7 @@ class UpdateGoalRequest(BaseModel):
     priority_mode: PriorityMode | None = Field(None, description="优先模式")
     priority_terms: list[str] | None = Field(None, description="优先词条")
     negative_terms: list[str] | None = Field(None, description="负面词条")
+    batch_enabled: bool | None = Field(None, description="是否启用批量推送")
     batch_windows: list[str] | None = Field(None, description="批量推送窗口")
     digest_send_time: str | None = Field(None, description="每日摘要时间")
 
@@ -79,6 +82,7 @@ class GoalResponse(BaseModel):
     status: GoalStatus = Field(..., description="状态")
     priority_terms: list[str] | None = Field(None, description="优先词条")
     negative_terms: list[str] | None = Field(None, description="负面词条")
+    batch_enabled: bool = Field(..., description="是否启用批量推送")
     batch_windows: list[str] | None = Field(None, description="批量推送窗口")
     digest_send_time: str | None = Field(None, description="每日摘要时间")
     stats: GoalStatsResponse | None = Field(None, description="统计信息")

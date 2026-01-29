@@ -255,10 +255,18 @@ export default function GoalDetailPage({
               </div>
               <div>
                 <span className="text-[var(--color-text-tertiary)]">
+                  批量推送
+                </span>
+                <p className="font-medium">
+                  {goal.batch_enabled ? "已启用" : "已关闭"}
+                </p>
+              </div>
+              <div>
+                <span className="text-[var(--color-text-tertiary)]">
                   批量窗口
                 </span>
                 <p className="font-medium">
-                  {goal.batch_windows?.length
+                  {goal.batch_enabled && goal.batch_windows?.length
                     ? goal.batch_windows.join("、")
                     : "—"}
                 </p>

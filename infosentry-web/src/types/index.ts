@@ -51,6 +51,7 @@ export interface Goal {
   priority_mode: PriorityMode;
   priority_terms: string[] | null;
   negative_terms: string[] | null;
+  batch_enabled: boolean;
   batch_windows: string[] | null;
   digest_send_time: string | null;
   stats: GoalStats | null;
@@ -144,4 +145,3 @@ export interface ItemFeedback {
   block_source: boolean;
   created_at: string;
 }
-

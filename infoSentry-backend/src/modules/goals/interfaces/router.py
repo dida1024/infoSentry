@@ -82,6 +82,7 @@ def _to_goal_response(goal: GoalData) -> GoalResponse:
         status=GoalStatus(goal.status.value),
         priority_terms=goal.priority_terms,
         negative_terms=goal.negative_terms,
+        batch_enabled=goal.batch_enabled if goal.batch_enabled is not None else True,
         batch_windows=goal.batch_windows,
         digest_send_time=goal.digest_send_time,
         stats=goal.stats,
@@ -143,6 +144,7 @@ async def create_goal(
         priority_mode=request.priority_mode.value,
         priority_terms=request.priority_terms,
         negative_terms=request.negative_terms,
+        batch_enabled=request.batch_enabled,
         batch_windows=request.batch_windows,
         digest_send_time=request.digest_send_time,
     )
@@ -267,6 +269,7 @@ async def update_goal(
         priority_mode=request.priority_mode.value if request.priority_mode else None,
         priority_terms=request.priority_terms,
         negative_terms=request.negative_terms,
+        batch_enabled=request.batch_enabled,
         batch_windows=request.batch_windows,
         digest_send_time=request.digest_send_time,
     )

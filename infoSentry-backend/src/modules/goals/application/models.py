@@ -26,6 +26,7 @@ class GoalData(BaseModel):
     status: GoalStatus
     priority_terms: list[str] | None = None
     negative_terms: list[str] | None = None
+    batch_enabled: bool | None = None
     batch_windows: list[str] | None = None
     digest_send_time: str | None = None
     stats: GoalStatsData | None = None

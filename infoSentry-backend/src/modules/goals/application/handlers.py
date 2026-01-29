@@ -92,6 +92,9 @@ class CreateGoalHandler:
             goal_id=goal.id,
             batch_windows=command.batch_windows or ["12:30", "18:30"],
             digest_send_time=command.digest_send_time or "09:00",
+            batch_enabled=command.batch_enabled
+            if command.batch_enabled is not None
+            else True,
         )
         await self.push_config_repository.create(push_config)
 
@@ -161,6 +164,11 @@ class UpdateGoalHandler:
                 if not _validate_time_format(window):
                     raise InvalidBatchWindowError(window)
 
+        if command.digest_send_time and not _validate_time_format(
+            command.digest_send_time
+        ):
+            raise InvalidBatchWindowError(command.digest_send_time)
+
         # Update goal info
         goal.update_info(
             name=command.name,
@@ -170,11 +178,17 @@ class UpdateGoalHandler:
         await self.goal_repository.update(goal)
 
         # Update push config if provided
-        if command.batch_windows or command.digest_send_time:
+        if (
+            command.batch_windows
+            or command.digest_send_time
+            or command.batch_enabled is not None
+        ):
             push_config = await self.push_config_repository.get_by_goal_id(goal.id)
             if push_config:
                 if command.batch_windows:
                     push_config.update_windows(command.batch_windows)
+                if command.batch_enabled is not None:
+                    push_config.batch_enabled = command.batch_enabled
                 if command.digest_send_time:
                     push_config.update_digest_time(command.digest_send_time)
                 await self.push_config_repository.update(push_config)

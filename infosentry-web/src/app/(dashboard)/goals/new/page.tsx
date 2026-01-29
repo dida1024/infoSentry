@@ -24,15 +24,54 @@ import {
   useSuggestKeywords,
 } from "@/hooks/use-goals";
 
-const schema = z.object({
-  name: z.string().min(1, "请输入目标名称").max(100, "名称不能超过 100 字符"),
-  description: z
-    .string()
-    .min(1, "请输入目标描述")
-    .max(2000, "描述不能超过 2000 字符"),
-  priority_terms: z.string().optional(),
-  priority_mode: z.enum(["STRICT", "SOFT"]),
-});
+const timeWindowRegex = /^([01]?\d|2[0-3]):[0-5]\d$/;
+
+const parseBatchWindows = (value?: string) =>
+  value
+    ? value
+        .split(/[,\n，]+/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+
+const schema = z
+  .object({
+    name: z.string().min(1, "请输入目标名称").max(100, "名称不能超过 100 字符"),
+    description: z
+      .string()
+      .min(1, "请输入目标描述")
+      .max(2000, "描述不能超过 2000 字符"),
+    priority_terms: z.string().optional(),
+    priority_mode: z.enum(["STRICT", "SOFT"]),
+    batch_enabled: z.boolean().default(true),
+    batch_windows: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const windows = parseBatchWindows(data.batch_windows);
+    if (data.batch_enabled && windows.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "请至少设置 1 个批量窗口时间",
+        path: ["batch_windows"],
+      });
+      return;
+    }
+    if (windows.length > 3) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "批量窗口最多 3 个",
+        path: ["batch_windows"],
+      });
+      return;
+    }
+    if (windows.some((window) => !timeWindowRegex.test(window))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "时间格式应为 HH:MM，例如 09:00",
+        path: ["batch_windows"],
+      });
+    }
+  });
 
 type FormData = z.infer<typeof schema>;
 
@@ -53,10 +92,13 @@ export default function NewGoalPage() {
     resolver: zodResolver(schema),
     defaultValues: {
       priority_mode: "SOFT",
+      batch_enabled: true,
+      batch_windows: "12:30, 18:30",
     },
   });
 
   const description = watch("description");
+  const batchEnabled = watch("batch_enabled");
 
   const handleGenerateDraft = async () => {
     if (generateGoalDraft.isPending) return;
@@ -129,12 +171,16 @@ export default function NewGoalPage() {
         }
       }
 
+      const windows = parseBatchWindows(data.batch_windows);
       const goal = await createGoal.mutateAsync({
         name: data.name,
         description: data.description,
         priority_mode: data.priority_mode,
         priority_terms: priority_terms.length ? priority_terms : undefined,
         negative_terms: negative_terms.length ? negative_terms : undefined,
+        batch_enabled: data.batch_enabled,
+        batch_windows:
+          data.batch_enabled && windows.length ? windows : undefined,
       });
       router.push(`/goals/${goal.id}`);
     } catch {
@@ -322,6 +368,34 @@ export default function NewGoalPage() {
                 严格模式：必须包含关键词才会推送；宽松模式：语义相关即可
               </p>
             </div>
+
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-[var(--color-text-secondary)]">
+                  批量推送
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 text-[var(--color-accent)] border-[var(--color-border)]"
+                    {...register("batch_enabled")}
+                  />
+                  启用按窗口时间发送
+                </label>
+                <p className="text-xs text-[var(--color-text-tertiary)]">
+                  关闭后将不按窗口时间发送批量邮件
+                </p>
+              </div>
+
+              <Input
+                label="批量窗口（最多 3 个）"
+                placeholder="例如：12:30, 18:30"
+                hint="用逗号或换行分隔（HH:MM）"
+                error={errors.batch_windows?.message}
+                disabled={!batchEnabled}
+                {...register("batch_windows")}
+              />
+            </div>
           </CardContent>
 
           <CardFooter className="flex justify-end gap-3">
@@ -339,4 +413,3 @@ export default function NewGoalPage() {
     </PageShell>
   );
 }
-

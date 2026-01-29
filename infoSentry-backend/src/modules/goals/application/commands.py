@@ -14,6 +14,7 @@ class CreateGoalCommand(BaseModel):
     priority_mode: PriorityMode = PriorityMode.SOFT
     priority_terms: list[str] | None = None  # 优先词条
     negative_terms: list[str] | None = None  # 负面词条
+    batch_enabled: bool | None = None  # 是否启用批量推送
     batch_windows: list[str] | None = None  # 批量推送窗口
     digest_send_time: str | None = None  # 每日摘要时间
 
@@ -28,6 +29,7 @@ class UpdateGoalCommand(BaseModel):
     priority_mode: PriorityMode | None = None
     priority_terms: list[str] | None = None
     negative_terms: list[str] | None = None
+    batch_enabled: bool | None = None
     batch_windows: list[str] | None = None
     digest_send_time: str | None = None
 

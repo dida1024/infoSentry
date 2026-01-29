@@ -15,6 +15,7 @@ export interface CreateGoalRequest {
   priority_mode?: "STRICT" | "SOFT";
   priority_terms?: string[];
   negative_terms?: string[];
+  batch_enabled?: boolean;
   batch_windows?: string[];
   digest_send_time?: string;
 }

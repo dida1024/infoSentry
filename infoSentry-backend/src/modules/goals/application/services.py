@@ -189,6 +189,7 @@ class GoalQueryService:
             status=goal.status,
             priority_terms=priority_terms if priority_terms else None,
             negative_terms=negative_terms if negative_terms else None,
+            batch_enabled=push_config.batch_enabled if push_config else None,
             batch_windows=push_config.batch_windows if push_config else None,
             digest_send_time=push_config.digest_send_time if push_config else None,
             stats=None,

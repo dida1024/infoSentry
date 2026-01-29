@@ -61,7 +61,12 @@ function GoalCard({ goal }: { goal: Goal }) {
               模式: {goal.priority_mode === "STRICT" ? "严格" : "宽松"}
             </span>
             <span>
-              窗口: {goal.batch_windows?.length ? goal.batch_windows.join("、") : "—"}
+              批量:{" "}
+              {goal.batch_enabled
+                ? goal.batch_windows?.length
+                  ? goal.batch_windows.join("、")
+                  : "—"
+                : "关闭"}
             </span>
           </div>
         </div>
