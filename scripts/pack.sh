@@ -131,9 +131,9 @@ EOF
 log_info "步骤 3/3: 创建压缩包..."
 echo ""
 
-# 创建压缩包
+# 创建压缩包（COPYFILE_DISABLE 避免 macOS 的 ._ 文件）
 cd "$TEMP_DIR"
-tar -czvf "$OUTPUT_FILE" ./*
+COPYFILE_DISABLE=1 tar -czvf "$OUTPUT_FILE" ./*
 
 # 显示结果
 FILE_SIZE=$(du -h "$OUTPUT_FILE" | cut -f1)
