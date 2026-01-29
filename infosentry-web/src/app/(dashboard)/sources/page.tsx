@@ -11,7 +11,7 @@ import {
   Search,
   MinusCircle,
 } from "lucide-react";
-import { PageHeader, PageShell, SectionHeader } from "@/components/layout";
+import { PageHeader, PageShell } from "@/components/layout";
 import {
   Button,
   Card,
@@ -33,6 +33,7 @@ import {
 import { AddSourceDialog } from "./add-source-dialog";
 import type { PublicSource, Source } from "@/types";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { cn } from "@/lib/utils/cn";
 
 const getSourceUrl = (config: Record<string, unknown>) => {
   const typed = config as {
@@ -253,15 +254,20 @@ function PublicSourceCard({ source }: { source: PublicSource }) {
   );
 }
 
+type TabType = "my" | "public";
+
 export default function SourcesPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<TabType>("my");
+
   const mySources = useSources();
   const publicSources = usePublicSources();
   const normalizedQuery = searchQuery.trim().toLowerCase();
+
   const filteredMySources = useMemo(
     () =>
       (mySources.data?.items ?? []).filter((source) =>
@@ -269,6 +275,7 @@ export default function SourcesPage() {
       ),
     [mySources.data?.items, normalizedQuery]
   );
+
   const filteredPublicSources = useMemo(
     () =>
       (publicSources.data?.items ?? []).filter((source) =>
@@ -276,7 +283,10 @@ export default function SourcesPage() {
       ),
     [publicSources.data?.items, normalizedQuery]
   );
+
   const isSearching = normalizedQuery.length > 0;
+  const myCount = filteredMySources.length;
+  const publicCount = filteredPublicSources.length;
 
   useEffect(() => {
     setSearchQuery(searchParams.get("q") ?? "");
@@ -295,11 +305,118 @@ export default function SourcesPage() {
     router.replace(next ? `${pathname}?${next}` : pathname);
   };
 
+  const tabs = [
+    { id: "my" as const, label: "我的信息源", count: myCount },
+    { id: "public" as const, label: "公共信息源", count: publicCount },
+  ];
+
+  const renderMySourcesContent = () => {
+    if (mySources.isLoading) {
+      return <SourcesGridSkeleton />;
+    }
+    if (mySources.error) {
+      return (
+        <Alert variant="error">
+          加载失败：{mySources.error.message}
+          <button
+            onClick={() => window.location.reload()}
+            className="ml-2 font-medium hover:opacity-80"
+          >
+            重试
+          </button>
+        </Alert>
+      );
+    }
+    if (!mySources.data?.items?.length) {
+      return (
+        <EmptyState
+          icon={<Rss className="h-12 w-12" />}
+          title="还没有添加任何信息源"
+          description="录入自己的信息源，或从公共信息源中添加"
+          action={
+            <div className="flex gap-3">
+              <Button onClick={() => setShowAddDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                录入信息源
+              </Button>
+              <Button variant="secondary" onClick={() => setActiveTab("public")}>
+                浏览公共信息源
+              </Button>
+            </div>
+          }
+        />
+      );
+    }
+    if (filteredMySources.length === 0) {
+      return (
+        <EmptyState
+          icon={<Rss className="h-12 w-12" />}
+          title="未找到匹配的信息源"
+          description={isSearching ? "试试更换关键词" : "当前列表为空"}
+        />
+      );
+    }
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {filteredMySources.map((source) => (
+          <SourceCard key={source.id} source={source} />
+        ))}
+      </div>
+    );
+  };
+
+  const renderPublicSourcesContent = () => {
+    if (publicSources.isLoading) {
+      return <SourcesGridSkeleton />;
+    }
+    if (publicSources.error) {
+      return (
+        <Alert variant="error">
+          加载失败：{publicSources.error.message}
+          <button
+            onClick={() => window.location.reload()}
+            className="ml-2 font-medium hover:opacity-80"
+          >
+            重试
+          </button>
+        </Alert>
+      );
+    }
+    if (!publicSources.data?.items?.length) {
+      return (
+        <EmptyState
+          icon={<Rss className="h-12 w-12" />}
+          title="暂无公共信息源"
+          description="你可以录入新的信息源供自己使用"
+          action={
+            <Button onClick={() => setShowAddDialog(true)}>录入信息源</Button>
+          }
+        />
+      );
+    }
+    if (filteredPublicSources.length === 0) {
+      return (
+        <EmptyState
+          icon={<Rss className="h-12 w-12" />}
+          title="未找到匹配的公共信息源"
+          description={isSearching ? "试试更换关键词" : "暂无数据"}
+        />
+      );
+    }
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {filteredPublicSources.map((source) => (
+          <PublicSourceCard key={source.id} source={source} />
+        ))}
+      </div>
+    );
+  };
+
   return (
-    <PageShell className="space-y-8">
+    <PageShell className="space-y-6">
       <PageHeader
         title="信息源"
-        description="聚合你的信息入口与订阅来源"
+        description="管理你的信息订阅来源"
         actions={
           <Button onClick={() => setShowAddDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -308,126 +425,53 @@ export default function SourcesPage() {
         }
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-[var(--color-text-primary)]">
-            搜索信息源
-          </p>
-          <p className="text-xs text-[var(--color-text-tertiary)]">
-            支持名称或链接关键字
-          </p>
+      {/* 搜索 + Tab 导航 */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        {/* Tabs */}
+        <div className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-2",
+                activeTab === tab.id
+                  ? "bg-[var(--color-surface-1)] text-[var(--color-text-primary)] shadow-sm"
+                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+              )}
+            >
+              {tab.label}
+              <span
+                className={cn(
+                  "text-xs px-1.5 py-0.5 rounded-full",
+                  activeTab === tab.id
+                    ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
+                    : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)]"
+                )}
+              >
+                {tab.count}
+              </span>
+            </button>
+          ))}
         </div>
-        <div className="relative w-full sm:max-w-sm">
+
+        {/* Search */}
+        <div className="relative w-full sm:w-72">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-tertiary)]" />
           <input
             name="source_search"
             type="search"
             value={searchQuery}
             onChange={(event) => handleSearchChange(event.target.value)}
-            placeholder="搜索信息源名称或链接"
+            placeholder="搜索信息源..."
             className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface-1)] py-2 pl-9 pr-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:border-[var(--color-accent)] focus-visible:ring-[var(--color-accent)]"
           />
         </div>
       </div>
 
-      <div className="space-y-10">
-        <section className="space-y-4">
-          <SectionHeader
-            title="我的信息源"
-            description="你已订阅或录入的所有信息源"
-            actions={<Badge variant="default">{filteredMySources.length} 个</Badge>}
-          />
-
-          {mySources.isLoading ? (
-            <SourcesGridSkeleton />
-          ) : mySources.error ? (
-            <Alert variant="error">
-              加载失败：{mySources.error.message}
-              <button
-                onClick={() => window.location.reload()}
-                className="ml-2 font-medium hover:opacity-80"
-              >
-                重试
-              </button>
-            </Alert>
-          ) : !mySources.data?.items?.length ? (
-            <EmptyState
-              icon={<Rss className="h-12 w-12" />}
-              title="还没有添加任何信息源"
-              description="录入或订阅公共信息源来开始追踪信息"
-              action={
-                <Button onClick={() => setShowAddDialog(true)}>
-                  录入第一个信息源
-                </Button>
-              }
-            />
-          ) : filteredMySources.length === 0 ? (
-            <EmptyState
-              icon={<Rss className="h-12 w-12" />}
-              title="未找到匹配的信息源"
-              description={
-                isSearching
-                  ? "试试更换关键词，或清空搜索条件"
-                  : "当前列表为空"
-              }
-            />
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredMySources.map((source) => (
-                <SourceCard key={source.id} source={source} />
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="space-y-4">
-          <SectionHeader
-            title="公共信息源"
-            description="所有人可订阅的公共信息源"
-            actions={
-              <Badge variant="default">{filteredPublicSources.length} 个</Badge>
-            }
-          />
-
-          {publicSources.isLoading ? (
-            <SourcesGridSkeleton />
-          ) : publicSources.error ? (
-            <Alert variant="error">
-              加载失败：{publicSources.error.message}
-              <button
-                onClick={() => window.location.reload()}
-                className="ml-2 font-medium hover:opacity-80"
-              >
-                重试
-              </button>
-            </Alert>
-          ) : !publicSources.data?.items?.length ? (
-            <EmptyState
-              icon={<Rss className="h-12 w-12" />}
-              title="暂无公共信息源"
-              description="你可以录入新的信息源供自己使用"
-              action={
-                <Button onClick={() => setShowAddDialog(true)}>
-                  录入信息源
-                </Button>
-              }
-            />
-          ) : filteredPublicSources.length === 0 ? (
-            <EmptyState
-              icon={<Rss className="h-12 w-12" />}
-              title="未找到匹配的公共信息源"
-              description={
-                isSearching ? "试试更换关键词，或清空搜索条件" : "暂无数据"
-              }
-            />
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredPublicSources.map((source) => (
-                <PublicSourceCard key={source.id} source={source} />
-              ))}
-            </div>
-          )}
-        </section>
+      {/* Content */}
+      <div>
+        {activeTab === "my" ? renderMySourcesContent() : renderPublicSourcesContent()}
       </div>
 
       {showAddDialog && (
@@ -436,4 +480,3 @@ export default function SourcesPage() {
     </PageShell>
   );
 }
-
