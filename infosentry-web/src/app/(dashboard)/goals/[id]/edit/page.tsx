@@ -41,7 +41,7 @@ const schema = z
       .max(2000, "描述不能超过 2000 字符"),
     priority_terms: z.string().optional(),
     priority_mode: z.enum(["STRICT", "SOFT"]),
-    batch_enabled: z.boolean().default(true),
+    batch_enabled: z.boolean().optional().default(true),
     batch_windows: z.string().optional(),
   })
   .superRefine((data, ctx) => {
@@ -71,7 +71,7 @@ const schema = z
     }
   });
 
-type FormData = z.infer<typeof schema>;
+type FormData = z.input<typeof schema>;
 
 export default function EditGoalPage({
   params,
@@ -92,9 +92,13 @@ export default function EditGoalPage({
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
+    defaultValues: {
+      batch_enabled: true,
+      batch_windows: "",
+    },
   });
 
-  const batchEnabled = watch("batch_enabled");
+  const batchEnabled = watch("batch_enabled", true);
 
   useEffect(() => {
     if (goal) {
@@ -106,7 +110,7 @@ export default function EditGoalPage({
         description: goal.description,
         priority_mode: goal.priority_mode,
         priority_terms: [...priorityLines, ...negativeLines].join("\n"),
-        batch_enabled: goal.batch_enabled,
+        batch_enabled: goal.batch_enabled ?? true,
         batch_windows: goal.batch_windows?.join(", ") ?? "",
       });
     }
@@ -134,15 +138,16 @@ export default function EditGoalPage({
       }
 
       const windows = parseBatchWindows(data.batch_windows);
+      const batchEnabledValue = data.batch_enabled ?? true;
       await updateGoal.mutateAsync({
         name: data.name,
         description: data.description,
         priority_mode: data.priority_mode,
         priority_terms: priority_terms.length ? priority_terms : undefined,
         negative_terms: negative_terms.length ? negative_terms : undefined,
-        batch_enabled: data.batch_enabled,
+        batch_enabled: batchEnabledValue,
         batch_windows:
-          data.batch_enabled && windows.length ? windows : undefined,
+          batchEnabledValue && windows.length ? windows : undefined,
       });
 
       // 等待缓存刷新完成后再跳转
