@@ -62,7 +62,7 @@ async def _handle_match_computed_async(
     from src.core.infrastructure.database.session import get_async_session
     from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.agent.application.llm_service import LLMJudgeService
-    from src.modules.agent.application.pipeline_builder import PipelineBuilder
+    from src.modules.agent.infrastructure.runtime_factory import AgentRuntimeFactory
     from src.modules.agent.application.orchestrator import AgentOrchestrator
     from src.modules.agent.application.tools import create_default_registry
     from src.modules.agent.infrastructure.mappers import (
@@ -127,42 +127,16 @@ async def _handle_match_computed_async(
                 session, UserBudgetDailyMapper(), event_bus
             )
 
-            # 创建服务
-            budget_service = BudgetService(redis_client)
-            user_budget_service = UserBudgetUsageService(user_budget_repo)
-            prompt_store = get_prompt_store_infra()
-            llm_service = LLMJudgeService(
-                budget_service=budget_service,
-                user_budget_service=user_budget_service,
-                prompt_store=prompt_store,
+            # 使用工厂装配 orchestrator/pipeline
+            factory = AgentRuntimeFactory(
+                session=session, redis_client=redis_client, event_bus=event_bus
             )
-
-            # 创建工具注册表
-            tools = create_default_registry(
-                goal_repository=goal_repo,
-                term_repository=term_repo,
-                item_repository=item_repo,
-                decision_repository=decision_repo,
-                budget_service=budget_service,
-                redis_client=redis_client,
-                ledger_repo=ledger_repo,
+            components = factory.create()
+            pipeline = components.pipeline_builder.build_immediate(
+                redis_client=redis_client
             )
-
-            # 创建 Pipeline
-            pipeline = PipelineBuilder(
-                tools=tools, llm_service=llm_service
-            ).build_immediate(redis_client=redis_client)
-
-            # 创建编排器
-            orchestrator = AgentOrchestrator(
-                run_repository=run_repo,
-                tool_call_repository=tool_call_repo,
-                ledger_repository=ledger_repo,
-                tools=tools,
-                pipeline=pipeline,
-                event_bus=event_bus,
-                llm_service=llm_service,
-            )
+            components.orchestrator.pipeline = pipeline
+            orchestrator = components.orchestrator
 
             # 获取匹配原因（从 goal_item_matches 表）
             from src.modules.items.infrastructure.mappers import GoalItemMatchMapper

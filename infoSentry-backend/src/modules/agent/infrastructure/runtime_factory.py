@@ -9,6 +9,7 @@ from src.core.infrastructure.ai.prompting.dependencies import (
 from src.modules.agent.application.logging_port import LoggingPort
 from src.modules.agent.application.llm_service import LLMJudgeService
 from src.modules.agent.application.orchestrator import AgentOrchestrator
+from src.modules.agent.application.pipeline_builder import PipelineBuilder
 from src.modules.agent.application.tools import create_default_registry
 from src.modules.agent.infrastructure.logging import StructlogLoggingPort
 from src.modules.agent.infrastructure.mappers import (
@@ -22,7 +23,11 @@ from src.modules.agent.infrastructure.repositories import (
     PostgreSQLAgentToolCallRepository,
 )
 from src.modules.goals.infrastructure.mappers import GoalMapper
-from src.modules.goals.infrastructure.repositories import PostgreSQLGoalRepository
+from src.modules.goals.infrastructure.mappers import GoalPriorityTermMapper
+from src.modules.goals.infrastructure.repositories import (
+    PostgreSQLGoalPriorityTermRepository,
+    PostgreSQLGoalRepository,
+)
 from src.modules.items.application.budget_service import BudgetService
 from src.modules.items.infrastructure.mappers import GoalItemMatchMapper, ItemMapper
 from src.modules.items.infrastructure.repositories import (
@@ -51,6 +56,8 @@ class AgentRuntimeComponents:
         goal_repo: PostgreSQLGoalRepository,
         item_repo: PostgreSQLItemRepository,
         llm_service: LLMJudgeService,
+        pipeline_builder: PipelineBuilder,
+        term_repo: PostgreSQLGoalPriorityTermRepository | None = None,
     ) -> None:
         self.orchestrator = orchestrator
         self.match_repo = match_repo
@@ -58,6 +65,8 @@ class AgentRuntimeComponents:
         self.goal_repo = goal_repo
         self.item_repo = item_repo
         self.llm_service = llm_service
+        self.pipeline_builder = pipeline_builder
+        self.term_repo = term_repo
 
 
 class AgentRuntimeFactory:
@@ -99,6 +108,9 @@ class AgentRuntimeFactory:
         item_repo = PostgreSQLItemRepository(
             self.session, ItemMapper(), self.event_bus
         )
+        term_repo = PostgreSQLGoalPriorityTermRepository(
+            self.session, GoalPriorityTermMapper(), self.event_bus
+        )
         user_budget_repo = PostgreSQLUserBudgetDailyRepository(
             self.session, UserBudgetDailyMapper(), self.event_bus
         )
@@ -115,12 +127,17 @@ class AgentRuntimeFactory:
 
         tools = create_default_registry(
             goal_repository=goal_repo,
-            term_repository=None,
+            term_repository=term_repo,
             item_repository=item_repo,
             decision_repository=decision_repo,
             budget_service=budget_service,
             redis_client=self.redis_client,
             ledger_repo=ledger_repo,
+        )
+
+        pipeline_builder = PipelineBuilder(
+            tools=tools,
+            llm_service=llm_service,
         )
 
         orchestrator = AgentOrchestrator(
@@ -139,4 +156,6 @@ class AgentRuntimeFactory:
             goal_repo=goal_repo,
             item_repo=item_repo,
             llm_service=llm_service,
+            pipeline_builder=pipeline_builder,
+            term_repo=term_repo,
         )
