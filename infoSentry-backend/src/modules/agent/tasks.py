@@ -62,7 +62,7 @@ async def _handle_match_computed_async(
     from src.core.infrastructure.database.session import get_async_session
     from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.agent.application.llm_service import LLMJudgeService
-    from src.modules.agent.application.nodes import create_immediate_pipeline
+    from src.modules.agent.application.pipeline_builder import PipelineBuilder
     from src.modules.agent.application.orchestrator import AgentOrchestrator
     from src.modules.agent.application.tools import create_default_registry
     from src.modules.agent.infrastructure.mappers import (
@@ -149,11 +149,9 @@ async def _handle_match_computed_async(
             )
 
             # 创建 Pipeline
-            pipeline = create_immediate_pipeline(
-                tools=tools,
-                llm_service=llm_service,
-                redis_client=redis_client,
-            )
+            pipeline = PipelineBuilder(
+                tools=tools, llm_service=llm_service
+            ).build_immediate(redis_client=redis_client)
 
             # 创建编排器
             orchestrator = AgentOrchestrator(

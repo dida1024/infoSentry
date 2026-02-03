@@ -292,6 +292,12 @@ class AgentOrchestrator:
             agent_run = await self.run_repo.create(agent_run)
 
             actions_created = 0
+            processed_count = 0
+            ignore_limit = (
+                settings.BATCH_IGNORE_LIMIT
+                if settings.BATCH_IGNORE_LIMIT is not None
+                else settings.BATCH_MAX_ITEMS
+            )
 
             # 如果提供了 repositories，执行 Batch 逻辑
             if match_repository and decision_repository:
@@ -320,6 +326,8 @@ class AgentOrchestrator:
 
                 # 2. 过滤已有决策的 items，按需填充到上限
                 for candidate in candidates:
+                    if processed_count >= ignore_limit:
+                        break
                     if actions_created >= settings.BATCH_MAX_ITEMS:
                         break
 
@@ -439,6 +447,7 @@ class AgentOrchestrator:
                             error=emit_result.error,
                         )
                         continue
+                    processed_count += 1
                     if decision_type == PushDecision.BATCH:
                         actions_created += 1
 

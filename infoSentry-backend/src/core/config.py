@@ -210,6 +210,7 @@ class Settings(BaseSettings):
     IMMEDIATE_COALESCE_MINUTES: int = 5
     IMMEDIATE_MAX_ITEMS: int = 3
     BATCH_MAX_ITEMS: int = 8
+    BATCH_IGNORE_LIMIT: int | None = None  # 若为 None 视为与 BATCH_MAX_ITEMS 相同（总处理上限）
     DIGEST_MAX_ITEMS_PER_GOAL: int = 10
     DIGEST_SEND_HOUR: int = 9  # 09:00 CST
     IMMEDIATE_THRESHOLD: float = 0.89
