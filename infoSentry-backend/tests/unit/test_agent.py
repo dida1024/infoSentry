@@ -11,15 +11,18 @@
 import pytest
 from pydantic import ValidationError
 
+from src.core.config import settings
 from src.modules.agent.application.llm_service import (
     BoundaryJudgeOutput,
     MockLLMJudgeService,
+    PushWorthinessOutput,
 )
 from src.modules.agent.application.nodes import (
     BoundaryJudgeNode,
     BucketNode,
     EmitActionsNode,
     NodePipeline,
+    PushWorthinessNode,
     RuleGateNode,
 )
 from src.modules.agent.application.state import (
@@ -401,6 +404,83 @@ class TestBoundaryJudgeNode:
 
 
 # ============================================
+# PushWorthinessNode 测试
+# ============================================
+
+
+class TestPushWorthinessNode:
+    """PushWorthinessNode 测试。"""
+
+    async def test_skip_decision(self):
+        """测试 LLM 判定 SKIP。"""
+
+        class MockWorthinessService:
+            async def judge_push_worthiness(self, **kwargs):
+                return (
+                    PushWorthinessOutput(
+                        label="SKIP",
+                        confidence=0.8,
+                        uncertain=False,
+                        reason="不相关",
+                        evidence=[],
+                    ),
+                    None,
+                )
+
+        node = PushWorthinessNode(llm_service=MockWorthinessService())
+        state = AgentState(
+            goal=GoalContext(
+                goal_id="g1",
+                user_id="u1",
+                name="Test",
+                description="Test",
+                priority_mode="SOFT",
+            ),
+            item=ItemContext(
+                item_id="i1",
+                source_id="s1",
+                title="Test",
+                url="https://test.com",
+            ),
+            match=MatchContext(score=0.85, features={}, reasons={}),
+        )
+        state.draft.preliminary_bucket = DecisionBucket.BATCH
+
+        result = await node.process(state)
+
+        assert result.draft.preliminary_bucket == DecisionBucket.IGNORE
+        assert result.draft.record_ignore is True
+        assert result.draft.adjusted_score < settings.DIGEST_MIN_SCORE
+        assert result.draft.push_worthiness is not None
+
+    async def test_fallback_when_no_llm(self):
+        """测试无 LLM 服务时回退。"""
+        node = PushWorthinessNode(llm_service=None)
+        state = AgentState(
+            goal=GoalContext(
+                goal_id="g1",
+                user_id="u1",
+                name="Test",
+                description="Test",
+                priority_mode="SOFT",
+            ),
+            item=ItemContext(
+                item_id="i1",
+                source_id="s1",
+                title="Test",
+                url="https://test.com",
+            ),
+            match=MatchContext(score=0.85, features={}, reasons={}),
+        )
+        state.draft.preliminary_bucket = DecisionBucket.BATCH
+
+        result = await node.process(state)
+
+        assert result.draft.fallback_reason == "no_llm_service"
+        assert result.draft.preliminary_bucket == DecisionBucket.BATCH
+
+
+# ============================================
 # EmitActionsNode 测试
 # ============================================
 
@@ -463,6 +543,33 @@ class TestEmitActionsNode:
         result = await node.process(state)
 
         assert len(result.actions) == 0
+
+    async def test_record_ignore_action(self):
+        """测试 record_ignore 时生成 IGNORE 动作。"""
+        node = EmitActionsNode()
+        state = AgentState(
+            goal=GoalContext(
+                goal_id="goal-1",
+                user_id="user-1",
+                name="Test",
+                description="Test",
+                priority_mode="SOFT",
+            ),
+            item=ItemContext(
+                item_id="item-1",
+                source_id="src-1",
+                title="Test",
+                url="https://test.com",
+            ),
+            match=MatchContext(score=0.2, features={}, reasons={}),
+        )
+        state.draft.preliminary_bucket = DecisionBucket.IGNORE
+        state.draft.record_ignore = True
+
+        result = await node.process(state)
+
+        assert len(result.actions) == 1
+        assert result.actions[0].decision == "IGNORE"
 
     async def test_no_action_if_blocked(self):
         """测试阻止时不发出动作。"""
@@ -659,6 +766,37 @@ class TestBoundaryJudgeOutput:
             BoundaryJudgeOutput(
                 label="IMMEDIATE",
                 confidence=1.5,  # 超出范围
+                reason="测试",
+            )
+
+
+# ============================================
+# PushWorthinessOutput 测试
+# ============================================
+
+
+class TestPushWorthinessOutput:
+    """PushWorthinessOutput 测试。"""
+
+    def test_valid_output(self):
+        """测试有效输出。"""
+        output = PushWorthinessOutput(
+            label="PUSH",
+            confidence=0.6,
+            uncertain=False,
+            reason="相关",
+            evidence=[],
+        )
+
+        assert output.label == "PUSH"
+        assert output.confidence == 0.6
+
+    def test_invalid_label(self):
+        """测试无效标签。"""
+        with pytest.raises(ValidationError):
+            PushWorthinessOutput(
+                label="INVALID",
+                confidence=0.5,
                 reason="测试",
             )
 

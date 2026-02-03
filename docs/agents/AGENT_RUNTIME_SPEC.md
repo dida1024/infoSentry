@@ -58,6 +58,10 @@ class AgentState(BaseModel):
     draft: DraftContext
     # preliminary_bucket (optional)
     # llm_proposal (optional)
+    # push_worthiness (optional) 推送价值判定结果 {label, confidence, uncertain, reason, evidence}
+    # adjusted_score (optional) LLM 二判后的分数（可能被降到 DIGEST_MIN_SCORE 以下）
+    # record_ignore (bool) 是否记录 IGNORE 决策
+    # fallback_reason (optional) LLM 判定的回退原因
     
     actions: List[ActionProposal]
     # final_actions[]   # list of ActionProposal
@@ -122,6 +126,11 @@ class AgentState(BaseModel):
 │ BoundaryJudgeNode   │ 调 cheap model；若 uncertain/conf<阈值 => 升级大模型
 │                     │ 输出结构化 proposal：label + reason + evidence + confidence + uncertain
 └────────┬────────────┘
+         │
+         v
+┌────────────────────┐
+│ PushWorthinessNode │ LLM 二判：PUSH / SKIP；SKIP 会降分到 DIGEST_MIN_SCORE 以下并标记 IGNORE
+└────────┬───────────┘
          │
          v (若 IMMEDIATE)
 ┌─────────────────┐
@@ -229,4 +238,3 @@ v0 的 Node 设计已经为迁移到 LangGraph 等框架做好准备：
 1. 替换编排层 wiring
 2. nodes/tools 代码复用
 3. 添加 checkpointer 持久化
-

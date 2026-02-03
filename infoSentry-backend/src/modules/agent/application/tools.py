@@ -357,6 +357,7 @@ class EmitDecisionTool(BaseTool):
         reason_json: dict[str, Any],
         dedupe_key: str,
         run_id: str | None = None,
+        status: str | None = None,
         **kwargs,
     ) -> ToolResult:
         """执行发出决策。"""
@@ -365,6 +366,9 @@ class EmitDecisionTool(BaseTool):
         )
         from src.modules.push.domain.entities import (
             PushDecisionRecord,
+        )
+        from src.modules.push.domain.entities import (
+            PushStatus as PushStatusEnum,
         )
 
         # 检查幂等
@@ -376,12 +380,17 @@ class EmitDecisionTool(BaseTool):
             )
 
         # 创建决策
+        extra: dict[str, Any] = {}
+        if status:
+            extra["status"] = PushStatusEnum(status)
+
         push_decision = PushDecisionRecord(
             goal_id=goal_id,
             item_id=item_id,
             decision=PushDecisionEnum(decision),
             reason_json=reason_json,
             dedupe_key=dedupe_key,
+            **extra,
         )
 
         created = await self.decision_repo.create(push_decision)

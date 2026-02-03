@@ -26,6 +26,7 @@ from src.modules.push.application.email_templates import (
     render_plain_text_fallback,
 )
 from src.modules.push.domain.entities import (
+    PushDecisionRecord,
     PushStatus,
 )
 
@@ -215,13 +216,19 @@ class PushService:
             logger.error(f"User not found for goal: {goal_id}")
             return False
 
-        # Build email items
-        email_items = []
+        # Fetch decisions
+        decisions = []
         for decision_id in decision_ids:
             decision = await self.decision_repo.get_by_id(decision_id)
-            if not decision:
-                continue
+            if decision:
+                decisions.append(decision)
 
+        # Sort by match score (desc)
+        decisions = self._sort_decisions_by_score(decisions)
+
+        # Build email items
+        email_items = []
+        for decision in decisions:
             item = await self.item_repo.get_by_id(decision.item_id)
             if not item:
                 continue
@@ -345,6 +352,8 @@ class PushService:
             logger.info(f"No pending batch decisions for goal {goal_id}")
             return True
 
+        decisions = self._sort_decisions_by_score(decisions)
+
         # Get goal and user
         goal = await self.goal_repo.get_by_id(goal_id)
         if not goal:
@@ -465,6 +474,8 @@ class PushService:
             logger.info(f"No pending digest decisions for goal {goal_id}")
             return True
 
+        decisions = self._sort_decisions_by_score(decisions)
+
         # Get goal and user
         goal = await self.goal_repo.get_by_id(goal_id)
         if not goal:
@@ -557,3 +568,25 @@ class PushService:
             logger.error(f"Failed to send digest email: {result.error}")
 
         return result.success
+
+    def _sort_decisions_by_score(
+        self, decisions: list[PushDecisionRecord]
+    ) -> list[PushDecisionRecord]:
+        """按匹配度排序决策（降序）。"""
+        return sorted(
+            decisions,
+            key=lambda d: (self._extract_decision_score(d), d.decided_at),
+            reverse=True,
+        )
+
+    def _extract_decision_score(self, decision: PushDecisionRecord) -> float:
+        """从决策记录中提取匹配分数。"""
+        reason_json = decision.reason_json or {}
+        score_trace = reason_json.get("score_trace", {})
+        adjusted = score_trace.get("adjusted_score")
+        if isinstance(adjusted, (int, float)):
+            return float(adjusted)
+        match_score = reason_json.get("match_score")
+        if isinstance(match_score, (int, float)):
+            return float(match_score)
+        return 0.0

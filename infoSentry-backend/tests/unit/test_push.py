@@ -9,6 +9,7 @@
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -21,6 +22,7 @@ from src.modules.push.application.email_templates import (
     render_immediate_email,
     render_plain_text_fallback,
 )
+from src.modules.push.application.push_service import PushService
 from src.modules.push.domain.entities import (
     PushChannel,
     PushDecision,
@@ -367,3 +369,70 @@ class TestPushSchemaValidation:
             decision=PushDecision.IMMEDIATE,
         )
         assert candidate_high.score <= 1.0
+
+
+# ============================================
+# 决策排序测试
+# ============================================
+
+
+class TestDecisionSorting:
+    """推送决策排序测试。"""
+
+    def test_sort_by_adjusted_score(self):
+        """测试按 adjusted_score 排序。"""
+        service = PushService(
+            decision_repository=MagicMock(),
+            goal_repository=MagicMock(),
+            item_repository=MagicMock(),
+            source_repository=MagicMock(),
+            user_repository=MagicMock(),
+            redis_client=MagicMock(),
+        )
+        high = PushDecisionRecord(
+            id="d1",
+            goal_id="g1",
+            item_id="i1",
+            decision=PushDecision.BATCH,
+            reason_json={"score_trace": {"adjusted_score": 0.9}},
+        )
+        low = PushDecisionRecord(
+            id="d2",
+            goal_id="g1",
+            item_id="i2",
+            decision=PushDecision.BATCH,
+            reason_json={"score_trace": {"adjusted_score": 0.2}},
+        )
+
+        sorted_list = service._sort_decisions_by_score([low, high])
+
+        assert sorted_list[0].id == "d1"
+
+    def test_sort_fallback_to_match_score(self):
+        """测试回退到 match_score 排序。"""
+        service = PushService(
+            decision_repository=MagicMock(),
+            goal_repository=MagicMock(),
+            item_repository=MagicMock(),
+            source_repository=MagicMock(),
+            user_repository=MagicMock(),
+            redis_client=MagicMock(),
+        )
+        high = PushDecisionRecord(
+            id="d1",
+            goal_id="g1",
+            item_id="i1",
+            decision=PushDecision.BATCH,
+            reason_json={"match_score": 0.8},
+        )
+        low = PushDecisionRecord(
+            id="d2",
+            goal_id="g1",
+            item_id="i2",
+            decision=PushDecision.BATCH,
+            reason_json={"match_score": 0.1},
+        )
+
+        sorted_list = service._sort_decisions_by_score([low, high])
+
+        assert sorted_list[0].id == "d1"

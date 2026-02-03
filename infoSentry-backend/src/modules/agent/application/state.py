@@ -101,6 +101,10 @@ class DraftContext(BaseModel):
     block_details: str | None = None
     llm_proposal: dict[str, Any] | None = None
     llm_confidence: float | None = None
+    push_worthiness: dict[str, Any] | None = None
+    adjusted_score: float | None = None
+    record_ignore: bool = False
+    fallback_reason: str | None = None
 
 
 class ActionProposal(BaseModel):

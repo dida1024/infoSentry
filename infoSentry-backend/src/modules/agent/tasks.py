@@ -163,6 +163,7 @@ async def _handle_match_computed_async(
                 tools=tools,
                 pipeline=pipeline,
                 event_bus=event_bus,
+                llm_service=llm_service,
             )
 
             # 获取匹配原因（从 goal_item_matches 表）
@@ -184,6 +185,7 @@ async def _handle_match_computed_async(
                 match_score=match_score,
                 match_features=match_features,
                 match_reasons=match_reasons,
+                match_repository=match_repo,
             )
 
             await session.commit()
@@ -295,7 +297,12 @@ def trigger_batch_for_goal(_self: object, goal_id: str, window_time: str) -> Non
 async def _trigger_batch_for_goal_async(goal_id: str, window_time: str) -> None:
     """异步版本的 Batch 触发。"""
     from src.core.domain.events import SimpleEventBus
+    from src.core.infrastructure.ai.prompting.dependencies import (
+        get_prompt_store as get_prompt_store_infra,
+    )
     from src.core.infrastructure.database.session import get_async_session
+    from src.core.infrastructure.redis.client import get_async_redis_client
+    from src.modules.agent.application.llm_service import LLMJudgeService
     from src.modules.agent.application.orchestrator import AgentOrchestrator
     from src.modules.agent.application.tools import ToolRegistry
     from src.modules.agent.infrastructure.mappers import (
@@ -308,16 +315,30 @@ async def _trigger_batch_for_goal_async(goal_id: str, window_time: str) -> None:
         PostgreSQLAgentRunRepository,
         PostgreSQLAgentToolCallRepository,
     )
-    from src.modules.items.infrastructure.mappers import GoalItemMatchMapper
+    from src.modules.goals.infrastructure.mappers import GoalMapper
+    from src.modules.goals.infrastructure.repositories import PostgreSQLGoalRepository
+    from src.modules.items.application.budget_service import BudgetService
+    from src.modules.items.infrastructure.mappers import GoalItemMatchMapper, ItemMapper
     from src.modules.items.infrastructure.repositories import (
         PostgreSQLGoalItemMatchRepository,
+        PostgreSQLItemRepository,
     )
     from src.modules.push.infrastructure.mappers import PushDecisionMapper
     from src.modules.push.infrastructure.repositories import (
         PostgreSQLPushDecisionRepository,
     )
+    from src.modules.users.application.budget_service import UserBudgetUsageService
+    from src.modules.users.infrastructure.mappers import UserBudgetDailyMapper
+    from src.modules.users.infrastructure.repositories import (
+        PostgreSQLUserBudgetDailyRepository,
+    )
 
-    async with get_async_session() as session:
+    async with (
+        get_async_redis_client(
+            timeout=settings.REDIS_CLIENT_TIMEOUT_SEC
+        ) as redis_client,
+        get_async_session() as session,
+    ):
         try:
             event_bus = SimpleEventBus()
 
@@ -336,6 +357,20 @@ async def _trigger_batch_for_goal_async(goal_id: str, window_time: str) -> None:
             decision_repo = PostgreSQLPushDecisionRepository(
                 session, PushDecisionMapper(), event_bus
             )
+            goal_repo = PostgreSQLGoalRepository(session, GoalMapper(), event_bus)
+            item_repo = PostgreSQLItemRepository(session, ItemMapper(), event_bus)
+            user_budget_repo = PostgreSQLUserBudgetDailyRepository(
+                session, UserBudgetDailyMapper(), event_bus
+            )
+
+            budget_service = BudgetService(redis_client)
+            user_budget_service = UserBudgetUsageService(user_budget_repo)
+            prompt_store = get_prompt_store_infra()
+            llm_service = LLMJudgeService(
+                budget_service=budget_service,
+                user_budget_service=user_budget_service,
+                prompt_store=prompt_store,
+            )
 
             tools = ToolRegistry()
             orchestrator = AgentOrchestrator(
@@ -343,6 +378,7 @@ async def _trigger_batch_for_goal_async(goal_id: str, window_time: str) -> None:
                 tool_call_repository=tool_call_repo,
                 ledger_repository=ledger_repo,
                 tools=tools,
+                llm_service=llm_service,
             )
 
             run = await orchestrator.run_batch_window(
@@ -350,6 +386,8 @@ async def _trigger_batch_for_goal_async(goal_id: str, window_time: str) -> None:
                 window_time,
                 match_repository=match_repo,
                 decision_repository=decision_repo,
+                goal_repository=goal_repo,
+                item_repository=item_repo,
             )
             await session.commit()
 
@@ -454,7 +492,12 @@ def trigger_digest_for_goal(_self: object, goal_id: str) -> None:
 async def _trigger_digest_for_goal_async(goal_id: str) -> None:
     """异步版本的 Digest 触发。"""
     from src.core.domain.events import SimpleEventBus
+    from src.core.infrastructure.ai.prompting.dependencies import (
+        get_prompt_store as get_prompt_store_infra,
+    )
     from src.core.infrastructure.database.session import get_async_session
+    from src.core.infrastructure.redis.client import get_async_redis_client
+    from src.modules.agent.application.llm_service import LLMJudgeService
     from src.modules.agent.application.orchestrator import AgentOrchestrator
     from src.modules.agent.application.tools import ToolRegistry
     from src.modules.agent.infrastructure.mappers import (
@@ -467,16 +510,30 @@ async def _trigger_digest_for_goal_async(goal_id: str) -> None:
         PostgreSQLAgentRunRepository,
         PostgreSQLAgentToolCallRepository,
     )
-    from src.modules.items.infrastructure.mappers import GoalItemMatchMapper
+    from src.modules.goals.infrastructure.mappers import GoalMapper
+    from src.modules.goals.infrastructure.repositories import PostgreSQLGoalRepository
+    from src.modules.items.application.budget_service import BudgetService
+    from src.modules.items.infrastructure.mappers import GoalItemMatchMapper, ItemMapper
     from src.modules.items.infrastructure.repositories import (
         PostgreSQLGoalItemMatchRepository,
+        PostgreSQLItemRepository,
     )
     from src.modules.push.infrastructure.mappers import PushDecisionMapper
     from src.modules.push.infrastructure.repositories import (
         PostgreSQLPushDecisionRepository,
     )
+    from src.modules.users.application.budget_service import UserBudgetUsageService
+    from src.modules.users.infrastructure.mappers import UserBudgetDailyMapper
+    from src.modules.users.infrastructure.repositories import (
+        PostgreSQLUserBudgetDailyRepository,
+    )
 
-    async with get_async_session() as session:
+    async with (
+        get_async_redis_client(
+            timeout=settings.REDIS_CLIENT_TIMEOUT_SEC
+        ) as redis_client,
+        get_async_session() as session,
+    ):
         try:
             event_bus = SimpleEventBus()
 
@@ -495,6 +552,20 @@ async def _trigger_digest_for_goal_async(goal_id: str) -> None:
             decision_repo = PostgreSQLPushDecisionRepository(
                 session, PushDecisionMapper(), event_bus
             )
+            goal_repo = PostgreSQLGoalRepository(session, GoalMapper(), event_bus)
+            item_repo = PostgreSQLItemRepository(session, ItemMapper(), event_bus)
+            user_budget_repo = PostgreSQLUserBudgetDailyRepository(
+                session, UserBudgetDailyMapper(), event_bus
+            )
+
+            budget_service = BudgetService(redis_client)
+            user_budget_service = UserBudgetUsageService(user_budget_repo)
+            prompt_store = get_prompt_store_infra()
+            llm_service = LLMJudgeService(
+                budget_service=budget_service,
+                user_budget_service=user_budget_service,
+                prompt_store=prompt_store,
+            )
 
             tools = ToolRegistry()
             orchestrator = AgentOrchestrator(
@@ -502,12 +573,15 @@ async def _trigger_digest_for_goal_async(goal_id: str) -> None:
                 tool_call_repository=tool_call_repo,
                 ledger_repository=ledger_repo,
                 tools=tools,
+                llm_service=llm_service,
             )
 
             run = await orchestrator.run_digest(
                 goal_id,
                 match_repository=match_repo,
                 decision_repository=decision_repo,
+                goal_repository=goal_repo,
+                item_repository=item_repo,
             )
             await session.commit()
 

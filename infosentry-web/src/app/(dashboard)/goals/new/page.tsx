@@ -43,7 +43,7 @@ const schema = z
       .max(2000, "描述不能超过 2000 字符"),
     priority_terms: z.string().optional(),
     priority_mode: z.enum(["STRICT", "SOFT"]),
-    batch_enabled: z.boolean().default(true),
+    batch_enabled: z.boolean().optional().default(true),
     batch_windows: z.string().optional(),
   })
   .superRefine((data, ctx) => {
@@ -73,7 +73,7 @@ const schema = z
     }
   });
 
-type FormData = z.infer<typeof schema>;
+type FormData = z.input<typeof schema>;
 
 export default function NewGoalPage() {
   const router = useRouter();
@@ -98,7 +98,7 @@ export default function NewGoalPage() {
   });
 
   const description = watch("description");
-  const batchEnabled = watch("batch_enabled");
+  const batchEnabled = watch("batch_enabled", true);
 
   const handleGenerateDraft = async () => {
     if (generateGoalDraft.isPending) return;
@@ -172,15 +172,16 @@ export default function NewGoalPage() {
       }
 
       const windows = parseBatchWindows(data.batch_windows);
+      const batchEnabledValue = data.batch_enabled ?? true;
       const goal = await createGoal.mutateAsync({
         name: data.name,
         description: data.description,
         priority_mode: data.priority_mode,
         priority_terms: priority_terms.length ? priority_terms : undefined,
         negative_terms: negative_terms.length ? negative_terms : undefined,
-        batch_enabled: data.batch_enabled,
+        batch_enabled: batchEnabledValue,
         batch_windows:
-          data.batch_enabled && windows.length ? windows : undefined,
+          batchEnabledValue && windows.length ? windows : undefined,
       });
       router.push(`/goals/${goal.id}`);
     } catch {

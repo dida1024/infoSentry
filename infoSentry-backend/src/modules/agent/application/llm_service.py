@@ -38,6 +38,16 @@ class BoundaryJudgeOutput(BaseModel):
     evidence: list[dict[str, Any]] = Field(default_factory=list)
 
 
+class PushWorthinessOutput(BaseModel):
+    """推送价值判定输出 Schema。"""
+
+    label: str = Field(..., pattern="^(PUSH|SKIP)$")
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    uncertain: bool = Field(default=False)
+    reason: str = Field(..., min_length=1)
+    evidence: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class LLMJudgeService:
     """LLM 边界判别服务。
 
@@ -70,6 +80,31 @@ class LLMJudgeService:
 注意：
 1. 只输出 JSON，不要有其他文字
 2. 如果不确定，设置 uncertain=true 并降级为 BATCH
+3. confidence 代表你对判断的确信程度
+"""
+
+    PUSH_WORTHINESS_SYSTEM_PROMPT = """你是一个信息推送助手，帮助用户判断新闻是否值得推送。
+
+你需要根据用户目标和新闻内容，判断这条新闻是否值得推送给用户：
+- PUSH: 值得推送（与目标高度相关或有明显价值）
+- SKIP: 不值得推送（相关性弱或价值不足）
+
+输出必须是严格的 JSON 格式：
+{
+  "label": "PUSH" 或 "SKIP",
+  "confidence": 0.0-1.0 的置信度,
+  "uncertain": 是否不确定 (true/false),
+  "reason": "判断理由（中文）",
+  "evidence": [
+    {"type": "TERM_HIT", "value": "命中的关键词"},
+    {"type": "SOURCE", "value": "来源"},
+    {"type": "TIME", "value": "时间因素"}
+  ]
+}
+
+注意：
+1. 只输出 JSON，不要有其他文字
+2. 如果不确定，设置 uncertain=true 并降级为 SKIP
 3. confidence 代表你对判断的确信程度
 """
 
@@ -159,6 +194,61 @@ class LLMJudgeService:
             logger.exception(f"Judge LLM call failed: {e}")
             return None
 
+    async def judge_push_worthiness(
+        self,
+        prompt: str | None = None,
+        goal_description: str = "",
+        item_title: str = "",
+        item_snippet: str = "",
+        match_score: float = 0,
+        match_reasons: dict[str, Any] | None = None,
+        user_id: str | None = None,
+    ) -> tuple[PushWorthinessOutput | None, str | None]:
+        """执行推送价值判定。
+
+        Returns:
+            (判定结果, fallback_reason)
+        """
+        # 检查预算
+        if self.budget_service:
+            is_allowed, reason = await self.budget_service.check_judge_budget()
+            if not is_allowed:
+                logger.warning(f"Push worthiness budget exhausted: {reason}")
+                return None, f"budget_exhausted: {reason}"
+
+        messages = self._build_messages_for_prompt(
+            prompt_name="agent.push_worthiness",
+            prompt=prompt,
+            goal_description=goal_description,
+            item_title=item_title,
+            item_snippet=item_snippet,
+            match_score=match_score,
+            match_reasons=match_reasons,
+        )
+
+        try:
+            result, tokens_used = await self._call_llm(messages)
+
+            # 记录 token 使用
+            if self.budget_service and tokens_used > 0:
+                await self.budget_service.record_judge_usage(tokens_used)
+            if self.user_budget_service and user_id and tokens_used > 0:
+                await self.user_budget_service.record_judge_usage(
+                    user_id=user_id,
+                    tokens=tokens_used,
+                )
+
+            validated = self._validate_push_worthiness_output(result)
+            if validated:
+                return validated, None
+
+            logger.warning("Push worthiness output validation failed")
+            return None, "invalid_output"
+
+        except Exception as e:
+            logger.exception(f"Push worthiness LLM call failed: {e}")
+            return None, f"llm_error: {str(e)}"
+
     def _build_user_prompt(
         self,
         goal_description: str,
@@ -186,9 +276,58 @@ class LLMJudgeService:
 
 请根据以上信息判断这条新闻应该 IMMEDIATE（立即推送）还是 BATCH（批量推送）。"""
 
+    def _build_push_user_prompt(
+        self,
+        goal_description: str,
+        item_title: str,
+        item_snippet: str,
+        match_score: float,
+        match_reasons: dict[str, Any] | None,
+    ) -> str:
+        """构建推送价值判定的用户 prompt。"""
+        reasons_str = ""
+        if match_reasons:
+            summary = match_reasons.get("summary", "")
+            if summary:
+                reasons_str = f"\n匹配原因：{summary}"
+
+        return f"""请判断以下新闻是否值得推送给用户。
+
+用户目标：{goal_description}
+
+新闻标题：{item_title}
+新闻摘要：{item_snippet or "无"}
+
+匹配分数：{match_score:.2f} (0-1，越高越相关)
+{reasons_str}
+
+请根据以上信息判断这条新闻应该 PUSH（值得推送）还是 SKIP（不值得推送）。"""
+
     def _build_messages(
         self,
         *,
+        prompt: str | None,
+        goal_description: str,
+        item_title: str,
+        item_snippet: str,
+        match_score: float,
+        match_reasons: dict[str, Any] | None,
+    ) -> list[ChatCompletionMessageParam]:
+        """构建 messages（支持文件化 prompt）。"""
+        return self._build_messages_for_prompt(
+            prompt_name="agent.boundary_judge",
+            prompt=prompt,
+            goal_description=goal_description,
+            item_title=item_title,
+            item_snippet=item_snippet,
+            match_score=match_score,
+            match_reasons=match_reasons,
+        )
+
+    def _build_messages_for_prompt(
+        self,
+        *,
+        prompt_name: str,
         prompt: str | None,
         goal_description: str,
         item_title: str,
@@ -203,7 +342,7 @@ class LLMJudgeService:
 
             # 允许外部覆盖 prompt（主要用于调试/对齐），此时仍复用文件化 system prompt。
             if prompt and prompt.strip():
-                prompt_def = self._prompt_store.get(name="agent.boundary_judge")
+                prompt_def = self._prompt_store.get(name=prompt_name)
                 system = next(
                     (
                         m.content_template
@@ -224,10 +363,12 @@ class LLMJudgeService:
                 if isinstance(s, str) and s.strip():
                     summary = f"\n匹配原因：{s.strip()}"
 
-            snippet = item_snippet.strip() if item_snippet.strip() else "无"
+            snippet = (
+                item_snippet.strip() if item_snippet and item_snippet.strip() else "无"
+            )
 
             rendered = self._prompt_store.render_messages(
-                name="agent.boundary_judge",
+                name=prompt_name,
                 variables={
                     "goal_description": goal_description,
                     "item_title": item_title,
@@ -245,18 +386,33 @@ class LLMJudgeService:
         user_prompt = (
             prompt
             if (prompt and prompt.strip())
-            else self._build_user_prompt(
-                goal_description,
-                item_title,
-                item_snippet,
-                match_score,
-                match_reasons,
+            else (
+                self._build_user_prompt(
+                    goal_description,
+                    item_title,
+                    item_snippet,
+                    match_score,
+                    match_reasons,
+                )
+                if prompt_name == "agent.boundary_judge"
+                else self._build_push_user_prompt(
+                    goal_description,
+                    item_title,
+                    item_snippet,
+                    match_score,
+                    match_reasons,
+                )
             )
+        )
+        system_prompt = (
+            self.SYSTEM_PROMPT
+            if prompt_name == "agent.boundary_judge"
+            else self.PUSH_WORTHINESS_SYSTEM_PROMPT
         )
         return cast(
             list[ChatCompletionMessageParam],
             [
-                {"role": "system", "content": self.SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
         )
@@ -289,6 +445,20 @@ class LLMJudgeService:
         try:
             data = json.loads(raw_output)
             return BoundaryJudgeOutput(**data)
+        except json.JSONDecodeError as e:
+            logger.warning(f"JSON decode error: {e}")
+            return None
+        except ValidationError as e:
+            logger.warning(f"Schema validation error: {e}")
+            return None
+
+    def _validate_push_worthiness_output(
+        self, raw_output: str
+    ) -> PushWorthinessOutput | None:
+        """验证推送价值判定输出 Schema。"""
+        try:
+            data = json.loads(raw_output)
+            return PushWorthinessOutput(**data)
         except json.JSONDecodeError as e:
             logger.warning(f"JSON decode error: {e}")
             return None

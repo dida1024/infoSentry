@@ -10,11 +10,13 @@
 """
 
 import hashlib
+import math
 import re
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+import structlog
 from loguru import logger
 
 from src.modules.agent.application.state import (
@@ -202,6 +204,14 @@ class BucketNode(BaseNode):
         score = state.match.score
         bucket = self.thresholds.get_bucket(score)
         state.draft.preliminary_bucket = bucket
+        state.metadata.setdefault(
+            "thresholds",
+            {
+                "immediate_threshold": self.thresholds.immediate_threshold,
+                "boundary_lower": self.thresholds.boundary_lower,
+                "batch_threshold": self.thresholds.batch_threshold,
+            },
+        )
 
         logger.info(f"BucketNode: score={score:.4f} -> {bucket.value}")
         return state
@@ -357,6 +367,86 @@ class CoalesceNode(BaseNode):
         return state
 
 
+class PushWorthinessNode(BaseNode):
+    """推送价值判定节点。
+
+    基于 LLM 判断是否值得推送：
+    - PUSH: 保持原决策
+    - SKIP: 降分并标记为 IGNORE（记录但不推送）
+    """
+
+    name = "push_worthiness"
+
+    def __init__(
+        self,
+        tools: ToolRegistry | None = None,
+        llm_service: Any = None,
+    ):
+        super().__init__(tools)
+        self.llm_service = llm_service
+        self._biz_logger = structlog.get_logger("business").bind(
+            event="push_worthiness"
+        )
+
+    async def process(self, state: AgentState) -> AgentState:
+        """执行推送价值判定。"""
+        if state.draft.blocked:
+            return state
+
+        if state.draft.preliminary_bucket in (None, DecisionBucket.IGNORE):
+            return state
+
+        if not state.match or not state.goal or not state.item:
+            logger.warning("PushWorthiness: Missing match/goal/item")
+            return state
+
+        if not self.llm_service:
+            state.draft.fallback_reason = "no_llm_service"
+            return state
+
+        result, fallback_reason = await self.llm_service.judge_push_worthiness(
+            prompt=None,
+            goal_description=state.goal.description,
+            item_title=state.item.title,
+            item_snippet=state.item.snippet or "",
+            match_score=state.match.score,
+            match_reasons=state.match.reasons,
+            user_id=state.goal.user_id,
+        )
+
+        if result:
+            state.draft.push_worthiness = result.model_dump()
+            if result.label == "SKIP":
+                from src.core.config import settings
+
+                lowered = math.nextafter(settings.DIGEST_MIN_SCORE, 0.0)
+                state.draft.adjusted_score = lowered
+                state.draft.record_ignore = True
+                state.draft.preliminary_bucket = DecisionBucket.IGNORE
+                self._biz_logger.info(
+                    "push_worthiness_skip",
+                    goal_id=state.goal.goal_id,
+                    item_id=state.item.item_id,
+                    match_score=state.match.score,
+                    adjusted_score=lowered,
+                    reason=result.reason,
+                    confidence=result.confidence,
+                    evidence=result.evidence,
+                    user_id=state.goal.user_id,
+                )
+                logger.info(
+                    f"PushWorthiness: SKIP item {state.item.item_id}, "
+                    f"adjusted_score={lowered:.4f}"
+                )
+            else:
+                state.draft.adjusted_score = state.match.score
+        else:
+            state.draft.fallback_reason = fallback_reason or "llm_no_response"
+            state.draft.adjusted_score = state.match.score
+
+        return state
+
+
 class EmitActionsNode(BaseNode):
     """发出动作节点。
 
@@ -377,7 +467,7 @@ class EmitActionsNode(BaseNode):
 
         bucket = state.draft.preliminary_bucket
 
-        if bucket == DecisionBucket.IGNORE:
+        if bucket == DecisionBucket.IGNORE and not state.draft.record_ignore:
             logger.debug("EmitActions: IGNORE, no action")
             return state
 
@@ -398,6 +488,9 @@ class EmitActionsNode(BaseNode):
         # 构建 evidence
         evidence = self._build_evidence(state)
 
+        # 构建 score_trace
+        score_trace = self._build_score_trace(state)
+
         # 创建动作提案
         action = ActionProposal(
             action_type="EMIT_DECISION",
@@ -409,8 +502,11 @@ class EmitActionsNode(BaseNode):
             dedupe_key=dedupe_key,
             metadata={
                 "match_score": state.match.score if state.match else 0,
+                "adjusted_score": state.draft.adjusted_score,
                 "llm_used": state.draft.llm_proposal is not None,
                 "llm_confidence": state.draft.llm_confidence,
+                "record_ignore": state.draft.record_ignore,
+                "fallback_reason": state.draft.fallback_reason,
             },
         )
 
@@ -423,14 +519,22 @@ class EmitActionsNode(BaseNode):
 
         # 如果有 tools，执行实际的决策记录
         if self.tools:
+            status = "SKIPPED" if bucket == DecisionBucket.IGNORE else None
             result = await self.tools.call(
                 "emit_decision",
                 goal_id=state.goal.goal_id,
                 item_id=state.item.item_id,
                 decision=bucket.value,
-                reason_json={"reason": reason, "evidence": evidence},
+                reason_json={
+                    "reason": reason,
+                    "evidence": evidence,
+                    "score_trace": score_trace,
+                    "match_features": state.match.features if state.match else {},
+                    "match_reasons": state.match.reasons if state.match else {},
+                },
                 dedupe_key=dedupe_key,
                 run_id=state.run_id,
+                status=status,
             )
             if result.success:
                 action.metadata["decision_id"] = result.data.get("id")
@@ -457,6 +561,11 @@ class EmitActionsNode(BaseNode):
             if llm_reason:
                 parts.append(f"LLM: {llm_reason}")
 
+        if state.draft.push_worthiness:
+            worth_reason = state.draft.push_worthiness.get("reason", "")
+            if worth_reason:
+                parts.append(f"LLM推送价值: {worth_reason}")
+
         return "；".join(parts) if parts else "基础匹配"
 
     def _build_evidence(self, state: AgentState) -> list[dict[str, Any]]:
@@ -471,7 +580,35 @@ class EmitActionsNode(BaseNode):
             llm_evidence = state.draft.llm_proposal.get("evidence", [])
             evidence.extend(llm_evidence)
 
+        if state.draft.push_worthiness:
+            worth_evidence = state.draft.push_worthiness.get("evidence", [])
+            evidence.extend(worth_evidence)
+
         return evidence
+
+    def _build_score_trace(self, state: AgentState) -> dict[str, Any]:
+        """构建评分链路信息。"""
+        thresholds = state.metadata.get("thresholds", {})
+        boundary_fallback = state.metadata.get("fallback_reason")
+        llm_data = {
+            "boundary_judge": state.draft.llm_proposal,
+            "boundary_fallback_reason": boundary_fallback,
+            "push_worthiness": state.draft.push_worthiness,
+            "push_worthiness_fallback_reason": state.draft.fallback_reason,
+        }
+        return {
+            "match_score": state.match.score if state.match else 0,
+            "adjusted_score": (
+                state.draft.adjusted_score
+                if state.draft.adjusted_score is not None
+                else (state.match.score if state.match else 0)
+            ),
+            "bucket": state.draft.preliminary_bucket.value
+            if state.draft.preliminary_bucket
+            else None,
+            "thresholds": thresholds,
+            "llm": llm_data,
+        }
 
 
 # ============================================
@@ -513,6 +650,7 @@ def create_immediate_pipeline(
         RuleGateNode(tools),
         BucketNode(tools, thresholds),
         BoundaryJudgeNode(tools, llm_service),
+        PushWorthinessNode(tools, llm_service),
         CoalesceNode(tools, redis_client),
         EmitActionsNode(tools),
     ]
