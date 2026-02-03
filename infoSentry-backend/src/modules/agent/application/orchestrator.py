@@ -12,11 +12,11 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-import structlog
 from loguru import logger
 from pydantic import BaseModel, Field
 
 from src.core.domain.events import EventBus
+from src.modules.agent.application.logging_port import LoggingPort, ScoreTrace
 from src.modules.agent.application.nodes import (
     NodePipeline,
     create_immediate_pipeline,
@@ -81,6 +81,7 @@ class AgentOrchestrator:
         pipeline: NodePipeline | None = None,
         event_bus: EventBus | None = None,
         llm_service: Any | None = None,
+        logging_port: LoggingPort | None = None,
     ):
         self.run_repo = run_repository
         self.tool_call_repo = tool_call_repository
@@ -89,6 +90,7 @@ class AgentOrchestrator:
         self.pipeline = pipeline
         self.event_bus = event_bus
         self.llm_service = llm_service
+        self.logging_port = logging_port
 
     async def run_immediate(
         self,
@@ -187,20 +189,24 @@ class AgentOrchestrator:
                     )
                 adjusted_score = adjusted if adjusted is not None else state.match.score
                 self._log_score_trace(
-                    goal_id=goal_id,
-                    item_id=item_id,
-                    user_id=state.goal.user_id if state.goal else None,
-                    match_score=state.match.score,
-                    adjusted_score=adjusted_score,
-                    bucket=state.draft.preliminary_bucket.value
-                    if state.draft.preliminary_bucket
-                    else None,
-                    thresholds=state.metadata.get("thresholds", {}),
-                    llm_boundary=state.draft.llm_proposal,
-                    push_worthiness=state.draft.push_worthiness,
-                    boundary_fallback_reason=state.metadata.get("fallback_reason"),
-                    push_worthiness_fallback_reason=state.draft.fallback_reason,
-                    trigger=state.trigger,
+                    trace=ScoreTrace(
+                        goal_id=goal_id,
+                        item_id=item_id,
+                        trigger=state.trigger,
+                        bucket=state.draft.preliminary_bucket.value
+                        if state.draft.preliminary_bucket
+                        else None,
+                        match_score=state.match.score,
+                        adjusted_score=adjusted_score,
+                        thresholds=state.metadata.get("thresholds", {}),
+                        llm_boundary=state.draft.llm_proposal,
+                        push_worthiness=state.draft.push_worthiness,
+                        boundary_fallback_reason=state.metadata.get(
+                            "fallback_reason"
+                        ),
+                        push_worthiness_fallback_reason=state.draft.fallback_reason,
+                        user_id=state.goal.user_id if state.goal else None,
+                    )
                 )
 
             # 标记成功
@@ -450,18 +456,20 @@ class AgentOrchestrator:
 
                     # 记录评分链路
                     self._log_score_trace(
-                        goal_id=goal_id,
-                        item_id=candidate.item_id,
-                        user_id=state.goal.user_id if state.goal else None,
-                        match_score=candidate.match_score,
-                        adjusted_score=adjusted_score,
-                        bucket=decision_type.value,
-                        thresholds=score_trace["thresholds"],
-                        llm_boundary=None,
-                        push_worthiness=score_trace["llm"]["push_worthiness"],
-                        boundary_fallback_reason=None,
-                        push_worthiness_fallback_reason=fallback_reason,
-                        trigger=state.trigger,
+                        trace=ScoreTrace(
+                            goal_id=goal_id,
+                            item_id=candidate.item_id,
+                            trigger=state.trigger,
+                            bucket=decision_type.value,
+                            match_score=candidate.match_score,
+                            adjusted_score=adjusted_score,
+                            thresholds=score_trace["thresholds"],
+                            llm_boundary=None,
+                            push_worthiness=score_trace["llm"]["push_worthiness"],
+                            boundary_fallback_reason=None,
+                            push_worthiness_fallback_reason=fallback_reason,
+                            user_id=state.goal.user_id if state.goal else None,
+                        )
                     )
 
             latency_ms = int((time.time() - start_time) * 1000)
@@ -707,18 +715,20 @@ class AgentOrchestrator:
 
                     # 记录评分链路
                     self._log_score_trace(
-                        goal_id=goal_id,
-                        item_id=candidate.item_id,
-                        user_id=state.goal.user_id if state.goal else None,
-                        match_score=candidate.match_score,
-                        adjusted_score=adjusted_score,
-                        bucket=decision_type.value,
-                        thresholds=score_trace["thresholds"],
-                        llm_boundary=None,
-                        push_worthiness=score_trace["llm"]["push_worthiness"],
-                        boundary_fallback_reason=None,
-                        push_worthiness_fallback_reason=fallback_reason,
-                        trigger=state.trigger,
+                        trace=ScoreTrace(
+                            goal_id=goal_id,
+                            item_id=candidate.item_id,
+                            trigger=state.trigger,
+                            bucket=decision_type.value,
+                            match_score=candidate.match_score,
+                            adjusted_score=adjusted_score,
+                            thresholds=score_trace["thresholds"],
+                            llm_boundary=None,
+                            push_worthiness=score_trace["llm"]["push_worthiness"],
+                            boundary_fallback_reason=None,
+                            push_worthiness_fallback_reason=fallback_reason,
+                            user_id=state.goal.user_id if state.goal else None,
+                        )
                     )
 
             latency_ms = int((time.time() - start_time) * 1000)
@@ -774,39 +784,10 @@ class AgentOrchestrator:
         )
         await match_repository.update(match_record)
 
-    def _log_score_trace(
-        self,
-        *,
-        goal_id: str,
-        item_id: str,
-        user_id: str | None,
-        match_score: float,
-        adjusted_score: float,
-        bucket: str | None,
-        thresholds: dict[str, Any],
-        llm_boundary: dict[str, Any] | None,
-        push_worthiness: dict[str, Any] | None,
-        boundary_fallback_reason: str | None,
-        push_worthiness_fallback_reason: str | None,
-        trigger: str,
-    ) -> None:
+    def _log_score_trace(self, *, trace: ScoreTrace) -> None:
         """记录评分链路到业务事件日志。"""
-        biz_logger = structlog.get_logger("business").bind(event="push_score_trace")
-        biz_logger.info(
-            "push_score_trace",
-            goal_id=goal_id,
-            item_id=item_id,
-            trigger=trigger,
-            bucket=bucket,
-            match_score=match_score,
-            adjusted_score=adjusted_score,
-            thresholds=thresholds,
-            llm_boundary=llm_boundary,
-            push_worthiness=push_worthiness,
-            boundary_fallback_reason=boundary_fallback_reason,
-            push_worthiness_fallback_reason=push_worthiness_fallback_reason,
-            user_id=user_id,
-        )
+        if self.logging_port:
+            self.logging_port.log_score_trace(trace)
 
     async def replay(self, run_id: str) -> ReplayResult:
         """回放指定的 Agent 运行。

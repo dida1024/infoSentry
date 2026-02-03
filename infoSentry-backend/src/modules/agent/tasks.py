@@ -297,41 +297,9 @@ def trigger_batch_for_goal(_self: object, goal_id: str, window_time: str) -> Non
 async def _trigger_batch_for_goal_async(goal_id: str, window_time: str) -> None:
     """异步版本的 Batch 触发。"""
     from src.core.domain.events import SimpleEventBus
-    from src.core.infrastructure.ai.prompting.dependencies import (
-        get_prompt_store as get_prompt_store_infra,
-    )
     from src.core.infrastructure.database.session import get_async_session
     from src.core.infrastructure.redis.client import get_async_redis_client
-    from src.modules.agent.application.llm_service import LLMJudgeService
-    from src.modules.agent.application.orchestrator import AgentOrchestrator
-    from src.modules.agent.application.tools import create_default_registry
-    from src.modules.agent.infrastructure.mappers import (
-        AgentActionLedgerMapper,
-        AgentRunMapper,
-        AgentToolCallMapper,
-    )
-    from src.modules.agent.infrastructure.repositories import (
-        PostgreSQLAgentActionLedgerRepository,
-        PostgreSQLAgentRunRepository,
-        PostgreSQLAgentToolCallRepository,
-    )
-    from src.modules.goals.infrastructure.mappers import GoalMapper
-    from src.modules.goals.infrastructure.repositories import PostgreSQLGoalRepository
-    from src.modules.items.application.budget_service import BudgetService
-    from src.modules.items.infrastructure.mappers import GoalItemMatchMapper, ItemMapper
-    from src.modules.items.infrastructure.repositories import (
-        PostgreSQLGoalItemMatchRepository,
-        PostgreSQLItemRepository,
-    )
-    from src.modules.push.infrastructure.mappers import PushDecisionMapper
-    from src.modules.push.infrastructure.repositories import (
-        PostgreSQLPushDecisionRepository,
-    )
-    from src.modules.users.application.budget_service import UserBudgetUsageService
-    from src.modules.users.infrastructure.mappers import UserBudgetDailyMapper
-    from src.modules.users.infrastructure.repositories import (
-        PostgreSQLUserBudgetDailyRepository,
-    )
+    from src.modules.agent.infrastructure.runtime_factory import AgentRuntimeFactory
 
     async with (
         get_async_redis_client(
@@ -342,60 +310,18 @@ async def _trigger_batch_for_goal_async(goal_id: str, window_time: str) -> None:
         try:
             event_bus = SimpleEventBus()
 
-            run_repo = PostgreSQLAgentRunRepository(
-                session, AgentRunMapper(), event_bus
+            factory = AgentRuntimeFactory(
+                session=session, redis_client=redis_client, event_bus=event_bus
             )
-            tool_call_repo = PostgreSQLAgentToolCallRepository(
-                session, AgentToolCallMapper(), event_bus
-            )
-            ledger_repo = PostgreSQLAgentActionLedgerRepository(
-                session, AgentActionLedgerMapper(), event_bus
-            )
-            match_repo = PostgreSQLGoalItemMatchRepository(
-                session, GoalItemMatchMapper(), event_bus
-            )
-            decision_repo = PostgreSQLPushDecisionRepository(
-                session, PushDecisionMapper(), event_bus
-            )
-            goal_repo = PostgreSQLGoalRepository(session, GoalMapper(), event_bus)
-            item_repo = PostgreSQLItemRepository(session, ItemMapper(), event_bus)
-            user_budget_repo = PostgreSQLUserBudgetDailyRepository(
-                session, UserBudgetDailyMapper(), event_bus
-            )
+            components = factory.create()
 
-            budget_service = BudgetService(redis_client)
-            user_budget_service = UserBudgetUsageService(user_budget_repo)
-            prompt_store = get_prompt_store_infra()
-            llm_service = LLMJudgeService(
-                budget_service=budget_service,
-                user_budget_service=user_budget_service,
-                prompt_store=prompt_store,
-            )
-
-            tools = create_default_registry(
-                goal_repository=goal_repo,
-                term_repository=None,
-                item_repository=item_repo,
-                decision_repository=decision_repo,
-                budget_service=budget_service,
-                redis_client=redis_client,
-                ledger_repo=ledger_repo,
-            )
-            orchestrator = AgentOrchestrator(
-                run_repository=run_repo,
-                tool_call_repository=tool_call_repo,
-                ledger_repository=ledger_repo,
-                tools=tools,
-                llm_service=llm_service,
-            )
-
-            run = await orchestrator.run_batch_window(
+            run = await components.orchestrator.run_batch_window(
                 goal_id,
                 window_time,
-                match_repository=match_repo,
-                decision_repository=decision_repo,
-                goal_repository=goal_repo,
-                item_repository=item_repo,
+                match_repository=components.match_repo,
+                decision_repository=components.decision_repo,
+                goal_repository=components.goal_repo,
+                item_repository=components.item_repo,
             )
             await session.commit()
 
@@ -500,41 +426,9 @@ def trigger_digest_for_goal(_self: object, goal_id: str) -> None:
 async def _trigger_digest_for_goal_async(goal_id: str) -> None:
     """异步版本的 Digest 触发。"""
     from src.core.domain.events import SimpleEventBus
-    from src.core.infrastructure.ai.prompting.dependencies import (
-        get_prompt_store as get_prompt_store_infra,
-    )
     from src.core.infrastructure.database.session import get_async_session
     from src.core.infrastructure.redis.client import get_async_redis_client
-    from src.modules.agent.application.llm_service import LLMJudgeService
-    from src.modules.agent.application.orchestrator import AgentOrchestrator
-    from src.modules.agent.application.tools import create_default_registry
-    from src.modules.agent.infrastructure.mappers import (
-        AgentActionLedgerMapper,
-        AgentRunMapper,
-        AgentToolCallMapper,
-    )
-    from src.modules.agent.infrastructure.repositories import (
-        PostgreSQLAgentActionLedgerRepository,
-        PostgreSQLAgentRunRepository,
-        PostgreSQLAgentToolCallRepository,
-    )
-    from src.modules.goals.infrastructure.mappers import GoalMapper
-    from src.modules.goals.infrastructure.repositories import PostgreSQLGoalRepository
-    from src.modules.items.application.budget_service import BudgetService
-    from src.modules.items.infrastructure.mappers import GoalItemMatchMapper, ItemMapper
-    from src.modules.items.infrastructure.repositories import (
-        PostgreSQLGoalItemMatchRepository,
-        PostgreSQLItemRepository,
-    )
-    from src.modules.push.infrastructure.mappers import PushDecisionMapper
-    from src.modules.push.infrastructure.repositories import (
-        PostgreSQLPushDecisionRepository,
-    )
-    from src.modules.users.application.budget_service import UserBudgetUsageService
-    from src.modules.users.infrastructure.mappers import UserBudgetDailyMapper
-    from src.modules.users.infrastructure.repositories import (
-        PostgreSQLUserBudgetDailyRepository,
-    )
+    from src.modules.agent.infrastructure.runtime_factory import AgentRuntimeFactory
 
     async with (
         get_async_redis_client(
@@ -545,59 +439,17 @@ async def _trigger_digest_for_goal_async(goal_id: str) -> None:
         try:
             event_bus = SimpleEventBus()
 
-            run_repo = PostgreSQLAgentRunRepository(
-                session, AgentRunMapper(), event_bus
+            factory = AgentRuntimeFactory(
+                session=session, redis_client=redis_client, event_bus=event_bus
             )
-            tool_call_repo = PostgreSQLAgentToolCallRepository(
-                session, AgentToolCallMapper(), event_bus
-            )
-            ledger_repo = PostgreSQLAgentActionLedgerRepository(
-                session, AgentActionLedgerMapper(), event_bus
-            )
-            match_repo = PostgreSQLGoalItemMatchRepository(
-                session, GoalItemMatchMapper(), event_bus
-            )
-            decision_repo = PostgreSQLPushDecisionRepository(
-                session, PushDecisionMapper(), event_bus
-            )
-            goal_repo = PostgreSQLGoalRepository(session, GoalMapper(), event_bus)
-            item_repo = PostgreSQLItemRepository(session, ItemMapper(), event_bus)
-            user_budget_repo = PostgreSQLUserBudgetDailyRepository(
-                session, UserBudgetDailyMapper(), event_bus
-            )
+            components = factory.create()
 
-            budget_service = BudgetService(redis_client)
-            user_budget_service = UserBudgetUsageService(user_budget_repo)
-            prompt_store = get_prompt_store_infra()
-            llm_service = LLMJudgeService(
-                budget_service=budget_service,
-                user_budget_service=user_budget_service,
-                prompt_store=prompt_store,
-            )
-
-            tools = create_default_registry(
-                goal_repository=goal_repo,
-                term_repository=None,
-                item_repository=item_repo,
-                decision_repository=decision_repo,
-                budget_service=budget_service,
-                redis_client=redis_client,
-                ledger_repo=ledger_repo,
-            )
-            orchestrator = AgentOrchestrator(
-                run_repository=run_repo,
-                tool_call_repository=tool_call_repo,
-                ledger_repository=ledger_repo,
-                tools=tools,
-                llm_service=llm_service,
-            )
-
-            run = await orchestrator.run_digest(
+            run = await components.orchestrator.run_digest(
                 goal_id,
-                match_repository=match_repo,
-                decision_repository=decision_repo,
-                goal_repository=goal_repo,
-                item_repository=item_repo,
+                match_repository=components.match_repo,
+                decision_repository=components.decision_repo,
+                goal_repository=components.goal_repo,
+                item_repository=components.item_repo,
             )
             await session.commit()
 
