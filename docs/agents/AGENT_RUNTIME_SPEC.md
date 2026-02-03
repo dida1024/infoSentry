@@ -148,7 +148,9 @@ class AgentState(BaseModel):
 - Load candidates（search_candidates）
 - Filter（blocked/negative/repeat）
 - Select top N（score+recency+term）
-- Emit decisions + enqueue email
+- LLM 推送价值二判（PUSH/SKIP）；SKIP 会将 score 调整到 DIGEST_MIN_SCORE 以下并标记 IGNORE
+- BATCH 路径受 BATCH_IGNORE_LIMIT（默认=BATCH_MAX_ITEMS）控制总处理量
+- Emit decisions + enqueue email（BATCH / DIGEST / IGNORE），记录 ledger/tool_calls
 
 ---
 
