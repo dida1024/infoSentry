@@ -304,7 +304,7 @@ async def _trigger_batch_for_goal_async(goal_id: str, window_time: str) -> None:
     from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.agent.application.llm_service import LLMJudgeService
     from src.modules.agent.application.orchestrator import AgentOrchestrator
-    from src.modules.agent.application.tools import ToolRegistry
+    from src.modules.agent.application.tools import create_default_registry
     from src.modules.agent.infrastructure.mappers import (
         AgentActionLedgerMapper,
         AgentRunMapper,
@@ -372,7 +372,15 @@ async def _trigger_batch_for_goal_async(goal_id: str, window_time: str) -> None:
                 prompt_store=prompt_store,
             )
 
-            tools = ToolRegistry()
+            tools = create_default_registry(
+                goal_repository=goal_repo,
+                term_repository=None,
+                item_repository=item_repo,
+                decision_repository=decision_repo,
+                budget_service=budget_service,
+                redis_client=redis_client,
+                ledger_repo=ledger_repo,
+            )
             orchestrator = AgentOrchestrator(
                 run_repository=run_repo,
                 tool_call_repository=tool_call_repo,
@@ -499,7 +507,7 @@ async def _trigger_digest_for_goal_async(goal_id: str) -> None:
     from src.core.infrastructure.redis.client import get_async_redis_client
     from src.modules.agent.application.llm_service import LLMJudgeService
     from src.modules.agent.application.orchestrator import AgentOrchestrator
-    from src.modules.agent.application.tools import ToolRegistry
+    from src.modules.agent.application.tools import create_default_registry
     from src.modules.agent.infrastructure.mappers import (
         AgentActionLedgerMapper,
         AgentRunMapper,
@@ -567,7 +575,15 @@ async def _trigger_digest_for_goal_async(goal_id: str) -> None:
                 prompt_store=prompt_store,
             )
 
-            tools = ToolRegistry()
+            tools = create_default_registry(
+                goal_repository=goal_repo,
+                term_repository=None,
+                item_repository=item_repo,
+                decision_repository=decision_repo,
+                budget_service=budget_service,
+                redis_client=redis_client,
+                ledger_repo=ledger_repo,
+            )
             orchestrator = AgentOrchestrator(
                 run_repository=run_repo,
                 tool_call_repository=tool_call_repo,

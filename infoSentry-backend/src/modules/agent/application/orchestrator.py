@@ -406,23 +406,33 @@ class AgentOrchestrator:
                         if existing_ignore:
                             continue
 
-                    # 3. 创建决策
-                    decision = PushDecisionRecord(
+                    # 3. 创建决策（通过工具，确保记账与审计）
+                    reason_json = {
+                        "reason": decision_reason,
+                        "match_score": candidate.match_score,
+                        "match_features": candidate.features_json,
+                        "match_reasons": candidate.reasons_json,
+                        "score_trace": score_trace,
+                        "window_time": window_time,
+                    }
+                    emit_result = await self.tools.call(
+                        "emit_decision",
                         goal_id=goal_id,
                         item_id=candidate.item_id,
-                        decision=decision_type,
-                        reason_json={
-                            "reason": decision_reason,
-                            "match_score": candidate.match_score,
-                            "match_features": candidate.features_json,
-                            "match_reasons": candidate.reasons_json,
-                            "score_trace": score_trace,
-                            "window_time": window_time,
-                        },
+                        decision=decision_type.value,
+                        reason_json=reason_json,
                         dedupe_key=dedupe_key,
-                        **({"status": decision_status} if decision_status else {}),
+                        run_id=state.run_id,
+                        status=decision_status.value if decision_status else None,
                     )
-                    await decision_repository.create(decision)
+                    if not emit_result.success:
+                        logger.warning(
+                            "Emit decision failed in batch window",
+                            goal_id=goal_id,
+                            item_id=candidate.item_id,
+                            error=emit_result.error,
+                        )
+                        continue
                     if decision_type == PushDecision.BATCH:
                         actions_created += 1
 
@@ -461,6 +471,9 @@ class AgentOrchestrator:
                 latency_ms=latency_ms,
             )
             await self.run_repo.update(agent_run)
+
+            for call_record in self.tools.get_call_records():
+                await self.tool_call_repo.create(call_record)
 
             logger.info(
                 f"Batch window run completed: {agent_run.id}, "
@@ -651,22 +664,32 @@ class AgentOrchestrator:
                         if existing_ignore:
                             continue
 
-                    # 3. 创建决策
-                    decision = PushDecisionRecord(
+                    # 3. 创建决策（通过工具，确保记账与审计）
+                    reason_json = {
+                        "reason": decision_reason,
+                        "match_score": candidate.match_score,
+                        "match_features": candidate.features_json,
+                        "match_reasons": candidate.reasons_json,
+                        "score_trace": score_trace,
+                    }
+                    emit_result = await self.tools.call(
+                        "emit_decision",
                         goal_id=goal_id,
                         item_id=candidate.item_id,
-                        decision=decision_type,
-                        reason_json={
-                            "reason": decision_reason,
-                            "match_score": candidate.match_score,
-                            "match_features": candidate.features_json,
-                            "match_reasons": candidate.reasons_json,
-                            "score_trace": score_trace,
-                        },
+                        decision=decision_type.value,
+                        reason_json=reason_json,
                         dedupe_key=dedupe_key,
-                        **({"status": decision_status} if decision_status else {}),
+                        run_id=state.run_id,
+                        status=decision_status.value if decision_status else None,
                     )
-                    await decision_repository.create(decision)
+                    if not emit_result.success:
+                        logger.warning(
+                            "Emit decision failed in digest run",
+                            goal_id=goal_id,
+                            item_id=candidate.item_id,
+                            error=emit_result.error,
+                        )
+                        continue
                     if decision_type == PushDecision.DIGEST:
                         actions_created += 1
 
@@ -705,6 +728,9 @@ class AgentOrchestrator:
                 latency_ms=latency_ms,
             )
             await self.run_repo.update(agent_run)
+
+            for call_record in self.tools.get_call_records():
+                await self.tool_call_repo.create(call_record)
 
             logger.info(
                 f"Digest run completed: {agent_run.id}, "
