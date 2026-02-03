@@ -105,28 +105,6 @@ async def _handle_match_computed_async(
         try:
             event_bus = SimpleEventBus()
 
-            # 创建 repositories
-            run_repo = PostgreSQLAgentRunRepository(
-                session, AgentRunMapper(), event_bus
-            )
-            tool_call_repo = PostgreSQLAgentToolCallRepository(
-                session, AgentToolCallMapper(), event_bus
-            )
-            ledger_repo = PostgreSQLAgentActionLedgerRepository(
-                session, AgentActionLedgerMapper(), event_bus
-            )
-            goal_repo = PostgreSQLGoalRepository(session, GoalMapper(), event_bus)
-            term_repo = PostgreSQLGoalPriorityTermRepository(
-                session, GoalPriorityTermMapper(), event_bus
-            )
-            item_repo = PostgreSQLItemRepository(session, ItemMapper(), event_bus)
-            decision_repo = PostgreSQLPushDecisionRepository(
-                session, PushDecisionMapper(), event_bus
-            )
-            user_budget_repo = PostgreSQLUserBudgetDailyRepository(
-                session, UserBudgetDailyMapper(), event_bus
-            )
-
             # 使用工厂装配 orchestrator/pipeline
             factory = AgentRuntimeFactory(
                 session=session, redis_client=redis_client, event_bus=event_bus
