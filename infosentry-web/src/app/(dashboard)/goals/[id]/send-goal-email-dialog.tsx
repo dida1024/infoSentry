@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import type { AxiosError } from "axios";
 import { X } from "lucide-react";
 import { Alert, Button, Input } from "@/components/ui";
 import { useSendGoalEmail } from "@/hooks/use-goals";
@@ -23,13 +24,22 @@ interface SendGoalEmailDialogProps {
   onClose: () => void;
 }
 
+type ApiErrorResponse = {
+  error?: { message?: string; code?: string };
+  message?: string;
+};
+
 function resolveErrorMessage(error: unknown): string {
   if (typeof error === "object" && error) {
-    const responseMessage = (error as { response?: { data?: { message?: string } } })
-      .response?.data?.message;
-    if (responseMessage) return responseMessage;
-    const maybeMessage = (error as { message?: string }).message;
-    if (maybeMessage) return maybeMessage;
+    const axiosError = error as AxiosError<ApiErrorResponse>;
+    const message =
+      axiosError.response?.data?.error?.message ||
+      axiosError.response?.data?.message ||
+      axiosError.message;
+    if (message) return message;
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
   }
   return "发送失败，请稍后再试";
 }
