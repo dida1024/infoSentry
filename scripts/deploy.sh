@@ -5,6 +5,10 @@
 # 功能：解压镜像包并重启应用容器
 # 用法：./scripts/deploy.sh <package.tar.gz>
 # 注意：不会影响 postgres 和 redis 容器
+#
+# 镜像架构（优化后）：
+#   - infosentry-backend:latest  所有后端服务共用
+#   - infosentry-web:latest      前端服务
 
 set -e
 
@@ -53,6 +57,12 @@ APP_SERVICES=(
     "beat"
 )
 
+# 需要加载的镜像
+EXPECTED_IMAGES=(
+    "infosentry-backend:latest"
+    "infosentry-web:latest"
+)
+
 log_info "======================================"
 log_info "infoSentry 镜像部署脚本"
 log_info "======================================"
@@ -78,6 +88,18 @@ fi
 
 log_info "步骤 2/4: 加载 Docker 镜像..."
 docker load -i "$TEMP_DIR/images.tar"
+
+# 验证镜像已加载
+echo ""
+log_info "验证镜像..."
+for image in "${EXPECTED_IMAGES[@]}"; do
+    if docker image inspect "$image" &>/dev/null; then
+        log_info "✓ $image 已加载"
+    else
+        log_warn "⚠ $image 未找到（可能是旧版镜像包）"
+    fi
+done
+echo ""
 
 log_info "步骤 3/4: 停止应用容器（保留数据库和 Redis）..."
 echo ""
@@ -112,10 +134,19 @@ if [ "$INFRA_RUNNING" = false ]; then
     sleep 10
 fi
 
-# 启动应用容器
+# 启动应用容器（api 必须先启动，因为其他后端服务依赖它的镜像构建）
+log_info "启动 api..."
+docker compose up -d api
+
+# 等待 api 启动
+sleep 2
+
+# 启动其他服务
 for service in "${APP_SERVICES[@]}"; do
-    log_info "启动 ${service}..."
-    docker compose up -d "$service"
+    if [ "$service" != "api" ]; then
+        log_info "启动 ${service}..."
+        docker compose up -d "$service"
+    fi
 done
 
 # 等待服务启动
@@ -128,6 +159,10 @@ log_info "部署完成! 服务状态:"
 log_info "======================================"
 echo ""
 docker compose ps
+
+echo ""
+log_info "镜像信息:"
+docker images | grep -E "infosentry|REPOSITORY" | head -5
 
 echo ""
 log_info "提示:"

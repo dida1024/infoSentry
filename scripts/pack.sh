@@ -6,6 +6,10 @@
 # 用法：./scripts/pack.sh [--no-build] [output_name]
 #   --no-build  跳过构建，直接打包已有镜像
 # 输出：infosentry-images-{timestamp}.tar.gz
+#
+# 镜像架构（优化后）：
+#   - infosentry-backend:latest  所有后端服务共用
+#   - infosentry-web:latest      前端服务
 
 set -e
 
@@ -40,7 +44,10 @@ OUTPUT_NAME="${OUTPUT_NAME:-infosentry-images-${TIMESTAMP}}"
 OUTPUT_DIR="$PROJECT_ROOT/dist"
 OUTPUT_FILE="$OUTPUT_DIR/${OUTPUT_NAME}.tar.gz"
 
-# 需要构建的服务（排除 postgres 和 redis）
+# 需要构建的服务（api 构建会生成 infosentry-backend:latest）
+BUILD_SERVICES=("api" "web")
+
+# 所有应用服务（用于文档记录）
 APP_SERVICES=(
     "api"
     "web"
@@ -51,15 +58,19 @@ APP_SERVICES=(
     "beat"
 )
 
-# 镜像名称前缀
-IMAGE_PREFIX="infosentry"
+# 需要导出的镜像（后端共用一个镜像，前端一个镜像）
+EXPORT_IMAGES=(
+    "infosentry-backend:latest"
+    "infosentry-web:latest"
+)
 
 log_info "======================================"
 log_info "infoSentry 镜像打包脚本"
 log_info "======================================"
 log_info "项目目录: $PROJECT_ROOT"
 log_info "输出文件: $OUTPUT_FILE"
-log_info "目标服务: ${APP_SERVICES[*]}"
+log_info "构建服务: ${BUILD_SERVICES[*]}"
+log_info "导出镜像: ${EXPORT_IMAGES[*]}"
 echo ""
 
 # 创建输出目录
@@ -76,8 +87,8 @@ else
     log_info "步骤 1/3: 构建 Docker 镜像..."
     echo ""
 
-    # 构建所有服务镜像
-    for service in "${APP_SERVICES[@]}"; do
+    # 只构建 api 和 web（api 会生成 infosentry-backend:latest，所有后端服务复用）
+    for service in "${BUILD_SERVICES[@]}"; do
         log_info "构建 ${service}..."
         docker compose build "$service" --no-cache
     done
@@ -89,21 +100,19 @@ echo ""
 log_info "步骤 2/3: 导出镜像..."
 echo ""
 
-# 获取 docker compose 项目名（默认为目录名小写）
-COMPOSE_PROJECT=$(docker compose config --format json 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['name'])" 2>/dev/null || echo "$IMAGE_PREFIX")
-log_info "Compose 项目名: $COMPOSE_PROJECT"
-
-# 收集镜像名称
-IMAGES=()
-for service in "${APP_SERVICES[@]}"; do
-    image_name="${COMPOSE_PROJECT}-${service}"
-    IMAGES+=("$image_name")
-    log_info "记录镜像: $image_name"
+# 检查镜像是否存在
+for image in "${EXPORT_IMAGES[@]}"; do
+    if ! docker image inspect "$image" &>/dev/null; then
+        log_error "镜像不存在: $image"
+        log_error "请先运行构建: ./scripts/pack.sh（不带 --no-build）"
+        exit 1
+    fi
+    log_info "记录镜像: $image"
 done
 
 # 保存所有镜像到单个 tar 文件
 log_info "导出镜像到 tar 文件..."
-docker save "${IMAGES[@]}" -o "$TEMP_DIR/images.tar"
+docker save "${EXPORT_IMAGES[@]}" -o "$TEMP_DIR/images.tar"
 
 # 复制 docker-compose.yml
 cp "$PROJECT_ROOT/docker-compose.yml" "$TEMP_DIR/"
@@ -120,12 +129,19 @@ cat > "$TEMP_DIR/manifest.txt" << EOF
 # 打包平台: $(uname -s) $(uname -m)
 
 镜像列表:
-$(printf '%s\n' "${IMAGES[@]}")
+$(printf '%s\n' "${EXPORT_IMAGES[@]}")
+
+镜像说明:
+- infosentry-backend:latest  后端统一镜像（api + 所有 worker + beat）
+- infosentry-web:latest      前端镜像
+
+服务对应:
+$(printf '%s\n' "${APP_SERVICES[@]}")
 
 文件清单:
-- images.tar        Docker 镜像文件
+- images.tar          Docker 镜像文件
 - docker-compose.yml  编排配置
-- manifest.txt      本清单文件
+- manifest.txt        本清单文件
 EOF
 
 log_info "步骤 3/3: 创建压缩包..."

@@ -122,10 +122,11 @@ services:
     build:
       context: ./infoSentry-backend
       dockerfile: Dockerfile
+    image: infosentry-backend:latest  # 统一镜像名，供其他服务复用
     platform: linux/amd64
     container_name: infosentry-api
     restart: unless-stopped
-    command: uv run uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
+    command: python -m uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
     environment:
       <<: *common-env
     ports:
@@ -154,6 +155,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${BACKEND_HOST:-http://localhost:8000}
+    image: infosentry-web:latest  # 统一镜像名
     container_name: infosentry-web
     restart: unless-stopped
     platform: linux/amd64
@@ -182,17 +184,17 @@ services:
   # ============================================
 
   worker_ingest:
-    build:
-      context: ./infoSentry-backend
-      dockerfile: Dockerfile
+    image: infosentry-backend:latest  # 复用 api 构建的镜像
     container_name: infosentry-worker-ingest
     platform: linux/amd64
     restart: unless-stopped
-    command: uv run celery -A src.core.infrastructure.celery.app worker -Q q_ingest -c 2 -l INFO -n worker_ingest@%h
+    command: celery -A src.core.infrastructure.celery.app worker -Q q_ingest -c 2 -l INFO -n worker_ingest@%h
     environment:
       <<: *common-env
       CELERY_WORKER_NAME: worker_ingest
     depends_on:
+      api:
+        condition: service_started  # 确保镜像已构建
       postgres:
         condition: service_healthy
       redis:
@@ -205,17 +207,17 @@ services:
           memory: 384M
 
   worker_embed_match:
-    build:
-      context: ./infoSentry-backend
-      dockerfile: Dockerfile
+    image: infosentry-backend:latest  # 复用 api 构建的镜像
     container_name: infosentry-worker-embed-match
     restart: unless-stopped
     platform: linux/amd64
-    command: uv run celery -A src.core.infrastructure.celery.app worker -Q q_embed,q_match -c 1 -l INFO -n worker_embed_match@%h
+    command: celery -A src.core.infrastructure.celery.app worker -Q q_embed,q_match -c 1 -l INFO -n worker_embed_match@%h
     environment:
       <<: *common-env
       CELERY_WORKER_NAME: worker_embed_match
     depends_on:
+      api:
+        condition: service_started
       postgres:
         condition: service_healthy
       redis:
@@ -228,17 +230,17 @@ services:
           memory: 384M
 
   worker_agent:
-    build:
-      context: ./infoSentry-backend
-      dockerfile: Dockerfile
+    image: infosentry-backend:latest  # 复用 api 构建的镜像
     container_name: infosentry-worker-agent
     platform: linux/amd64
     restart: unless-stopped
-    command: uv run celery -A src.core.infrastructure.celery.app worker -Q q_agent -c 1 -l INFO -n worker_agent@%h
+    command: celery -A src.core.infrastructure.celery.app worker -Q q_agent -c 1 -l INFO -n worker_agent@%h
     environment:
       <<: *common-env
       CELERY_WORKER_NAME: worker_agent
     depends_on:
+      api:
+        condition: service_started
       postgres:
         condition: service_healthy
       redis:
@@ -251,17 +253,17 @@ services:
           memory: 384M
 
   worker_email:
-    build:
-      context: ./infoSentry-backend
-      dockerfile: Dockerfile
+    image: infosentry-backend:latest  # 复用 api 构建的镜像
     container_name: infosentry-worker-email
     restart: unless-stopped
     platform: linux/amd64
-    command: uv run celery -A src.core.infrastructure.celery.app worker -Q q_email -c 1 -l INFO -n worker_email@%h
+    command: celery -A src.core.infrastructure.celery.app worker -Q q_email -c 1 -l INFO -n worker_email@%h
     environment:
       <<: *common-env
       CELERY_WORKER_NAME: worker_email
     depends_on:
+      api:
+        condition: service_started
       postgres:
         condition: service_healthy
       redis:
@@ -274,16 +276,16 @@ services:
           memory: 256M
 
   beat:
-    build:
-      context: ./infoSentry-backend
-      dockerfile: Dockerfile
+    image: infosentry-backend:latest  # 复用 api 构建的镜像
     container_name: infosentry-beat
     restart: unless-stopped
     platform: linux/amd64
-    command: uv run celery -A src.core.infrastructure.celery.app beat -l INFO
+    command: celery -A src.core.infrastructure.celery.app beat -l INFO
     environment:
       <<: *common-env
     depends_on:
+      api:
+        condition: service_started
       postgres:
         condition: service_healthy
       redis:

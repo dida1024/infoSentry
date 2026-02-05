@@ -1,0 +1,61 @@
+# Git
+.git
+.gitignore
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv
+venv
+env
+
+# Testing
+.pytest_cache
+htmlcov
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.egg-info
+dist
+build
+*.egg
+
+# Lint/Type cache
+.ruff_cache
+.mypy_cache
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Documentation (not needed in runtime)
+docs/
+*.md
+!README.md
+
+# Tests (not needed in runtime)
+tests/
+
+# Development files
+Makefile
+docker-compose*.yml
+Dockerfile*

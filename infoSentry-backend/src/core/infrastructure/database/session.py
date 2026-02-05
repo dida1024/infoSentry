@@ -13,7 +13,8 @@ from src.core.infrastructure.health import DatabaseHealthResult, HealthStatus
 
 async_engine = create_async_engine(
     settings.SQLALCHEMY_DATABASE_URI,
-    echo=settings.ENVIRONMENT == "local",
+    # echo=settings.ENVIRONMENT == "local",
+    echo=False,
     pool_pre_ping=True,
     pool_size=5,
     max_overflow=10,
