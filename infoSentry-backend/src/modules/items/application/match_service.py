@@ -9,6 +9,7 @@
 """
 
 import hashlib
+import inspect
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -198,6 +199,21 @@ class MatchService:
                 base_url=settings.OPENAI_API_BASE,
             )
         return self._openai_client
+
+    async def aclose(self) -> None:
+        """关闭底层 OpenAI 客户端以避免事件循环关闭时的清理错误。"""
+
+        if self._openai_client is not None:
+            close_fn = getattr(self._openai_client, "aclose", None) or getattr(
+                self._openai_client, "close", None
+            )
+            if close_fn is None:
+                logger.debug("OpenAI client has no close method, skip closing")
+            else:
+                result = close_fn()
+                if inspect.isawaitable(result):
+                    await result
+            self._openai_client = None
 
     async def match_item_to_goals(self, item: Item) -> list[MatchResult]:
         """将 Item 与所有活跃 Goal 进行匹配。

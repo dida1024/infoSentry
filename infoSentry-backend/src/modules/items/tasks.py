@@ -54,6 +54,7 @@ async def _embed_item_async(item_id: str) -> None:
         ) as redis_client,
         get_async_session() as session,
     ):
+        embedding_service: EmbeddingService | None = None
         try:
             # 创建依赖
             event_bus = SimpleEventBus()
@@ -88,6 +89,9 @@ async def _embed_item_async(item_id: str) -> None:
             logger.exception(f"Error in embed_item task for {item_id}: {e}")
             await session.rollback()
             raise
+        finally:
+            if embedding_service is not None:
+                await embedding_service.aclose()
 
 
 @shared_task(
@@ -125,6 +129,7 @@ async def _embed_pending_items_async(limit: int) -> None:
         ) as redis_client,
         get_async_session() as session,
     ):
+        embedding_service: EmbeddingService | None = None
         try:
             # 创建依赖
             event_bus = SimpleEventBus()
@@ -164,6 +169,9 @@ async def _embed_pending_items_async(limit: int) -> None:
             logger.exception(f"Error in embed_pending_items: {e}")
             await session.rollback()
             raise
+        finally:
+            if embedding_service is not None:
+                await embedding_service.aclose()
 
 
 @shared_task(
@@ -216,6 +224,7 @@ async def _match_item_async(item_id: str) -> None:
         ) as redis_client,
         get_async_session() as session,
     ):
+        match_service: MatchService | None = None
         try:
             # 创建依赖
             event_bus = SimpleEventBus()
@@ -272,6 +281,9 @@ async def _match_item_async(item_id: str) -> None:
             logger.exception(f"Error in match_item task for {item_id}: {e}")
             await session.rollback()
             raise
+        finally:
+            if match_service is not None:
+                await match_service.aclose()
 
 
 @shared_task(
@@ -324,6 +336,7 @@ async def _match_items_for_goal_async(goal_id: str, hours_back: int) -> None:
         ) as redis_client,
         get_async_session() as session,
     ):
+        match_service: MatchService | None = None
         try:
             # 创建依赖
             event_bus = SimpleEventBus()
@@ -379,3 +392,6 @@ async def _match_items_for_goal_async(goal_id: str, hours_back: int) -> None:
             logger.exception(f"Error in match_items_for_goal: {e}")
             await session.rollback()
             raise
+        finally:
+            if match_service is not None:
+                await match_service.aclose()

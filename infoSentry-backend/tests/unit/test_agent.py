@@ -333,6 +333,68 @@ class TestBucketNode:
 
 
 # ============================================
+# Decision Flow 测试（不入库，仅模拟）
+# ============================================
+
+
+class TestDecisionFlowSimulation:
+    """模拟匹配分数 -> 推送状态（无工具、无入库）。"""
+
+    @pytest.mark.parametrize(
+        ("score", "expected_decision", "expected_actions"),
+        [
+            (0.70, None, 0),  # IGNORE
+            (0.75, "BATCH", 1),
+            (0.87, "BATCH", 1),
+            (0.88, "BATCH", 1),  # BOUNDARY -> no LLM fallback to BATCH
+            (0.92, "BATCH", 1),  # BOUNDARY -> no LLM fallback to BATCH
+            (0.93, "IMMEDIATE", 1),
+            (1.00, "IMMEDIATE", 1),
+        ],
+    )
+    async def test_score_to_decision_without_persist(
+        self, score: float, expected_decision: str | None, expected_actions: int
+    ) -> None:
+        """验证 70%~100% 分数在无入库情况下的决策输出。"""
+        state = AgentState(
+            goal=GoalContext(
+                goal_id="goal-1",
+                user_id="user-1",
+                name="Test Goal",
+                description="Test",
+                priority_mode="SOFT",
+            ),
+            item=ItemContext(
+                item_id="item-1",
+                source_id="src-1",
+                title="Test title",
+                url="https://example.com",
+            ),
+            match=MatchContext(
+                score=score,
+                features={},
+                reasons={"summary": "测试匹配"},
+            ),
+        )
+
+        pipeline = NodePipeline(
+            [
+                BucketNode(),
+                BoundaryJudgeNode(llm_service=None),
+                EmitActionsNode(),
+            ]
+        )
+
+        result = await pipeline.run(state)
+
+        assert len(result.actions) == expected_actions
+        if expected_decision is None:
+            assert result.actions == []
+        else:
+            assert result.actions[0].decision == expected_decision
+
+
+# ============================================
 # BoundaryJudgeNode 测试
 # ============================================
 

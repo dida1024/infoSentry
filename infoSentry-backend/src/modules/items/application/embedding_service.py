@@ -6,6 +6,7 @@
 - 错误重试
 """
 
+import inspect
 from loguru import logger
 from openai import AsyncOpenAI
 from tenacity import (
@@ -67,6 +68,22 @@ class EmbeddingService:
                 base_url=settings.OPENAI_API_BASE,
             )
         return self._client
+
+    async def aclose(self) -> None:
+        """关闭底层 OpenAI 客户端，避免事件循环关闭后的清理错误。"""
+
+        if self._client is not None:
+            close_fn = getattr(self._client, "aclose", None) or getattr(
+                self._client, "close", None
+            )
+            if close_fn is None:
+                logger.debug("OpenAI client has no close method, skip closing")
+            else:
+                result = close_fn()
+                if inspect.isawaitable(result):
+                    await result
+            self._client = None
+            self._client = None
 
     async def embed_item(self, item: Item) -> EmbeddingResult:
         """为单个 Item 生成嵌入向量。

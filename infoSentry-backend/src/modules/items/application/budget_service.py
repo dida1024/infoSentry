@@ -67,6 +67,8 @@ class BudgetService:
 
     # Redis key 前缀
     BUDGET_KEY_PREFIX = "budget:daily"
+    EMBED_PRICE_PER_1K: float = settings.EMBED_PRICE_PER_1K
+    JUDGE_PRICE_PER_1K: float = settings.JUDGE_PRICE_PER_1K
 
     def __init__(self, redis_client: KVClient):
         self.redis = redis_client

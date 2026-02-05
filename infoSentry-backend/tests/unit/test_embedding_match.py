@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.core.config import settings
 from src.modules.goals.domain.entities import (
     Goal,
     GoalPriorityTerm,
@@ -95,6 +96,17 @@ class TestBudgetService:
     def budget_service(self, mock_redis):
         """创建 BudgetService 实例。"""
         return BudgetService(redis_client=mock_redis)
+
+    def test_price_constants_match_settings(self):
+        """测试预算价格常量与配置一致。"""
+        assert (
+            getattr(BudgetService, "EMBED_PRICE_PER_1K", None)
+            == settings.EMBED_PRICE_PER_1K
+        )
+        assert (
+            getattr(BudgetService, "JUDGE_PRICE_PER_1K", None)
+            == settings.JUDGE_PRICE_PER_1K
+        )
 
     async def test_get_status_empty(self, budget_service, mock_redis):
         """测试获取空状态。"""
