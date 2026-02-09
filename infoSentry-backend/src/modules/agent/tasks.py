@@ -56,45 +56,9 @@ async def _handle_match_computed_async(
 ):
     """异步版本的 MatchComputed 处理。"""
     from src.core.domain.events import SimpleEventBus
-    from src.core.infrastructure.ai.prompting.dependencies import (
-        get_prompt_store as get_prompt_store_infra,
-    )
     from src.core.infrastructure.database.session import get_async_session
     from src.core.infrastructure.redis.client import get_async_redis_client
-    from src.modules.agent.application.llm_service import LLMJudgeService
     from src.modules.agent.infrastructure.runtime_factory import AgentRuntimeFactory
-    from src.modules.agent.application.orchestrator import AgentOrchestrator
-    from src.modules.agent.application.tools import create_default_registry
-    from src.modules.agent.infrastructure.mappers import (
-        AgentActionLedgerMapper,
-        AgentRunMapper,
-        AgentToolCallMapper,
-    )
-    from src.modules.agent.infrastructure.repositories import (
-        PostgreSQLAgentActionLedgerRepository,
-        PostgreSQLAgentRunRepository,
-        PostgreSQLAgentToolCallRepository,
-    )
-    from src.modules.goals.infrastructure.mappers import (
-        GoalMapper,
-        GoalPriorityTermMapper,
-    )
-    from src.modules.goals.infrastructure.repositories import (
-        PostgreSQLGoalPriorityTermRepository,
-        PostgreSQLGoalRepository,
-    )
-    from src.modules.items.application.budget_service import BudgetService
-    from src.modules.items.infrastructure.mappers import ItemMapper
-    from src.modules.items.infrastructure.repositories import PostgreSQLItemRepository
-    from src.modules.push.infrastructure.mappers import PushDecisionMapper
-    from src.modules.push.infrastructure.repositories import (
-        PostgreSQLPushDecisionRepository,
-    )
-    from src.modules.users.application.budget_service import UserBudgetUsageService
-    from src.modules.users.infrastructure.mappers import UserBudgetDailyMapper
-    from src.modules.users.infrastructure.repositories import (
-        PostgreSQLUserBudgetDailyRepository,
-    )
 
     async with (
         get_async_redis_client(

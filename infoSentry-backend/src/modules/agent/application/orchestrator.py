@@ -201,9 +201,7 @@ class AgentOrchestrator:
                         thresholds=state.metadata.get("thresholds", {}),
                         llm_boundary=state.draft.llm_proposal,
                         push_worthiness=state.draft.push_worthiness,
-                        boundary_fallback_reason=state.metadata.get(
-                            "fallback_reason"
-                        ),
+                        boundary_fallback_reason=state.metadata.get("fallback_reason"),
                         push_worthiness_fallback_reason=state.draft.fallback_reason,
                         user_id=state.goal.user_id if state.goal else None,
                     )
@@ -312,7 +310,6 @@ class AgentOrchestrator:
 
                 from src.modules.push.domain.entities import (
                     PushDecision,
-                    PushDecisionRecord,
                     PushStatus,
                 )
 
@@ -568,7 +565,6 @@ class AgentOrchestrator:
 
                 from src.modules.push.domain.entities import (
                     PushDecision,
-                    PushDecisionRecord,
                     PushStatus,
                 )
 

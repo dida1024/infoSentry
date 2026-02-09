@@ -1,13 +1,13 @@
 """Runtime factory wiring agent orchestrator and dependencies."""
 
-from typing import Any, Optional
+from typing import Any
 
 from src.core.domain.events import EventBus
 from src.core.infrastructure.ai.prompting.dependencies import (
     get_prompt_store as get_prompt_store_infra,
 )
-from src.modules.agent.application.logging_port import LoggingPort
 from src.modules.agent.application.llm_service import LLMJudgeService
+from src.modules.agent.application.logging_port import LoggingPort
 from src.modules.agent.application.orchestrator import AgentOrchestrator
 from src.modules.agent.application.pipeline_builder import PipelineBuilder
 from src.modules.agent.application.tools import create_default_registry
@@ -22,8 +22,7 @@ from src.modules.agent.infrastructure.repositories import (
     PostgreSQLAgentRunRepository,
     PostgreSQLAgentToolCallRepository,
 )
-from src.modules.goals.infrastructure.mappers import GoalMapper
-from src.modules.goals.infrastructure.mappers import GoalPriorityTermMapper
+from src.modules.goals.infrastructure.mappers import GoalMapper, GoalPriorityTermMapper
 from src.modules.goals.infrastructure.repositories import (
     PostgreSQLGoalPriorityTermRepository,
     PostgreSQLGoalRepository,
@@ -78,7 +77,7 @@ class AgentRuntimeFactory:
         session: Any,
         redis_client: Any,
         event_bus: EventBus,
-        logging_port: Optional[LoggingPort] = None,
+        logging_port: LoggingPort | None = None,
     ) -> None:
         self.session = session
         self.redis_client = redis_client
@@ -102,12 +101,8 @@ class AgentRuntimeFactory:
         decision_repo = PostgreSQLPushDecisionRepository(
             self.session, PushDecisionMapper(), self.event_bus
         )
-        goal_repo = PostgreSQLGoalRepository(
-            self.session, GoalMapper(), self.event_bus
-        )
-        item_repo = PostgreSQLItemRepository(
-            self.session, ItemMapper(), self.event_bus
-        )
+        goal_repo = PostgreSQLGoalRepository(self.session, GoalMapper(), self.event_bus)
+        item_repo = PostgreSQLItemRepository(self.session, ItemMapper(), self.event_bus)
         term_repo = PostgreSQLGoalPriorityTermRepository(
             self.session, GoalPriorityTermMapper(), self.event_bus
         )
