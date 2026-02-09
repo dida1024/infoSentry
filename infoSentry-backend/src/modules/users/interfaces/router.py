@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 
-from src.core.application.security import get_current_user_id
+from src.core.application.security import get_current_jwt_user_id
 from src.core.config import settings
 from src.core.interfaces.http.response import ApiResponse
 from src.modules.users.application.budget_service import UserBudgetUsageService
@@ -218,7 +218,7 @@ async def logout(
     description="获取当前登录用户的详细信息",
 )
 async def get_current_user(
-    user_id: str = Depends(get_current_user_id),
+    user_id: str = Depends(get_current_jwt_user_id),
     service: UserQueryService = Depends(get_user_query_service),
 ) -> ApiResponse[UserResponse]:
     """Get current user info."""
@@ -234,7 +234,7 @@ async def get_current_user(
 )
 async def update_profile(
     request: UpdateProfileRequest,
-    user_id: str = Depends(get_current_user_id),
+    user_id: str = Depends(get_current_jwt_user_id),
     handler: UpdateProfileHandler = Depends(get_update_profile_handler),
 ) -> ApiResponse[UserResponse]:
     """Update current user profile."""
@@ -270,7 +270,7 @@ async def update_profile(
 async def get_user_budget_usage(
     start_date: date = Query(..., description="起始日期（YYYY-MM-DD）"),
     end_date: date = Query(..., description="结束日期（YYYY-MM-DD）"),
-    user_id: str = Depends(get_current_user_id),
+    user_id: str = Depends(get_current_jwt_user_id),
     budget_service: UserBudgetUsageService = Depends(get_user_budget_usage_service),
 ) -> ApiResponse[UserBudgetUsageResponse]:
     """Get current user's AI budget usage."""

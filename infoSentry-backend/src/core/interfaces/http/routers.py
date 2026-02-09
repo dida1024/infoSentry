@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from src.modules.agent.interfaces.router import router as agent_router
+from src.modules.api_keys.interfaces.router import router as api_keys_router
 from src.modules.goals.interfaces.router import router as goals_router
 from src.modules.push.interfaces.router import router as push_router
 from src.modules.sources.interfaces.router import router as sources_router
@@ -24,3 +25,6 @@ api_router.include_router(push_router)
 
 # Agent/Observability
 api_router.include_router(agent_router)
+
+# API Key Management
+api_router.include_router(api_keys_router)

@@ -3,7 +3,8 @@
 from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import RedirectResponse
 
-from src.core.application.security import get_current_user_id
+from src.core.application.security import AuthContext, require_scope
+from src.core.domain.auth_scope import AuthScope
 from src.core.interfaces.http.response import ApiResponse
 from src.modules.push.application.dependencies import get_notification_service
 from src.modules.push.application.services import NotificationService
@@ -29,12 +30,12 @@ async def list_notifications(
     notification_status: str | None = Query(
         None, alias="status", description="状态过滤"
     ),
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.NOTIFICATIONS_READ)),
     service: NotificationService = Depends(get_notification_service),
 ) -> ApiResponse[NotificationListResponse]:
     """List notifications for user."""
     result = await service.list_notifications(
-        user_id=user_id,
+        user_id=auth.user_id,
         goal_id=goal_id,
         cursor=cursor,
         notification_status=notification_status,
@@ -58,11 +59,11 @@ async def list_notifications(
 )
 async def mark_notification_read(
     notification_id: str,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.NOTIFICATIONS_WRITE)),
     service: NotificationService = Depends(get_notification_service),
 ) -> None:
     """Mark a notification as read."""
-    await service.mark_notification_read(notification_id, user_id)
+    await service.mark_notification_read(notification_id, auth.user_id)
     return None
 
 
@@ -75,7 +76,7 @@ async def mark_notification_read(
 async def submit_feedback(
     item_id: str,
     request: FeedbackRequest,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.NOTIFICATIONS_WRITE)),
     service: NotificationService = Depends(get_notification_service),
 ) -> ApiResponse[FeedbackResponse]:
     """Submit feedback for an item."""
@@ -84,7 +85,7 @@ async def submit_feedback(
         goal_id=request.goal_id,
         feedback=request.feedback.value,
         block_source=request.block_source,
-        user_id=user_id,
+        user_id=auth.user_id,
     )
     return ApiResponse.success(data=FeedbackResponse(feedback_id=feedback_id))
 

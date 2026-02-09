@@ -70,6 +70,10 @@ class Settings(BaseSettings):
     AGENT_RECENT_CLICKS_LIMIT: int = 10
     REDIS_CLIENT_TIMEOUT_SEC: float = 5.0
 
+    # API Key Settings
+    API_KEY_MAX_PER_USER: int = 10
+    API_KEY_DEFAULT_EXPIRE_DAYS: int = 0  # 0 = no expiry by default
+
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyUrl] | str, BeforeValidator(parse_cors)
     ] = []
@@ -86,6 +90,7 @@ class Settings(BaseSettings):
         "Content-Type",
         "Accept",
         "X-Requested-With",
+        "X-API-Key",
     ]
 
     @computed_field
@@ -210,7 +215,9 @@ class Settings(BaseSettings):
     IMMEDIATE_COALESCE_MINUTES: int = 5
     IMMEDIATE_MAX_ITEMS: int = 3
     BATCH_MAX_ITEMS: int = 8
-    BATCH_IGNORE_LIMIT: int | None = None  # 若为 None 视为与 BATCH_MAX_ITEMS 相同（总处理上限）
+    BATCH_IGNORE_LIMIT: int | None = (
+        None  # 若为 None 视为与 BATCH_MAX_ITEMS 相同（总处理上限）
+    )
     DIGEST_MAX_ITEMS_PER_GOAL: int = 10
     DIGEST_SEND_HOUR: int = 9  # 09:00 CST
     IMMEDIATE_THRESHOLD: float = 0.89

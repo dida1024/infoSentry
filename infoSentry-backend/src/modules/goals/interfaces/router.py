@@ -2,8 +2,9 @@
 
 from fastapi import APIRouter, Depends, Query, status
 
-from src.core.application.security import get_current_user_id
+from src.core.application.security import AuthContext, require_scope
 from src.core.config import settings
+from src.core.domain.auth_scope import AuthScope
 from src.core.infrastructure.logging import get_business_logger
 from src.core.interfaces.http.exceptions import BizException
 from src.core.interfaces.http.response import ApiResponse, PaginatedResponse
@@ -103,12 +104,12 @@ async def list_goals(
     page_size: int = Query(
         settings.DEFAULT_PAGE_SIZE, ge=1, le=100, description="每页数量"
     ),
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.GOALS_READ)),
     service: GoalQueryService = Depends(get_goal_query_service),
 ) -> PaginatedResponse[GoalResponse]:
     """List all goals for current user."""
     result = await service.list_goals(
-        user_id=user_id,
+        user_id=auth.user_id,
         status=status.value if status else None,
         page=page,
         page_size=page_size,
@@ -132,13 +133,13 @@ async def list_goals(
 )
 async def create_goal(
     request: CreateGoalRequest,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.GOALS_WRITE)),
     handler: CreateGoalHandler = Depends(get_create_goal_handler),
     query_service: GoalQueryService = Depends(get_goal_query_service),
 ) -> ApiResponse[GoalResponse]:
     """Create a new goal."""
     command = CreateGoalCommand(
-        user_id=user_id,
+        user_id=auth.user_id,
         name=request.name,
         description=request.description,
         priority_mode=request.priority_mode.value,
@@ -166,7 +167,7 @@ async def create_goal(
 )
 async def suggest_keywords(
     request: SuggestKeywordsRequest,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.GOALS_WRITE)),
     service: KeywordSuggestionService = Depends(get_keyword_suggestion_service),
 ) -> ApiResponse[SuggestKeywordsResponse]:
     """Suggest keywords based on goal description using LLM."""
@@ -177,7 +178,7 @@ async def suggest_keywords(
     get_business_logger().info(
         "goal_keywords_suggested",
         event_type="goal_keywords",
-        user_id=user_id,
+        user_id=auth.user_id,
         description_len=len(request.description),
         keywords_count=len(keywords),
     )
@@ -193,7 +194,7 @@ async def suggest_keywords(
 )
 async def generate_goal_draft(
     request: GenerateGoalDraftRequest,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.GOALS_WRITE)),
     service: GoalDraftService = Depends(get_goal_draft_service),
 ) -> ApiResponse[GenerateGoalDraftResponse]:
     """Generate a short goal draft based on user intent."""
@@ -218,7 +219,7 @@ async def generate_goal_draft(
     get_business_logger().info(
         "goal_draft_generated",
         event_type="goal_draft",
-        user_id=user_id,
+        user_id=auth.user_id,
         intent_len=len(request.intent),
         keywords_count=len(draft.keywords),
     )
@@ -239,11 +240,11 @@ async def generate_goal_draft(
 )
 async def get_goal(
     goal_id: str,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.GOALS_READ)),
     service: GoalQueryService = Depends(get_goal_query_service),
 ) -> ApiResponse[GoalResponse]:
     """Get goal details."""
-    response = await service.get_goal(goal_id=goal_id, user_id=user_id)
+    response = await service.get_goal(goal_id=goal_id, user_id=auth.user_id)
     return ApiResponse.success(data=_to_goal_response(response))
 
 
@@ -256,14 +257,14 @@ async def get_goal(
 async def update_goal(
     goal_id: str,
     request: UpdateGoalRequest,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.GOALS_WRITE)),
     handler: UpdateGoalHandler = Depends(get_update_goal_handler),
     query_service: GoalQueryService = Depends(get_goal_query_service),
 ) -> ApiResponse[GoalResponse]:
     """Update a goal."""
     command = UpdateGoalCommand(
         goal_id=goal_id,
-        user_id=user_id,
+        user_id=auth.user_id,
         name=request.name,
         description=request.description,
         priority_mode=request.priority_mode.value if request.priority_mode else None,
@@ -290,11 +291,11 @@ async def update_goal(
 )
 async def delete_goal(
     goal_id: str,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.GOALS_WRITE)),
     handler: DeleteGoalHandler = Depends(get_delete_goal_handler),
 ) -> None:
     """Delete a goal (soft delete)."""
-    command = DeleteGoalCommand(goal_id=goal_id, user_id=user_id)
+    command = DeleteGoalCommand(goal_id=goal_id, user_id=auth.user_id)
     await handler.handle(command)
 
 
@@ -306,11 +307,11 @@ async def delete_goal(
 )
 async def pause_goal(
     goal_id: str,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.GOALS_WRITE)),
     handler: PauseGoalHandler = Depends(get_pause_goal_handler),
 ) -> ApiResponse[GoalStatusResponse]:
     """Pause a goal."""
-    command = PauseGoalCommand(goal_id=goal_id, user_id=user_id)
+    command = PauseGoalCommand(goal_id=goal_id, user_id=auth.user_id)
     goal = await handler.handle(command)
     return ApiResponse.success(data=GoalStatusResponse(status=goal.status))
 
@@ -323,11 +324,11 @@ async def pause_goal(
 )
 async def resume_goal(
     goal_id: str,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.GOALS_WRITE)),
     handler: ResumeGoalHandler = Depends(get_resume_goal_handler),
 ) -> ApiResponse[GoalStatusResponse]:
     """Resume a goal."""
-    command = ResumeGoalCommand(goal_id=goal_id, user_id=user_id)
+    command = ResumeGoalCommand(goal_id=goal_id, user_id=auth.user_id)
     goal = await handler.handle(command)
     return ApiResponse.success(data=GoalStatusResponse(status=goal.status))
 
@@ -351,13 +352,13 @@ async def get_goal_matches(
     page_size: int = Query(
         settings.DEFAULT_PAGE_SIZE, ge=1, le=100, description="每页数量"
     ),
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.GOALS_READ)),
     service: GoalMatchQueryService = Depends(get_goal_match_query_service),
 ) -> GoalMatchListResponse:
     """Get goal's matched items."""
     result = await service.list_matches(
         goal_id=goal_id,
-        user_id=user_id,
+        user_id=auth.user_id,
         min_score=min_score,
         page=page,
         page_size=page_size,
@@ -405,14 +406,14 @@ async def get_goal_matches(
 async def send_goal_email(
     goal_id: str,
     request: SendGoalEmailRequest,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.GOALS_WRITE)),
     service: GoalSendEmailService = Depends(get_goal_send_email_service),
 ) -> ApiResponse[SendGoalEmailResponse]:
     """Send goal email immediately."""
     try:
         result = await service.send_immediately(
             goal_id=goal_id,
-            user_id=user_id,
+            user_id=auth.user_id,
             since=request.since,
             min_score=request.min_score,
             limit=request.limit,

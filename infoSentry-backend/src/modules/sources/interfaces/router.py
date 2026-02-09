@@ -2,8 +2,9 @@
 
 from fastapi import APIRouter, Depends, Query, status
 
-from src.core.application.security import get_current_user_id
+from src.core.application.security import AuthContext, require_scope
 from src.core.config import settings
+from src.core.domain.auth_scope import AuthScope
 from src.core.interfaces.http.response import ApiResponse, PaginatedResponse
 from src.modules.sources.application.commands import (
     CreateSourceCommand,
@@ -90,12 +91,12 @@ async def list_sources(
     page_size: int = Query(
         settings.SOURCES_PAGE_SIZE, ge=1, le=100, description="每页数量"
     ),
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.SOURCES_READ)),
     service: SourceQueryService = Depends(get_source_query_service),
 ) -> PaginatedResponse[SourceResponse]:
     """List all sources."""
     result = await service.list_sources(
-        user_id=user_id,
+        user_id=auth.user_id,
         source_type=type.value if type else None,
         page=page,
         page_size=page_size,
@@ -121,12 +122,12 @@ async def list_public_sources(
     page_size: int = Query(
         settings.SOURCES_PAGE_SIZE, ge=1, le=100, description="每页数量"
     ),
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.SOURCES_READ)),
     service: SourceQueryService = Depends(get_source_query_service),
 ) -> PaginatedResponse[PublicSourceResponse]:
     """List public sources."""
     result = await service.list_public_sources(
-        user_id=user_id,
+        user_id=auth.user_id,
         source_type=type.value if type else None,
         page=page,
         page_size=page_size,
@@ -149,13 +150,13 @@ async def list_public_sources(
 )
 async def create_source(
     request: CreateSourceRequest,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.SOURCES_WRITE)),
     handler: CreateSourceHandler = Depends(get_create_source_handler),
     query_service: SourceQueryService = Depends(get_source_query_service),
 ) -> ApiResponse[SourceResponse]:
     """Create a new source."""
     command = CreateSourceCommand(
-        user_id=user_id,
+        user_id=auth.user_id,
         type=request.type,
         name=request.name,
         is_private=request.is_private,
@@ -166,7 +167,7 @@ async def create_source(
 
     return ApiResponse.success(
         data=_to_source_response(
-            await query_service.get_source(source_id=source.id, user_id=user_id)
+            await query_service.get_source(source_id=source.id, user_id=auth.user_id)
         ),
         message="Source created successfully",
     )
@@ -180,11 +181,11 @@ async def create_source(
 )
 async def get_source(
     source_id: str,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.SOURCES_READ)),
     service: SourceQueryService = Depends(get_source_query_service),
 ) -> ApiResponse[SourceResponse]:
     """Get source by ID."""
-    source = await service.get_source(source_id=source_id, user_id=user_id)
+    source = await service.get_source(source_id=source_id, user_id=auth.user_id)
     return ApiResponse.success(data=_to_source_response(source))
 
 
@@ -197,14 +198,14 @@ async def get_source(
 async def update_source(
     source_id: str,
     request: UpdateSourceRequest,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.SOURCES_WRITE)),
     handler: UpdateSourceHandler = Depends(get_update_source_handler),
     query_service: SourceQueryService = Depends(get_source_query_service),
 ) -> ApiResponse[SourceResponse]:
     """Update a source."""
     command = UpdateSourceCommand(
         source_id=source_id,
-        user_id=user_id,
+        user_id=auth.user_id,
         name=request.name,
         config=request.config,
         fetch_interval_sec=request.fetch_interval_sec,
@@ -213,7 +214,7 @@ async def update_source(
 
     return ApiResponse.success(
         data=_to_source_response(
-            await query_service.get_source(source_id=source.id, user_id=user_id)
+            await query_service.get_source(source_id=source.id, user_id=auth.user_id)
         ),
         message="Source updated successfully",
     )
@@ -227,17 +228,17 @@ async def update_source(
 )
 async def enable_source(
     source_id: str,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.SOURCES_WRITE)),
     handler: EnableSourceHandler = Depends(get_enable_source_handler),
     query_service: SourceQueryService = Depends(get_source_query_service),
 ) -> ApiResponse[SourceResponse]:
     """Enable a source."""
-    command = EnableSourceCommand(source_id=source_id, user_id=user_id)
+    command = EnableSourceCommand(source_id=source_id, user_id=auth.user_id)
     await handler.handle(command)
 
     return ApiResponse.success(
         data=_to_source_response(
-            await query_service.get_source(source_id=source_id, user_id=user_id)
+            await query_service.get_source(source_id=source_id, user_id=auth.user_id)
         ),
         message="Source enabled",
     )
@@ -251,17 +252,17 @@ async def enable_source(
 )
 async def disable_source(
     source_id: str,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.SOURCES_WRITE)),
     handler: DisableSourceHandler = Depends(get_disable_source_handler),
     query_service: SourceQueryService = Depends(get_source_query_service),
 ) -> ApiResponse[SourceResponse]:
     """Disable a source."""
-    command = DisableSourceCommand(source_id=source_id, user_id=user_id)
+    command = DisableSourceCommand(source_id=source_id, user_id=auth.user_id)
     await handler.handle(command)
 
     return ApiResponse.success(
         data=_to_source_response(
-            await query_service.get_source(source_id=source_id, user_id=user_id)
+            await query_service.get_source(source_id=source_id, user_id=auth.user_id)
         ),
         message="Source disabled",
     )
@@ -275,11 +276,11 @@ async def disable_source(
 )
 async def delete_source(
     source_id: str,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.SOURCES_WRITE)),
     handler: DeleteSourceHandler = Depends(get_delete_source_handler),
 ) -> ApiResponse[dict[str, bool]]:
     """Delete a source."""
-    command = DeleteSourceCommand(source_id=source_id, user_id=user_id)
+    command = DeleteSourceCommand(source_id=source_id, user_id=auth.user_id)
     success = await handler.handle(command)
 
     return ApiResponse.success(
@@ -296,14 +297,14 @@ async def delete_source(
 )
 async def subscribe_source(
     source_id: str,
-    user_id: str = Depends(get_current_user_id),
+    auth: AuthContext = Depends(require_scope(AuthScope.SOURCES_WRITE)),
     handler: SubscribeSourceHandler = Depends(get_subscribe_source_handler),
     query_service: SourceQueryService = Depends(get_source_query_service),
 ) -> ApiResponse[SourceResponse]:
     """Subscribe to a source."""
-    command = SubscribeSourceCommand(source_id=source_id, user_id=user_id)
+    command = SubscribeSourceCommand(source_id=source_id, user_id=auth.user_id)
     await handler.handle(command)
-    source = await query_service.get_source(source_id=source_id, user_id=user_id)
+    source = await query_service.get_source(source_id=source_id, user_id=auth.user_id)
     return ApiResponse.success(
         data=_to_source_response(source),
         message="Source subscribed successfully",

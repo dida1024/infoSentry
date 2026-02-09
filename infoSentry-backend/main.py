@@ -1,5 +1,8 @@
 """infoSentry Backend - 信息追踪 Agent 系统入口。"""
 
+from collections.abc import Callable
+from typing import Any, cast
+
 import sentry_sdk
 from fastapi import FastAPI
 from fastapi.concurrency import asynccontextmanager
@@ -26,6 +29,8 @@ from src.core.interfaces.http.exceptions import (
 from src.core.interfaces.http.routers import api_router
 from src.modules.agent.application import dependencies as agent_app_deps
 from src.modules.agent.infrastructure import dependencies as agent_infra_deps
+from src.modules.api_keys.application import dependencies as api_keys_app_deps
+from src.modules.api_keys.infrastructure import dependencies as api_keys_infra_deps
 from src.modules.goals.application import dependencies as goals_app_deps
 from src.modules.goals.infrastructure import dependencies as goals_infra_deps
 from src.modules.items.application import dependencies as items_app_deps
@@ -43,6 +48,41 @@ def custom_generate_unique_id(route: APIRoute) -> str:
     if route.tags:
         return f"{route.tags[0]}-{route.name}"
     return route.name
+
+
+# OpenAPI security scheme definitions for API Key + JWT dual-mode auth
+openapi_security_schemes = {
+    "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT Bearer token (for web interface sessions)",
+    },
+    "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API Key for agent/external integrations (prefix: isk_)",
+    },
+}
+
+
+def custom_openapi():
+    """Customize OpenAPI schema to include both auth schemes."""
+    if app.openapi_schema:
+        return app.openapi_schema
+    from fastapi.openapi.utils import get_openapi
+
+    schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    schema["components"] = schema.get("components", {})
+    schema["components"]["securitySchemes"] = openapi_security_schemes
+    app.openapi_schema = schema
+    return schema
 
 
 # Initialize Sentry if configured
@@ -75,7 +115,13 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="信息追踪 Agent 系统 - 抓取、匹配、推送一体化解决方案",
+    description=(
+        "信息追踪 Agent 系统 - 抓取、匹配、推送一体化解决方案\n\n"
+        "## 认证方式\n\n"
+        "支持两种认证方式：\n"
+        "- **JWT Bearer**: Web 界面登录后自动获取\n"
+        "- **API Key**: 在 X-API-Key 请求头中传递（适合 Agent 集成）"
+    ),
     version="0.1.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url=f"{settings.API_V1_STR}/docs",
@@ -84,10 +130,25 @@ app = FastAPI(
     generate_unique_id_function=custom_generate_unique_id,
     lifespan=lifespan,
 )
+app.openapi = cast(Callable[[], dict[str, Any]], custom_openapi)
 
 # Dependency overrides (application -> infrastructure)
+from src.core.infrastructure.security.unified_auth import (  # noqa: E402
+    get_current_auth,
+    get_current_user_id_from_jwt_only,
+)
+
+app.dependency_overrides[app_security.get_current_auth] = get_current_auth
 app.dependency_overrides[app_security.get_current_user_id] = (
-    infra_jwt.get_current_user_id
+    get_current_user_id_from_jwt_only
+)
+app.dependency_overrides[app_security.get_current_jwt_user_id] = (
+    get_current_user_id_from_jwt_only
+)
+
+# API Keys module
+app.dependency_overrides[api_keys_app_deps.get_api_key_repository] = (
+    api_keys_infra_deps.get_api_key_repository
 )
 
 app.dependency_overrides[core_app_deps.get_prompt_store] = (

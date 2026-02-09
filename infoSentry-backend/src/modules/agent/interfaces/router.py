@@ -3,7 +3,8 @@
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from src.core.application.security import get_current_user_id
+from src.core.application.security import AuthContext, require_scope
+from src.core.domain.auth_scope import AuthScope
 from src.core.interfaces.http.response import ApiResponse, CursorPaginatedResponse
 from src.modules.agent.application.dependencies import (
     get_agent_admin_service,
@@ -39,7 +40,7 @@ async def list_agent_runs(
     goal_id: str | None = Query(None, description="Goal ID过滤"),
     cursor: str | None = Query(None, description="分页游标"),
     run_status: str | None = Query(None, alias="status", description="状态过滤"),
-    _: str = Depends(get_current_user_id),
+    _auth: AuthContext = Depends(require_scope(AuthScope.AGENT_READ)),
     service: AgentRunQueryService = Depends(get_agent_run_query_service),
 ) -> AgentRunListResponse:
     """List agent runs."""
@@ -62,7 +63,7 @@ async def list_agent_runs(
 )
 async def get_agent_run(
     run_id: str,
-    _: str = Depends(get_current_user_id),
+    _auth: AuthContext = Depends(require_scope(AuthScope.AGENT_READ)),
     service: AgentRunQueryService = Depends(get_agent_run_query_service),
 ) -> ApiResponse[AgentRunDetailResponse]:
     """Get agent run detail."""
@@ -79,7 +80,7 @@ async def get_agent_run(
 )
 async def replay_agent_run(
     run_id: str,
-    _: str = Depends(get_current_user_id),
+    _auth: AuthContext = Depends(require_scope(AuthScope.AGENT_READ)),
     service: AgentRunQueryService = Depends(get_agent_run_query_service),
 ) -> ApiResponse[dict]:
     """Replay an agent run based on its input snapshot."""
@@ -97,7 +98,7 @@ async def replay_agent_run(
     description="获取当前预算使用状态",
 )
 async def get_budget_status(
-    _: str = Depends(get_current_user_id),
+    _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_READ)),
     service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[BudgetResponse]:
     """Get budget status."""
@@ -130,7 +131,7 @@ class ConfigResponse(ApiResponse):
     description="获取当前 feature flags 配置",
 )
 async def get_config(
-    _: str = Depends(get_current_user_id),
+    _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_READ)),
     service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[dict]:
     """Get current config."""
@@ -146,7 +147,7 @@ async def get_config(
 )
 async def update_config(
     config: dict,
-    _: str = Depends(get_current_user_id),
+    _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_WRITE)),
     service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[dict]:
     """Update config in Redis for hot reload.
@@ -178,7 +179,7 @@ async def update_config(
     description="检查系统各组件健康状态",
 )
 async def health_check(
-    _: str = Depends(get_current_user_id),
+    _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_READ)),
     service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[dict]:
     """Health check endpoint."""
@@ -200,7 +201,7 @@ async def health_check(
     description="获取完整的监控状态（队列、LLM、SMTP、预算等）",
 )
 async def get_monitoring_status(
-    _: str = Depends(get_current_user_id),
+    _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_READ)),
     service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[dict]:
     """Get full monitoring status."""
@@ -224,7 +225,7 @@ async def get_monitoring_status(
     description="获取各个 Worker 的心跳状态",
 )
 async def get_worker_status(
-    _: str = Depends(get_current_user_id),
+    _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_READ)),
     service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[dict]:
     """Get worker heartbeat status."""
@@ -248,7 +249,7 @@ async def get_worker_status(
     description="重置当日预算（仅用于紧急情况或测试）",
 )
 async def reset_budget(
-    _: str = Depends(get_current_user_id),
+    _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_WRITE)),
     service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[dict]:
     """Reset daily budget."""
@@ -275,7 +276,7 @@ async def reset_budget(
 )
 async def enable_feature(
     feature: str,
-    _: str = Depends(get_current_user_id),
+    _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_WRITE)),
     service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[dict]:
     """Enable a feature (lift circuit breaker)."""
@@ -309,7 +310,7 @@ async def enable_feature(
 )
 async def disable_feature(
     feature: str,
-    _: str = Depends(get_current_user_id),
+    _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_WRITE)),
     service: AgentAdminService = Depends(get_agent_admin_service),
 ) -> ApiResponse[dict]:
     """Disable a feature (manual circuit breaker)."""
