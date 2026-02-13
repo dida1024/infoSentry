@@ -4,7 +4,7 @@ from abc import abstractmethod
 from datetime import datetime
 
 from src.core.domain.repository import BaseRepository
-from src.modules.items.domain.entities import GoalItemMatch, Item
+from src.modules.items.domain.entities import GoalItemMatch, Item, RankMode
 
 
 class ItemRepository(BaseRepository[Item]):
@@ -98,6 +98,8 @@ class GoalItemMatchRepository(BaseRepository[GoalItemMatch]):
         goal_id: str,
         min_score: float | None = None,
         since: datetime | None = None,
+        rank_mode: RankMode = RankMode.HYBRID,
+        half_life_days: float | None = None,
         page: int = 1,
         page_size: int = 50,
     ) -> tuple[list[GoalItemMatch], int]:

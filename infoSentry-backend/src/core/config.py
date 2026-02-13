@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     NOTIFICATION_GOAL_LOOKUP_LIMIT: int = 100
     MATCH_ITEMS_HOURS_BACK_DEFAULT: int = 24
     MATCH_ITEMS_RECENT_PAGE_SIZE: int = 500
+    GOAL_MATCH_RANK_HALF_LIFE_DAYS: float = 14.0
     MATCH_FEEDBACK_PAGE_SIZE: int = 100
     FORCE_INGEST_PAGE_SIZE: int = 1000
     AGENT_HISTORY_PAGE_SIZE: int = 20
@@ -230,6 +231,7 @@ class Settings(BaseSettings):
     GOAL_EMAIL_RATE_LIMIT_PER_HOUR: int = 5  # 每目标每小时最多发送次数
     GOAL_EMAIL_LOOKBACK_HOURS: int = 24  # 默认回溯小时数
     GOAL_EMAIL_RATE_LIMIT_TTL: int = 3600  # 限流 Redis TTL (秒)
+    GOAL_MATCH_RANK_HALF_LIFE_DAYS: float = 14.0  # 目标匹配综合排序半衰期
 
     # Default Push Windows (HH:MM 格式，逗号分隔)
     DEFAULT_BATCH_WINDOWS: str = "12:30,18:30"

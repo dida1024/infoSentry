@@ -70,6 +70,10 @@ from src.modules.goals.interfaces.schemas import (
     SuggestKeywordsResponse,
     UpdateGoalRequest,
 )
+from src.modules.goals.interfaces.schemas import (
+    RankMode as ApiRankMode,
+)
+from src.modules.items.domain.entities import RankMode as DomainRankMode
 
 router = APIRouter(prefix="/goals", tags=["goals"])
 
@@ -348,6 +352,12 @@ class GoalMatchListResponse(PaginatedResponse[GoalItemMatchResponse]):
 async def get_goal_matches(
     goal_id: str,
     min_score: float = Query(0.0, ge=0, le=1, description="最小匹配分数"),
+    rank_mode: ApiRankMode = Query(
+        ApiRankMode.HYBRID, description="排序模式：hybrid/match_score/recent"
+    ),
+    half_life_days: float | None = Query(
+        None, gt=0, description="综合排序半衰期（天），为空使用默认配置"
+    ),
     page: int = Query(settings.DEFAULT_PAGE, ge=1, description="页码"),
     page_size: int = Query(
         settings.DEFAULT_PAGE_SIZE, ge=1, le=100, description="每页数量"
@@ -360,6 +370,8 @@ async def get_goal_matches(
         goal_id=goal_id,
         user_id=auth.user_id,
         min_score=min_score,
+        rank_mode=DomainRankMode(rank_mode.value),
+        half_life_days=half_life_days,
         page=page,
         page_size=page_size,
     )

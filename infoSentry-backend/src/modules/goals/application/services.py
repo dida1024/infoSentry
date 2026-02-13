@@ -23,6 +23,7 @@ from src.modules.goals.domain.repository import (
     GoalPushConfigRepository,
     GoalRepository,
 )
+from src.modules.items.domain.entities import RankMode
 from src.modules.items.domain.repository import GoalItemMatchRepository, ItemRepository
 from src.modules.sources.domain.repository import SourceRepository
 
@@ -48,6 +49,8 @@ class GoalMatchQueryService:
         goal_id: str,
         user_id: str,
         min_score: float | None = None,
+        rank_mode: RankMode = RankMode.HYBRID,
+        half_life_days: float | None = None,
         page: int = settings.DEFAULT_PAGE,
         page_size: int = settings.DEFAULT_PAGE_SIZE,
     ) -> GoalMatchListData:
@@ -66,8 +69,16 @@ class GoalMatchQueryService:
         Raises:
             GoalNotFoundError: If goal not found or user has no access
         """
+        effective_half_life = (
+            half_life_days
+            if half_life_days is not None and half_life_days > 0
+            else settings.GOAL_MATCH_RANK_HALF_LIFE_DAYS
+        )
+
         self.logger.info(
-            f"Listing matches for goal {goal_id} for user {user_id} with min_score {min_score} and page {page} and page_size {page_size}"
+            f"Listing matches for goal {goal_id} for user {user_id} with min_score {min_score} "
+            f"rank_mode {rank_mode.value} half_life_days {effective_half_life} "
+            f"and page {page} and page_size {page_size}"
         )
         # Access check
         goal = await self.goal_repo.get_by_id(goal_id)
@@ -81,6 +92,8 @@ class GoalMatchQueryService:
         matches, total = await self.match_repo.list_by_goal(
             goal_id=goal_id,
             min_score=min_score,
+            rank_mode=rank_mode,
+            half_life_days=effective_half_life,
             page=page,
             page_size=page_size,
         )

@@ -1,17 +1,25 @@
 """Item repository implementations."""
 
 from datetime import datetime
+from typing import cast
 
 from loguru import logger
 from sqlalchemy import func, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 from sqlmodel import col, select
 
+from src.core.config import settings
 from src.core.domain.events import EventBus
 from src.core.domain.exceptions import EntityNotFoundError
 from src.core.infrastructure.database.event_aware_repository import EventAwareRepository
-from src.modules.items.domain.entities import EmbeddingStatus, GoalItemMatch, Item
+from src.modules.items.domain.entities import (
+    EmbeddingStatus,
+    GoalItemMatch,
+    Item,
+    RankMode,
+)
 from src.modules.items.domain.repository import GoalItemMatchRepository, ItemRepository
 from src.modules.items.infrastructure.mappers import GoalItemMatchMapper, ItemMapper
 from src.modules.items.infrastructure.models import GoalItemMatchModel, ItemModel
@@ -82,7 +90,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
                 ItemModel.source_id == source_id,
                 col(ItemModel.is_deleted).is_(False),
             )
-            .order_by(ItemModel.published_at.desc().nullslast())
+            .order_by(col(ItemModel.published_at).desc().nullslast())
         )
 
         statement = statement.offset((page - 1) * page_size).limit(page_size)
@@ -104,7 +112,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
                 ItemModel.embedding_status == EmbeddingStatus.PENDING,
                 col(ItemModel.is_deleted).is_(False),
             )
-            .order_by(ItemModel.ingested_at.asc())
+            .order_by(col(ItemModel.ingested_at).asc())
             .limit(limit)
         )
 
@@ -126,7 +134,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
             statement = statement.where(ItemModel.ingested_at >= since)
 
         statement = (
-            statement.order_by(ItemModel.ingested_at.desc())
+            statement.order_by(col(ItemModel.ingested_at).desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -342,6 +350,8 @@ class PostgreSQLGoalItemMatchRepository(
         goal_id: str,
         min_score: float | None = None,
         since: datetime | None = None,
+        rank_mode: RankMode = RankMode.HYBRID,
+        half_life_days: float | None = None,
         page: int = 1,
         page_size: int = 50,
     ) -> tuple[list[GoalItemMatch], int]:
@@ -358,14 +368,47 @@ class PostgreSQLGoalItemMatchRepository(
         if since:
             statement = statement.where(GoalItemMatchModel.computed_at >= since)
 
-        statement = (
-            statement.order_by(
-                GoalItemMatchModel.match_score.desc(),
-                GoalItemMatchModel.computed_at.desc(),
-            )
-            .offset((page - 1) * page_size)
-            .limit(page_size)
+        effective_half_life = (
+            half_life_days
+            if half_life_days is not None and half_life_days > 0
+            else settings.GOAL_MATCH_RANK_HALF_LIFE_DAYS
         )
+
+        if rank_mode in {RankMode.HYBRID, RankMode.RECENT}:
+            statement = statement.join(
+                ItemModel, ItemModel.id == GoalItemMatchModel.item_id, isouter=True
+            )
+            item_time = cast(
+                ColumnElement[datetime],
+                func.coalesce(ItemModel.published_at, ItemModel.ingested_at),
+            )
+
+            if rank_mode == RankMode.HYBRID:
+                age_seconds = func.extract("epoch", func.now() - item_time)
+                age_days = func.greatest(age_seconds / 86400.0, 0.0)
+                rank_score = cast(
+                    ColumnElement[float],
+                    GoalItemMatchModel.match_score
+                    * func.power(0.5, age_days / effective_half_life),
+                )
+                statement = statement.order_by(
+                    rank_score.desc().nullslast(),
+                    col(GoalItemMatchModel.match_score).desc(),
+                    col(GoalItemMatchModel.computed_at).desc(),
+                )
+            else:
+                statement = statement.order_by(
+                    item_time.desc().nullslast(),
+                    col(GoalItemMatchModel.match_score).desc(),
+                    col(GoalItemMatchModel.computed_at).desc(),
+                )
+        else:
+            statement = statement.order_by(
+                col(GoalItemMatchModel.match_score).desc(),
+                col(GoalItemMatchModel.computed_at).desc(),
+            )
+
+        statement = statement.offset((page - 1) * page_size).limit(page_size)
 
         result = await self.session.execute(statement)
         rows = result.all()
@@ -472,8 +515,8 @@ class PostgreSQLGoalItemMatchRepository(
             statement = statement.where(GoalItemMatchModel.computed_at >= since)
 
         statement = statement.order_by(
-            GoalItemMatchModel.match_score.desc(),
-            GoalItemMatchModel.computed_at.desc(),
+            col(GoalItemMatchModel.match_score).desc(),
+            col(GoalItemMatchModel.computed_at).desc(),
         ).limit(limit)
 
         result = await self.session.execute(statement)

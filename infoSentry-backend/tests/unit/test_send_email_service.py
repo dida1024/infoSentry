@@ -27,7 +27,7 @@ from src.modules.goals.interfaces.schemas import (
     SendGoalEmailRequest,
     SendGoalEmailResponse,
 )
-from src.modules.items.domain.entities import GoalItemMatch
+from src.modules.items.domain.entities import GoalItemMatch, RankMode
 from src.modules.push.application.email_service import EmailResult
 from src.modules.push.domain.entities import (
     PushChannel,
@@ -713,6 +713,7 @@ class TestGoalSendEmailService:
             goal_id="goal-1",
             min_score=0.0,
             since=None,
+            rank_mode=RankMode.MATCH_SCORE,
             page=1,
             page_size=20,
         )
