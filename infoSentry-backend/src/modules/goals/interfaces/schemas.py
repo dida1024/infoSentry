@@ -21,6 +21,14 @@ class PriorityMode(str, Enum):
     SOFT = "SOFT"
 
 
+class RankMode(str, Enum):
+    """Goal match rank mode for API layer."""
+
+    HYBRID = "hybrid"
+    MATCH_SCORE = "match_score"
+    RECENT = "recent"
+
+
 class CreateGoalRequest(BaseModel):
     """Create goal request."""
 

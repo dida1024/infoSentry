@@ -12,7 +12,7 @@ from src.core.config import settings
 from src.core.infrastructure.logging import get_business_logger
 from src.core.infrastructure.redis.client import RedisClient
 from src.modules.goals.domain.repository import GoalRepository
-from src.modules.items.domain.entities import GoalItemMatch
+from src.modules.items.domain.entities import GoalItemMatch, RankMode
 from src.modules.items.domain.repository import GoalItemMatchRepository, ItemRepository
 from src.modules.push.application.email_service import EmailService, get_email_service
 from src.modules.push.application.email_templates import (
@@ -344,6 +344,7 @@ class GoalSendEmailService:
                 goal_id=goal_id,
                 min_score=min_score,
                 since=since,
+                rank_mode=RankMode.MATCH_SCORE,
                 page=page,
                 page_size=page_size,
             )

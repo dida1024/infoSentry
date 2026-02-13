@@ -23,6 +23,14 @@ class EmbeddingStatus(str, Enum):
     FAILED = "failed"
 
 
+class RankMode(str, Enum):
+    """Goal match ranking mode."""
+
+    HYBRID = "hybrid"
+    MATCH_SCORE = "match_score"
+    RECENT = "recent"
+
+
 class Item(AggregateRoot):
     """Item aggregate root - 信息条目。"""
 
