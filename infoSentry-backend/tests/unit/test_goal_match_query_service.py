@@ -6,8 +6,12 @@ import pytest
 
 from src.modules.goals.application.services import GoalMatchQueryService
 from src.modules.goals.domain.entities import Goal, GoalStatus, PriorityMode
-from src.modules.items.domain.entities import EmbeddingStatus, GoalItemMatch, Item
-from src.modules.items.domain.entities import RankMode
+from src.modules.items.domain.entities import (
+    EmbeddingStatus,
+    GoalItemMatch,
+    Item,
+    RankMode,
+)
 from src.modules.sources.domain.entities import Source, SourceType
 
 pytestmark = pytest.mark.anyio
@@ -50,7 +54,11 @@ class _FakeItemRepo:
         self._items = items
 
     async def get_by_ids(self, item_ids: list[str]) -> dict[str, Item]:
-        return {item_id: self._items[item_id] for item_id in item_ids if item_id in self._items}
+        return {
+            item_id: self._items[item_id]
+            for item_id in item_ids
+            if item_id in self._items
+        }
 
 
 class _FakeSourceRepo:
@@ -138,4 +146,3 @@ async def test_list_matches_dedupes_by_topic_and_preserves_best_ranked_item() ->
 
     assert result.total == 2
     assert [item.item_id for item in result.items] == ["item-1", "item-3"]
-
