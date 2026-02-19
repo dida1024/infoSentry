@@ -81,6 +81,22 @@ class TestUrlHash:
         hash_value = IngestService._compute_url_hash(url)
         assert len(hash_value) == 32
 
+    def test_url_hash_ignore_fragment(self):
+        """URL 哈希应忽略 fragment（如论坛 reply 锚点）。"""
+        url1 = "https://www.v2ex.com/t/1193196#reply0"
+        url2 = "https://www.v2ex.com/t/1193196#reply9"
+        hash1 = IngestService._compute_url_hash(url1)
+        hash2 = IngestService._compute_url_hash(url2)
+        assert hash1 == hash2
+
+    def test_url_hash_strip_tracking_query(self):
+        """URL 哈希应忽略常见追踪参数。"""
+        url1 = "https://example.com/article/123?utm_source=rss&utm_medium=email"
+        url2 = "https://example.com/article/123"
+        hash1 = IngestService._compute_url_hash(url1)
+        hash2 = IngestService._compute_url_hash(url2)
+        assert hash1 == hash2
+
 
 # ============================================
 # 抓取结果测试

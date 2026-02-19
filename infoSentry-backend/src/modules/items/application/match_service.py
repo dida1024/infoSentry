@@ -150,9 +150,9 @@ class MatchService:
     TERM_BONUS_PER_HIT_HIGH = 0.05  # 高语义时每个关键词加分
     TERM_BONUS_MAX_HIGH = 0.15  # 高语义时关键词最大加分
     TERM_BONUS_PER_HIT_MEDIUM = 0.10  # 中等语义时每个关键词加分
-    TERM_BONUS_MAX_MEDIUM = 0.25  # 中等语义时关键词最大加分
-    TERM_BONUS_PER_HIT_LOW = 0.15  # 低语义时每个关键词加分
-    TERM_BONUS_MAX_LOW = 0.30  # 低语义时关键词最大加分
+    TERM_BONUS_MAX_MEDIUM = 0.18  # 中等语义时关键词最大加分
+    TERM_BONUS_PER_HIT_LOW = 0.10  # 低语义时每个关键词加分
+    TERM_BONUS_MAX_LOW = 0.20  # 低语义时关键词最大加分
 
     # 时效性和来源权重
     RECENCY_WEIGHT = 0.10  # 时效性权重
@@ -769,6 +769,14 @@ class MatchService:
 
         # 应用反馈调整
         score += features.feedback_boost
+
+        # 严格档：单关键词且语义不足时，强制压到 digest 阈值以下，避免误推。
+        if (
+            term_hits == 1
+            and cosine < settings.MATCH_SINGLE_TERM_MIN_COSINE
+            and score >= settings.MATCH_SINGLE_TERM_CAP_SCORE
+        ):
+            score = settings.MATCH_SINGLE_TERM_CAP_SCORE
 
         # 确保分数在 [0, 1] 范围
         return max(0.0, min(1.0, score))

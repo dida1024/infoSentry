@@ -402,6 +402,7 @@ class PushWorthinessNode(BaseNode):
 
         if not self.llm_service:
             state.draft.fallback_reason = "no_llm_service"
+            self._apply_fail_closed(state)
             return state
 
         result, fallback_reason = await self.llm_service.judge_push_worthiness(
@@ -442,9 +443,19 @@ class PushWorthinessNode(BaseNode):
                 state.draft.adjusted_score = state.match.score
         else:
             state.draft.fallback_reason = fallback_reason or "llm_no_response"
-            state.draft.adjusted_score = state.match.score
+            self._apply_fail_closed(state)
 
         return state
+
+    @staticmethod
+    def _apply_fail_closed(state: AgentState) -> None:
+        """Fail closed when push-worthiness cannot be determined."""
+        from src.core.config import settings
+
+        lowered = math.nextafter(settings.DIGEST_MIN_SCORE, 0.0)
+        state.draft.adjusted_score = lowered
+        state.draft.record_ignore = True
+        state.draft.preliminary_bucket = DecisionBucket.IGNORE
 
 
 class EmitActionsNode(BaseNode):

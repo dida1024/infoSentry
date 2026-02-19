@@ -224,6 +224,8 @@ class Settings(BaseSettings):
     IMMEDIATE_THRESHOLD: float = 0.89
     BATCH_THRESHOLD: float = 0.75
     DIGEST_MIN_SCORE: float = 0.60
+    MATCH_SINGLE_TERM_MIN_COSINE: float = 0.72
+    MATCH_SINGLE_TERM_CAP_SCORE: float = 0.599
     BOUNDARY_LOW: float = 0.88  # LLM判别边界区间下限
     BOUNDARY_HIGH: float = 0.93  # LLM判别边界区间上限
 

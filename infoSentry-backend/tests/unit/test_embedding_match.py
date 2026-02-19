@@ -657,6 +657,38 @@ class TestMatchService:
         # 中等语义无关键词应该得到较低分数（包含recency和source加分）
         assert 0.50 <= score < 0.65
 
+    def test_compute_final_score_single_term_low_cosine_capped(
+        self, match_service, sample_goal
+    ):
+        """单关键词且语义不足时，分数应被封顶到 digest 阈值以下。"""
+        features = MatchFeatures(
+            cosine_similarity=0.66,
+            term_hits=1,
+            recency_score=1.0,
+            source_trust=0.8,
+        )
+        reasons = MatchReasons(is_blocked=False)
+
+        score = match_service._compute_final_score(sample_goal, features, reasons)
+
+        assert score < settings.DIGEST_MIN_SCORE
+
+    def test_compute_final_score_single_term_high_cosine_not_capped(
+        self, match_service, sample_goal
+    ):
+        """单关键词但语义达标时，不应被强制封顶。"""
+        features = MatchFeatures(
+            cosine_similarity=0.74,
+            term_hits=1,
+            recency_score=1.0,
+            source_trust=0.8,
+        )
+        reasons = MatchReasons(is_blocked=False)
+
+        score = match_service._compute_final_score(sample_goal, features, reasons)
+
+        assert score >= settings.DIGEST_MIN_SCORE
+
     async def test_match_item_to_goal(
         self,
         match_service,

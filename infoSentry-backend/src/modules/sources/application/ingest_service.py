@@ -3,7 +3,6 @@
 协调抓取、去重、入库、事件发布等流程。
 """
 
-import hashlib
 import time
 from datetime import UTC, datetime
 
@@ -11,6 +10,7 @@ from loguru import logger
 
 from src.core.config import settings
 from src.core.domain.events import EventBus
+from src.core.domain.url_topic import build_topic_key
 from src.core.infrastructure.logging import BusinessEvents
 from src.modules.items.domain.entities import EmbeddingStatus, Item
 from src.modules.items.domain.events import ItemIngestedEvent
@@ -258,14 +258,9 @@ class IngestService:
     def _compute_url_hash(url: str) -> str:
         """计算 URL 的哈希值。
 
-        使用 SHA-256 并取前 32 个字符作为 hash。
+        使用 canonical URL 的 topic key 作为去重键。
         """
-        # 标准化 URL
-        normalized = url.strip().lower()
-        # 移除尾部斜杠
-        normalized = normalized.rstrip("/")
-
-        return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:32]
+        return build_topic_key(url)
 
     async def ingest_source_by_id(self, source_id: str) -> IngestResult:
         """根据源 ID 执行抓取。

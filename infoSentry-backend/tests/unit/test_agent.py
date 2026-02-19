@@ -539,7 +539,9 @@ class TestPushWorthinessNode:
         result = await node.process(state)
 
         assert result.draft.fallback_reason == "no_llm_service"
-        assert result.draft.preliminary_bucket == DecisionBucket.BATCH
+        assert result.draft.preliminary_bucket == DecisionBucket.IGNORE
+        assert result.draft.record_ignore is True
+        assert result.draft.adjusted_score < settings.DIGEST_MIN_SCORE
 
 
 # ============================================
