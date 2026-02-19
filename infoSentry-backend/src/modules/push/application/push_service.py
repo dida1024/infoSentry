@@ -7,11 +7,13 @@ Handles:
 - Email dispatching
 """
 
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from loguru import logger
 
 from src.core.config import settings
+from src.core.domain.url_topic import build_topic_key
 from src.core.infrastructure.logging import BusinessEvents
 from src.core.infrastructure.redis.client import RedisClient
 from src.core.infrastructure.redis.keys import RedisKeys
@@ -33,6 +35,14 @@ from src.modules.push.domain.entities import (
 
 class PushService:
     """Push orchestration service."""
+
+    @dataclass
+    class _EmailPayload:
+        decision_id: str
+        topic_key: str
+        score: float
+        published_at: datetime | None
+        email_item: EmailItem
 
     def __init__(
         self,
@@ -226,8 +236,8 @@ class PushService:
         # Sort by match score (desc)
         decisions = self._sort_decisions_by_score(decisions)
 
-        # Build email items
-        email_items = []
+        # Build email payloads
+        email_payloads: list[PushService._EmailPayload] = []
         for decision in decisions:
             item = await self.item_repo.get_by_id(decision.item_id)
             if not item:
@@ -245,17 +255,33 @@ class PushService:
                 "email",
             )
 
-            email_items.append(
-                EmailItem(
-                    item_id=item.id,
-                    title=item.title,
-                    snippet=item.snippet,
-                    url=item.url,
-                    source_name=source_name,
+            email_payloads.append(
+                self._EmailPayload(
+                    decision_id=decision.id,
+                    topic_key=build_topic_key(item.url),
+                    score=self._extract_decision_score(decision),
                     published_at=item.published_at,
-                    reason=decision.reason_json.get("reason", "匹配您的目标"),
-                    redirect_url=redirect_url,
+                    email_item=EmailItem(
+                        item_id=item.id,
+                        title=item.title,
+                        snippet=item.snippet,
+                        url=item.url,
+                        source_name=source_name,
+                        published_at=item.published_at,
+                        reason=decision.reason_json.get("reason", "匹配您的目标"),
+                        redirect_url=redirect_url,
+                    ),
                 )
+            )
+
+        kept_payloads, dropped_payloads = self._dedupe_email_payloads(email_payloads)
+        email_items = [payload.email_item for payload in kept_payloads]
+        deduped_decision_ids = [payload.decision_id for payload in kept_payloads]
+        dropped_decision_ids = [payload.decision_id for payload in dropped_payloads]
+        if dropped_decision_ids:
+            await self.decision_repo.batch_update_status(
+                ids=dropped_decision_ids,
+                status=PushStatus.SKIPPED,
             )
 
         if not email_items:
@@ -268,7 +294,7 @@ class PushService:
             goal_id=goal_id,
             goal_name=goal.name,
             items=email_items,
-            decision_ids=decision_ids,
+            decision_ids=deduped_decision_ids,
         )
 
         # Render email
@@ -286,7 +312,7 @@ class PushService:
         if result.success:
             # Update decision status
             await self.decision_repo.batch_update_status(
-                ids=decision_ids,
+                ids=deduped_decision_ids,
                 status=PushStatus.SENT,
                 sent_at=datetime.now(UTC),
             )
@@ -302,7 +328,7 @@ class PushService:
         else:
             # Mark as failed
             await self.decision_repo.batch_update_status(
-                ids=decision_ids,
+                ids=deduped_decision_ids,
                 status=PushStatus.FAILED,
             )
             logger.error(f"Failed to send immediate email: {result.error}")
@@ -365,9 +391,8 @@ class PushService:
             logger.error(f"User not found for goal: {goal_id}")
             return False
 
-        # Build email items
-        email_items = []
-        decision_ids = []
+        # Build email payloads
+        email_payloads: list[PushService._EmailPayload] = []
 
         for decision in decisions:
             item = await self.item_repo.get_by_id(decision.item_id)
@@ -386,19 +411,34 @@ class PushService:
                 "email",
             )
 
-            email_items.append(
-                EmailItem(
-                    item_id=item.id,
-                    title=item.title,
-                    snippet=item.snippet,
-                    url=item.url,
-                    source_name=source_name,
+            email_payloads.append(
+                self._EmailPayload(
+                    decision_id=decision.id,
+                    topic_key=build_topic_key(item.url),
+                    score=self._extract_decision_score(decision),
                     published_at=item.published_at,
-                    reason=decision.reason_json.get("reason", "匹配您的目标"),
-                    redirect_url=redirect_url,
+                    email_item=EmailItem(
+                        item_id=item.id,
+                        title=item.title,
+                        snippet=item.snippet,
+                        url=item.url,
+                        source_name=source_name,
+                        published_at=item.published_at,
+                        reason=decision.reason_json.get("reason", "匹配您的目标"),
+                        redirect_url=redirect_url,
+                    ),
                 )
             )
-            decision_ids.append(decision.id)
+
+        kept_payloads, dropped_payloads = self._dedupe_email_payloads(email_payloads)
+        email_items = [payload.email_item for payload in kept_payloads]
+        decision_ids = [payload.decision_id for payload in kept_payloads]
+        dropped_decision_ids = [payload.decision_id for payload in dropped_payloads]
+        if dropped_decision_ids:
+            await self.decision_repo.batch_update_status(
+                ids=dropped_decision_ids,
+                status=PushStatus.SKIPPED,
+            )
 
         if not email_items:
             logger.info(f"No valid items for batch email, goal={goal_id}")
@@ -487,9 +527,8 @@ class PushService:
             logger.error(f"User not found for goal: {goal_id}")
             return False
 
-        # Build email items
-        email_items = []
-        decision_ids = []
+        # Build email payloads
+        email_payloads: list[PushService._EmailPayload] = []
 
         for decision in decisions:
             item = await self.item_repo.get_by_id(decision.item_id)
@@ -508,19 +547,34 @@ class PushService:
                 "email",
             )
 
-            email_items.append(
-                EmailItem(
-                    item_id=item.id,
-                    title=item.title,
-                    snippet=item.snippet,
-                    url=item.url,
-                    source_name=source_name,
+            email_payloads.append(
+                self._EmailPayload(
+                    decision_id=decision.id,
+                    topic_key=build_topic_key(item.url),
+                    score=self._extract_decision_score(decision),
                     published_at=item.published_at,
-                    reason=decision.reason_json.get("reason", "匹配您的目标"),
-                    redirect_url=redirect_url,
+                    email_item=EmailItem(
+                        item_id=item.id,
+                        title=item.title,
+                        snippet=item.snippet,
+                        url=item.url,
+                        source_name=source_name,
+                        published_at=item.published_at,
+                        reason=decision.reason_json.get("reason", "匹配您的目标"),
+                        redirect_url=redirect_url,
+                    ),
                 )
             )
-            decision_ids.append(decision.id)
+
+        kept_payloads, dropped_payloads = self._dedupe_email_payloads(email_payloads)
+        email_items = [payload.email_item for payload in kept_payloads]
+        decision_ids = [payload.decision_id for payload in kept_payloads]
+        dropped_decision_ids = [payload.decision_id for payload in dropped_payloads]
+        if dropped_decision_ids:
+            await self.decision_repo.batch_update_status(
+                ids=dropped_decision_ids,
+                status=PushStatus.SKIPPED,
+            )
 
         if not email_items:
             logger.info(f"No valid items for digest email, goal={goal_id}")
@@ -590,3 +644,38 @@ class PushService:
         if isinstance(match_score, (int, float)):
             return float(match_score)
         return 0.0
+
+    def _dedupe_email_payloads(
+        self, payloads: list[_EmailPayload]
+    ) -> tuple[list[_EmailPayload], list[_EmailPayload]]:
+        """Deduplicate email payloads by topic key.
+
+        Keep the item with higher score for the same topic.
+        If score ties, keep the newer published_at.
+        """
+        kept_by_topic: dict[str, PushService._EmailPayload] = {}
+        dropped: list[PushService._EmailPayload] = []
+
+        for payload in payloads:
+            existing = kept_by_topic.get(payload.topic_key)
+            if not existing:
+                kept_by_topic[payload.topic_key] = payload
+                continue
+
+            existing_pub = existing.published_at or datetime.min.replace(tzinfo=UTC)
+            current_pub = payload.published_at or datetime.min.replace(tzinfo=UTC)
+            keep_current = payload.score > existing.score or (
+                payload.score == existing.score and current_pub > existing_pub
+            )
+            if keep_current:
+                dropped.append(existing)
+                kept_by_topic[payload.topic_key] = payload
+            else:
+                dropped.append(payload)
+
+        kept = sorted(
+            kept_by_topic.values(),
+            key=lambda p: (p.score, p.published_at),
+            reverse=True,
+        )
+        return kept, dropped

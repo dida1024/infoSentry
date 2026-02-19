@@ -3,6 +3,7 @@
 from loguru import logger
 
 from src.core.config import settings
+from src.core.domain.url_topic import build_topic_key
 from src.modules.goals.application.models import (
     GoalData,
     GoalListData,
@@ -23,7 +24,7 @@ from src.modules.goals.domain.repository import (
     GoalPushConfigRepository,
     GoalRepository,
 )
-from src.modules.items.domain.entities import RankMode
+from src.modules.items.domain.entities import GoalItemMatch, RankMode
 from src.modules.items.domain.repository import GoalItemMatchRepository, ItemRepository
 from src.modules.sources.domain.repository import SourceRepository
 
@@ -88,8 +89,8 @@ class GoalMatchQueryService:
         if min_score is not None and min_score <= 0:
             min_score = None
 
-        # Query matches
-        matches, total = await self.match_repo.list_by_goal(
+        # Query matches with topic-level dedupe.
+        deduped_matches, total = await self._list_matches_deduped_by_topic(
             goal_id=goal_id,
             min_score=min_score,
             rank_mode=rank_mode,
@@ -98,7 +99,7 @@ class GoalMatchQueryService:
             page_size=page_size,
         )
 
-        if not matches:
+        if not deduped_matches:
             self.logger.info(
                 f"No matches found for goal {goal_id} for user {user_id} with min_score {min_score} and page {page} and page_size {page_size}"
             )
@@ -110,7 +111,7 @@ class GoalMatchQueryService:
             )
 
         # Batch fetch items and sources (avoid N+1 queries)
-        item_ids = [match.item_id for match in matches]
+        item_ids = [match.item_id for match in deduped_matches]
         items_by_id = await self.item_repo.get_by_ids(item_ids)
 
         # Collect source IDs from fetched items
@@ -119,7 +120,7 @@ class GoalMatchQueryService:
 
         # Build items map
         items_map: dict[str, ItemData] = {}
-        for match in matches:
+        for match in deduped_matches:
             item = items_by_id.get(match.item_id)
             if item:
                 source = sources_by_id.get(item.source_id)
@@ -146,7 +147,7 @@ class GoalMatchQueryService:
                 computed_at=match.computed_at,
                 item=items_map.get(match.item_id),
             )
-            for match in matches
+            for match in deduped_matches
         ]
         self.logger.info(
             f"Found {len(match_items)} matches for goal {goal_id} for user {user_id} with min_score {min_score} and page {page} and page_size {page_size}"
@@ -157,6 +158,56 @@ class GoalMatchQueryService:
             page=page,
             page_size=page_size,
         )
+
+    async def _list_matches_deduped_by_topic(
+        self,
+        goal_id: str,
+        min_score: float | None,
+        rank_mode: RankMode,
+        half_life_days: float,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[GoalItemMatch], int]:
+        """Fetch ordered matches and dedupe by topic key before pagination."""
+        all_matches: list[GoalItemMatch] = []
+        total_raw = 0
+        current_page = 1
+
+        while True:
+            batch, total_raw = await self.match_repo.list_by_goal(
+                goal_id=goal_id,
+                min_score=min_score,
+                rank_mode=rank_mode,
+                half_life_days=half_life_days,
+                page=current_page,
+                page_size=settings.MATCH_ITEMS_RECENT_PAGE_SIZE,
+            )
+            if not batch:
+                break
+            all_matches.extend(batch)
+            if len(all_matches) >= total_raw:
+                break
+            current_page += 1
+
+        if not all_matches:
+            return [], 0
+
+        all_item_ids = [match.item_id for match in all_matches]
+        items_by_id = await self.item_repo.get_by_ids(all_item_ids)
+        seen_topics: set[str] = set()
+        deduped: list[GoalItemMatch] = []
+
+        for match in all_matches:
+            item = items_by_id.get(match.item_id)
+            topic_key = build_topic_key(item.url) if item else f"item:{match.item_id}"
+            if topic_key in seen_topics:
+                continue
+            seen_topics.add(topic_key)
+            deduped.append(match)
+
+        start = (page - 1) * page_size
+        end = start + page_size
+        return deduped[start:end], len(deduped)
 
 
 class GoalQueryService:

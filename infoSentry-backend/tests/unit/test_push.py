@@ -408,6 +408,55 @@ class TestDecisionSorting:
 
         assert sorted_list[0].id == "d1"
 
+
+class TestTopicDedupe:
+    """邮件发送前按 topic 去重。"""
+
+    def test_dedupe_email_payloads_keeps_high_score(self):
+        service = PushService(
+            decision_repository=MagicMock(),
+            goal_repository=MagicMock(),
+            item_repository=MagicMock(),
+            source_repository=MagicMock(),
+            user_repository=MagicMock(),
+            redis_client=MagicMock(),
+            email_service=MagicMock(),
+        )
+
+        payloads = [
+            service._EmailPayload(
+                decision_id="d1",
+                topic_key="topic-1",
+                score=0.91,
+                published_at=datetime.now(UTC),
+                email_item=self._make_email_item("item-1", "news-1"),
+            ),
+            service._EmailPayload(
+                decision_id="d2",
+                topic_key="topic-1",
+                score=0.80,
+                published_at=datetime.now(UTC),
+                email_item=self._make_email_item("item-2", "news-2"),
+            ),
+        ]
+
+        kept, dropped = service._dedupe_email_payloads(payloads)
+
+        assert [x.decision_id for x in kept] == ["d1"]
+        assert [x.decision_id for x in dropped] == ["d2"]
+
+    def _make_email_item(self, item_id: str, title: str) -> EmailItem:
+        return EmailItem(
+            item_id=item_id,
+            title=title,
+            snippet="snippet",
+            url=f"https://example.com/{item_id}",
+            source_name="source",
+            published_at=datetime.now(UTC),
+            reason="reason",
+            redirect_url=f"https://infosentry.com/r/{item_id}",
+        )
+
     def test_sort_fallback_to_match_score(self):
         """测试回退到 match_score 排序。"""
         service = PushService(

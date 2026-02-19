@@ -16,6 +16,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 from src.core.domain.events import EventBus
+from src.core.domain.url_topic import build_topic_key
 from src.modules.agent.application.logging_port import LoggingPort, ScoreTrace
 from src.modules.agent.application.nodes import (
     NodePipeline,
@@ -320,6 +321,7 @@ class AgentOrchestrator:
                     since=since,
                     limit=settings.BATCH_MAX_ITEMS * 2,  # 取多一些，后面过滤
                 )
+                seen_topic_keys: set[str] = set()
 
                 # 2. 过滤已有决策的 items，按需填充到上限
                 for candidate in candidates:
@@ -327,6 +329,19 @@ class AgentOrchestrator:
                         break
                     if actions_created >= settings.BATCH_MAX_ITEMS:
                         break
+
+                    item = None
+                    item_title = ""
+                    item_snippet = ""
+                    topic_key = ""
+                    if item_repository:
+                        item = await item_repository.get_by_id(candidate.item_id)
+                        if item:
+                            item_title = item.title
+                            item_snippet = item.snippet or ""
+                            topic_key = build_topic_key(item.url)
+                            if topic_key in seen_topic_keys:
+                                continue
 
                     # 检查是否已有决策
                     import hashlib
@@ -346,16 +361,9 @@ class AgentOrchestrator:
                     llm_result = None
                     fallback_reason = None
                     adjusted_score = candidate.match_score
-                    item_title = ""
-                    item_snippet = ""
-                    if item_repository:
-                        item = await item_repository.get_by_id(candidate.item_id)
-                        if item:
-                            item_title = item.title
-                            item_snippet = item.snippet or ""
-                        else:
-                            fallback_reason = "item_not_found"
-                            llm = None
+                    if item_repository and not item:
+                        fallback_reason = "item_not_found"
+                        llm = None
                     if llm:
                         llm_result, fallback_reason = await llm.judge_push_worthiness(
                             prompt=None,
@@ -371,25 +379,26 @@ class AgentOrchestrator:
                     else:
                         fallback_reason = fallback_reason or "no_llm_service"
 
-                    decision_type = PushDecision.BATCH
-                    decision_status = None
-                    decision_reason = "批量推送窗口匹配"
-                    if llm_result:
-                        if llm_result.label == "SKIP":
-                            adjusted_score = math.nextafter(
-                                settings.DIGEST_MIN_SCORE, 0.0
-                            )
-                            decision_type = PushDecision.IGNORE
-                            decision_status = PushStatus.SKIPPED
+                    decision_type = PushDecision.IGNORE
+                    decision_status: PushStatus | None = PushStatus.SKIPPED
+                    decision_reason = "推送价值判定不可用，按 fail-closed 跳过"
+                    if llm_result and llm_result.label == "PUSH":
+                        decision_type = PushDecision.BATCH
+                        decision_status = None
+                        decision_reason = "批量推送窗口匹配"
+                        adjusted_score = candidate.match_score
+                    else:
+                        adjusted_score = math.nextafter(settings.DIGEST_MIN_SCORE, 0.0)
+                        if llm_result and llm_result.label == "SKIP":
                             decision_reason = f"LLM判定不值得推送：{llm_result.reason}"
-                            await self._maybe_downgrade_match_score(
-                                match_repository,
-                                goal_id=goal_id,
-                                item_id=candidate.item_id,
-                                adjusted_score=adjusted_score,
-                            )
-                        else:
-                            adjusted_score = candidate.match_score
+                        elif fallback_reason:
+                            decision_reason = f"推送价值判定不可用（{fallback_reason}），按 fail-closed 跳过"
+                        await self._maybe_downgrade_match_score(
+                            match_repository,
+                            goal_id=goal_id,
+                            item_id=candidate.item_id,
+                            adjusted_score=adjusted_score,
+                        )
 
                     score_trace = {
                         "match_score": candidate.match_score,
@@ -447,6 +456,8 @@ class AgentOrchestrator:
                     processed_count += 1
                     if decision_type == PushDecision.BATCH:
                         actions_created += 1
+                        if topic_key:
+                            seen_topic_keys.add(topic_key)
 
                     # 记录到 state actions
                     state.actions.append(
@@ -575,11 +586,25 @@ class AgentOrchestrator:
                     since=since,
                     limit=settings.DIGEST_MAX_ITEMS_PER_GOAL * 2,  # 取多一些，后面过滤
                 )
+                seen_topic_keys: set[str] = set()
 
                 # 2. 过滤已有 IMMEDIATE/BATCH 决策的 items，创建 DIGEST 决策
                 for candidate in candidates:
                     if actions_created >= settings.DIGEST_MAX_ITEMS_PER_GOAL:
                         break
+
+                    item = None
+                    item_title = ""
+                    item_snippet = ""
+                    topic_key = ""
+                    if item_repository:
+                        item = await item_repository.get_by_id(candidate.item_id)
+                        if item:
+                            item_title = item.title
+                            item_snippet = item.snippet or ""
+                            topic_key = build_topic_key(item.url)
+                            if topic_key in seen_topic_keys:
+                                continue
 
                     import hashlib
 
@@ -595,28 +620,25 @@ class AgentOrchestrator:
                         continue
 
                     # 也检查是否已有 IMMEDIATE 或 BATCH 决策
+                    has_existing_push = False
                     for dtype in ["IMMEDIATE", "BATCH"]:
                         other_key = hashlib.sha256(
                             f"{goal_id}:{candidate.item_id}:{dtype}".encode()
                         ).hexdigest()[:32]
                         if await decision_repository.get_by_dedupe_key(other_key):
-                            continue
+                            has_existing_push = True
+                            break
+                    if has_existing_push:
+                        continue
 
                     # LLM 二次判定推送价值
                     llm = llm_service or self.llm_service
                     llm_result = None
                     fallback_reason = None
                     adjusted_score = candidate.match_score
-                    item_title = ""
-                    item_snippet = ""
-                    if item_repository:
-                        item = await item_repository.get_by_id(candidate.item_id)
-                        if item:
-                            item_title = item.title
-                            item_snippet = item.snippet or ""
-                        else:
-                            fallback_reason = "item_not_found"
-                            llm = None
+                    if item_repository and not item:
+                        fallback_reason = "item_not_found"
+                        llm = None
                     if llm:
                         llm_result, fallback_reason = await llm.judge_push_worthiness(
                             prompt=None,
@@ -632,25 +654,26 @@ class AgentOrchestrator:
                     else:
                         fallback_reason = fallback_reason or "no_llm_service"
 
-                    decision_type = PushDecision.DIGEST
-                    decision_status = None
-                    decision_reason = "每日摘要匹配"
-                    if llm_result:
-                        if llm_result.label == "SKIP":
-                            adjusted_score = math.nextafter(
-                                settings.DIGEST_MIN_SCORE, 0.0
-                            )
-                            decision_type = PushDecision.IGNORE
-                            decision_status = PushStatus.SKIPPED
+                    decision_type = PushDecision.IGNORE
+                    decision_status: PushStatus | None = PushStatus.SKIPPED
+                    decision_reason = "推送价值判定不可用，按 fail-closed 跳过"
+                    if llm_result and llm_result.label == "PUSH":
+                        decision_type = PushDecision.DIGEST
+                        decision_status = None
+                        decision_reason = "每日摘要匹配"
+                        adjusted_score = candidate.match_score
+                    else:
+                        adjusted_score = math.nextafter(settings.DIGEST_MIN_SCORE, 0.0)
+                        if llm_result and llm_result.label == "SKIP":
                             decision_reason = f"LLM判定不值得推送：{llm_result.reason}"
-                            await self._maybe_downgrade_match_score(
-                                match_repository,
-                                goal_id=goal_id,
-                                item_id=candidate.item_id,
-                                adjusted_score=adjusted_score,
-                            )
-                        else:
-                            adjusted_score = candidate.match_score
+                        elif fallback_reason:
+                            decision_reason = f"推送价值判定不可用（{fallback_reason}），按 fail-closed 跳过"
+                        await self._maybe_downgrade_match_score(
+                            match_repository,
+                            goal_id=goal_id,
+                            item_id=candidate.item_id,
+                            adjusted_score=adjusted_score,
+                        )
 
                     score_trace = {
                         "match_score": candidate.match_score,
@@ -705,6 +728,8 @@ class AgentOrchestrator:
                         continue
                     if decision_type == PushDecision.DIGEST:
                         actions_created += 1
+                        if topic_key:
+                            seen_topic_keys.add(topic_key)
 
                     # 记录到 state actions
                     state.actions.append(
