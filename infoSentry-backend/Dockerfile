@@ -42,8 +42,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 从 builder 复制虚拟环境（包含所有 Python 依赖）
 COPY --from=builder /app/.venv /app/.venv
 
-# 复制应用代码（仅 src 和入口文件）
+# 复制应用代码（src、prompts, resources 和入口文件）
 COPY src/ ./src/
+COPY resources/ ./resources/
+COPY prompts/ ./prompts/
 COPY main.py ./
 
 # 设置环境变量
