@@ -164,7 +164,9 @@ async def test_run_digest_skips_when_immediate_or_batch_exists() -> None:
         match_repository=_FakeMatchRepo([candidate]),
         decision_repository=_FakeDecisionRepo(existing_keys={existing_immediate}),
         goal_repository=_FakeGoalRepo(),
-        item_repository=_FakeItemRepo({"item-1": _make_item("item-1", "https://www.v2ex.com/t/1#reply0")}),
+        item_repository=_FakeItemRepo(
+            {"item-1": _make_item("item-1", "https://www.v2ex.com/t/1#reply0")}
+        ),
         llm_service=_PushLLM(),
     )
 
@@ -188,7 +190,9 @@ async def test_run_digest_fails_closed_when_llm_unavailable() -> None:
         match_repository=_FakeMatchRepo([candidate]),
         decision_repository=_FakeDecisionRepo(),
         goal_repository=_FakeGoalRepo(),
-        item_repository=_FakeItemRepo({"item-1": _make_item("item-1", "https://www.v2ex.com/t/1#reply0")}),
+        item_repository=_FakeItemRepo(
+            {"item-1": _make_item("item-1", "https://www.v2ex.com/t/1#reply0")}
+        ),
         llm_service=None,
     )
 
@@ -229,4 +233,3 @@ async def test_run_digest_dedupes_same_topic_candidates() -> None:
     emit_calls = [call for call in tools.calls if call["tool_name"] == "emit_decision"]
     assert len(emit_calls) == 1
     assert emit_calls[0]["kwargs"]["item_id"] == "item-1"
-

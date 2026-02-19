@@ -132,7 +132,7 @@ class GoalMatchQueryService:
                     summary=item.summary,
                     published_at=item.published_at,
                     ingested_at=item.ingested_at,
-                source_name=source.name if source else None,
+                    source_name=source.name if source else None,
                 )
 
         # Build response

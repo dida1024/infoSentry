@@ -392,9 +392,7 @@ class AgentOrchestrator:
                         if llm_result and llm_result.label == "SKIP":
                             decision_reason = f"LLM判定不值得推送：{llm_result.reason}"
                         elif fallback_reason:
-                            decision_reason = (
-                                f"推送价值判定不可用（{fallback_reason}），按 fail-closed 跳过"
-                            )
+                            decision_reason = f"推送价值判定不可用（{fallback_reason}），按 fail-closed 跳过"
                         await self._maybe_downgrade_match_score(
                             match_repository,
                             goal_id=goal_id,
@@ -669,9 +667,7 @@ class AgentOrchestrator:
                         if llm_result and llm_result.label == "SKIP":
                             decision_reason = f"LLM判定不值得推送：{llm_result.reason}"
                         elif fallback_reason:
-                            decision_reason = (
-                                f"推送价值判定不可用（{fallback_reason}），按 fail-closed 跳过"
-                            )
+                            decision_reason = f"推送价值判定不可用（{fallback_reason}），按 fail-closed 跳过"
                         await self._maybe_downgrade_match_score(
                             match_repository,
                             goal_id=goal_id,

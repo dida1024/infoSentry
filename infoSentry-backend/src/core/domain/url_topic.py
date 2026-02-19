@@ -58,4 +58,3 @@ def build_topic_key(url: str) -> str:
     """Build stable topic key from canonical URL."""
     canonical = canonicalize_url_for_topic(url)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:32]
-

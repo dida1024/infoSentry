@@ -673,5 +673,9 @@ class PushService:
             else:
                 dropped.append(payload)
 
-        kept = sorted(kept_by_topic.values(), key=lambda p: (p.score, p.published_at), reverse=True)
+        kept = sorted(
+            kept_by_topic.values(),
+            key=lambda p: (p.score, p.published_at),
+            reverse=True,
+        )
         return kept, dropped
