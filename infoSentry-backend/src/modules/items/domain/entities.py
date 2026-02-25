@@ -37,6 +37,7 @@ class Item(AggregateRoot):
     source_id: str = Field(..., description="来源ID")
     url: str = Field(..., description="原文URL")
     url_hash: str = Field(..., description="URL哈希（用于去重）")
+    topic_key: str | None = Field(default=None, description="主题键（主题级去重）")
     title: str = Field(..., description="标题")
     snippet: str | None = Field(default=None, description="摘要片段")
     summary: str | None = Field(default=None, description="AI生成的摘要")
@@ -81,6 +82,8 @@ class GoalItemMatch(AggregateRoot):
 
     goal_id: str = Field(..., description="Goal ID")
     item_id: str = Field(..., description="Item ID")
+    topic_key: str | None = Field(default=None, description="主题键")
+    item_time: datetime | None = Field(default=None, description="条目时间（发布/入库）")
     match_score: float = Field(..., ge=0, le=1, description="匹配分数")
     features_json: dict[str, Any] = Field(default_factory=dict, description="特征值")
     reasons_json: dict[str, Any] = Field(default_factory=dict, description="匹配原因")

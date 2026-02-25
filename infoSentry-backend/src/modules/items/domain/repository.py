@@ -107,6 +107,20 @@ class GoalItemMatchRepository(BaseRepository[GoalItemMatch]):
         pass
 
     @abstractmethod
+    async def list_by_goal_deduped(
+        self,
+        goal_id: str,
+        min_score: float | None = None,
+        since: datetime | None = None,
+        rank_mode: RankMode = RankMode.HYBRID,
+        half_life_days: float | None = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[list[GoalItemMatch], int]:
+        """List topic-deduped matches for a goal."""
+        pass
+
+    @abstractmethod
     async def list_by_item(self, item_id: str) -> list[GoalItemMatch]:
         """List matches for an item."""
         pass

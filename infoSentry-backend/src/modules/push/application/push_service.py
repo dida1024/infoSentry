@@ -258,7 +258,7 @@ class PushService:
             email_payloads.append(
                 self._EmailPayload(
                     decision_id=decision.id,
-                    topic_key=build_topic_key(item.url),
+                    topic_key=item.topic_key or build_topic_key(item.url),
                     score=self._extract_decision_score(decision),
                     published_at=item.published_at,
                     email_item=EmailItem(
@@ -414,7 +414,7 @@ class PushService:
             email_payloads.append(
                 self._EmailPayload(
                     decision_id=decision.id,
-                    topic_key=build_topic_key(item.url),
+                    topic_key=item.topic_key or build_topic_key(item.url),
                     score=self._extract_decision_score(decision),
                     published_at=item.published_at,
                     email_item=EmailItem(
@@ -550,7 +550,7 @@ class PushService:
             email_payloads.append(
                 self._EmailPayload(
                     decision_id=decision.id,
-                    topic_key=build_topic_key(item.url),
+                    topic_key=item.topic_key or build_topic_key(item.url),
                     score=self._extract_decision_score(decision),
                     published_at=item.published_at,
                     email_item=EmailItem(
