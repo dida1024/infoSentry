@@ -3,11 +3,13 @@
 from collections.abc import Callable
 from typing import Any, cast
 
+import httpx
 import sentry_sdk
 from fastapi import FastAPI
 from fastapi.concurrency import asynccontextmanager
 from fastapi.routing import APIRoute
 from loguru import logger
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.middleware.cors import CORSMiddleware
 
 from src.core.application import dependencies as core_app_deps
@@ -17,7 +19,7 @@ from src.core.domain.exceptions import DomainException
 from src.core.infrastructure.ai import check_ai_service_health
 from src.core.infrastructure.ai.prompting import dependencies as prompting_infra_deps
 from src.core.infrastructure.database.session import check_db_health, init_db
-from src.core.infrastructure.logging import setup_logging
+from src.core.infrastructure.logging import get_business_logger, setup_logging
 from src.core.infrastructure.redis import get_redis_client, redis_client
 from src.core.infrastructure.security import jwt as infra_jwt
 from src.core.interfaces.http.exceptions import (
@@ -94,6 +96,56 @@ if settings.SENTRY_DSN and settings.ENVIRONMENT != "local":
     )
 
 
+async def _sync_default_public_sources_on_startup() -> None:
+    """Synchronize default public sources from NewsNow catalog."""
+    from src.core.domain.events import SimpleEventBus
+    from src.core.infrastructure.database.session import get_async_session
+    from src.modules.sources.application.default_public_source_sync_service import (
+        DefaultPublicSourceSyncService,
+    )
+    from src.modules.sources.infrastructure.mappers import SourceMapper
+    from src.modules.sources.infrastructure.newsnow_catalog_provider import (
+        InfrastructureNewsNowCatalogProvider,
+    )
+    from src.modules.sources.infrastructure.repositories import PostgreSQLSourceRepository
+
+    business_log = get_business_logger()
+
+    async with get_async_session() as session:
+        try:
+            source_repository = PostgreSQLSourceRepository(
+                session=session,
+                mapper=SourceMapper(),
+                event_publisher=SimpleEventBus(),
+            )
+            sync_service = DefaultPublicSourceSyncService(
+                source_repository=source_repository,
+                catalog_provider=InfrastructureNewsNowCatalogProvider(),
+            )
+            result = await sync_service.sync()
+            await session.commit()
+
+            logger.info(
+                "Default public source sync completed on startup: "
+                f"created={result.created}, updated={result.updated}, "
+                f"disabled={result.disabled}, unchanged={result.unchanged}, "
+                f"loaded_from={result.loaded_from}"
+            )
+        except (
+            httpx.HTTPError,
+            SQLAlchemyError,
+            OSError,
+            ValueError,
+        ) as exc:
+            await session.rollback()
+            logger.warning(f"Default public source sync skipped due to error: {exc}")
+            business_log.warning(
+                "default_public_source_sync_failed",
+                error_type=type(exc).__name__,
+                error=str(exc),
+            )
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     """Application lifespan manager."""
@@ -104,6 +156,8 @@ async def lifespan(_: FastAPI):
     # Initialize database
     logger.info("Initializing database connection...")
     await init_db()
+    if settings.NEWSNOW_PUBLIC_SOURCE_SYNC_ON_STARTUP:
+        await _sync_default_public_sources_on_startup()
 
     # TODO: Register event handlers
     # TODO: Start background tasks/workers

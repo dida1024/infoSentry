@@ -13,7 +13,10 @@ class SourceConfigSchema(BaseModel):
 
     # Generic config - actual structure depends on type
     base_url: str | None = None
+    api_path: str | None = None
     source_id: str | None = None
+    latest: bool | None = None
+    external_key: str | None = None
     feed_url: str | None = None
     list_url: str | None = None
     selectors: dict[str, str] | None = None

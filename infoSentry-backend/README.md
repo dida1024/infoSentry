@@ -160,6 +160,12 @@ uv run celery -A src.core.infrastructure.celery.app beat -l INFO
 - **RSS**: RSS Feed
 - **SITE**: 网页列表抓取
 
+NEWSNOW 默认公共源在服务启动时自动同步（可通过配置关闭）：
+- 启动时拉取上游目录：`NEWSNOW_CATALOG_URL`
+- 抓取接口：`{NEWSNOW_API_BASE_URL}{NEWSNOW_API_PATH}?id=<source_id>`
+- 目录拉取失败时回退本地快照：`resources/sources/newsnow_sources_snapshot.json`
+- 同步仅维护公共源，不会自动为用户创建订阅
+
 ### 追踪目标 (Goals)
 
 用户定义的追踪目标，包含:

@@ -209,8 +209,9 @@ class TestNewsNowFetcher:
         """测试有效配置。"""
         fetcher = NewsNowFetcher(
             config={
-                "base_url": "https://www.newsnow.co.uk",
-                "source_id": "Technology",
+                "base_url": "https://newsnow.busiyi.world",
+                "api_path": "/api/s",
+                "source_id": "github",
             },
             max_items=20,
         )
@@ -218,58 +219,107 @@ class TestNewsNowFetcher:
         assert valid is True
         assert error is None
 
-    def test_validate_config_with_category_path(self):
-        """测试使用 category_path 的配置。"""
+    def test_validate_config_missing_source_id(self):
+        """测试缺少 source_id。"""
         fetcher = NewsNowFetcher(
             config={
-                "base_url": "https://www.newsnow.co.uk",
-                "category_path": "/h/Technology",
+                "base_url": "https://newsnow.busiyi.world",
             },
             max_items=20,
         )
         valid, error = fetcher.validate_config()
-        assert valid is True
+        assert valid is False
+        assert "source_id" in (error or "")
 
-    def test_validate_config_missing_base_url(self):
-        """测试缺少 base_url。"""
+    def test_validate_config_invalid_base_url(self):
+        """测试 base_url 非法。"""
         fetcher = NewsNowFetcher(
-            config={"source_id": "Technology"},
+            config={
+                "base_url": "http://127.0.0.1:8787",
+                "source_id": "github",
+            },
             max_items=20,
         )
         valid, error = fetcher.validate_config()
         assert valid is False
-        assert "base_url" in error
+        assert "public HTTP(S) URL" in (error or "")
 
-    def test_is_valid_news_url(self):
-        """测试新闻 URL 验证。"""
+    def test_parse_payload_success(self):
+        """测试 API payload 解析。"""
         fetcher = NewsNowFetcher(
-            config={"base_url": "https://example.com", "source_id": "test"},
+            config={"source_id": "github"},
             max_items=20,
         )
+        payload = {
+            "status": "success",
+            "id": "github",
+            "updatedTime": 1772014783043,
+            "items": [
+                {
+                    "id": "/huggingface/skills",
+                    "title": "huggingface / skills",
+                    "url": "https://github.com/huggingface/skills",
+                    "extra": {"hover": "A skills framework", "info": "✰ 5,980"},
+                },
+                {
+                    "id": "bad-url",
+                    "title": "invalid url",
+                    "url": "javascript:void(0)",
+                },
+            ],
+        }
+        parsed = fetcher._parse_payload(payload)
+        assert len(parsed) == 1
+        assert parsed[0].url == "https://github.com/huggingface/skills"
+        assert parsed[0].snippet == "A skills framework"
+        assert parsed[0].published_at is None
 
-        assert (
-            fetcher._is_valid_news_url("https://news.example.com/article/123") is True
-        )
-        assert fetcher._is_valid_news_url("/login") is False
-        assert fetcher._is_valid_news_url("javascript:void(0)") is False
-        assert fetcher._is_valid_news_url("mailto:test@example.com") is False
-
-    def test_parse_relative_time(self):
-        """测试相对时间解析。"""
+    def test_parse_payload_with_pubdate(self):
+        """测试发布时间解析（毫秒时间戳 + ISO 字符串）。"""
         fetcher = NewsNowFetcher(
-            config={"base_url": "https://example.com", "source_id": "test"},
+            config={"source_id": "v2ex"},
             max_items=20,
         )
+        payload = {
+            "status": "success",
+            "items": [
+                {
+                    "id": "item-1",
+                    "title": "A",
+                    "url": "https://example.com/a",
+                    "pubDate": 1772014791889,
+                },
+                {
+                    "id": "item-2",
+                    "title": "B",
+                    "url": "https://example.com/b",
+                    "extra": {"date": "2026-02-25T09:52:15+00:00"},
+                },
+            ],
+        }
+        parsed = fetcher._parse_payload(payload)
+        assert len(parsed) == 2
+        assert parsed[0].published_at is not None
+        assert parsed[1].published_at is not None
 
-        result = fetcher._parse_relative_time("2 hours ago")
-        assert result is not None
-        assert (datetime.now(UTC) - result).total_seconds() < 3 * 3600
+    def test_parse_payload_api_error(self):
+        """测试 API 错误响应。"""
+        fetcher = NewsNowFetcher(
+            config={"source_id": "unknown"},
+            max_items=20,
+        )
+        payload = {
+            "error": True,
+            "statusCode": 500,
+            "message": "Invalid source id",
+        }
+        with pytest.raises(ValueError, match="Invalid source id"):
+            fetcher._parse_payload(payload)
 
-        result = fetcher._parse_relative_time("30 minutes ago")
-        assert result is not None
-
-        result = fetcher._parse_relative_time("invalid")
-        assert result is None
+    def test_parse_datetime_value_invalid(self):
+        """测试非法发布时间解析。"""
+        assert NewsNowFetcher._parse_datetime_value("invalid") is None
+        assert NewsNowFetcher._parse_datetime_value(float("nan")) is None
 
 
 # ============================================

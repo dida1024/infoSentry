@@ -1,13 +1,12 @@
-"""NewsNow 抓取器实现。
+"""NewsNow API fetcher implementation."""
 
-NewsNow 是一个新闻聚合网站，提供多个领域的新闻源。
-抓取策略：解析 NewsNow 的列表页面，提取新闻条目。
-"""
+from __future__ import annotations
 
+import math
 import re
 import time
-from datetime import UTC, datetime, timedelta
-from urllib.parse import urljoin
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from loguru import logger
@@ -21,293 +20,221 @@ from src.modules.sources.infrastructure.fetchers.base import (
 
 
 class NewsNowFetcher(BaseFetcher):
-    """NewsNow 抓取器。
-
-    配置格式：
-    {
-        "base_url": "https://www.newsnow.co.uk",
-        "source_id": "Technology",  # NewsNow 的分类 ID
-        "category_path": "/h/Technology"  # 分类路径
-    }
-    """
+    """Fetch items from NewsNow API endpoint."""
 
     def validate_config(self) -> tuple[bool, str | None]:
-        """验证配置。"""
-        if not self.config.get("base_url"):
-            return False, "Missing base_url in config"
-        if not self._is_allowed_url(self.config["base_url"]):
+        source_id = self.config.get("source_id")
+        if not isinstance(source_id, str) or not source_id.strip():
+            return False, "Missing source_id in config"
+
+        base_url = self._get_base_url()
+        if not self._is_allowed_url(base_url):
             return False, "base_url must be a public HTTP(S) URL"
-        if not self.config.get("source_id") and not self.config.get("category_path"):
-            return False, "Missing source_id or category_path in config"
+
+        api_path = self._get_api_path()
+        if not api_path.startswith("/"):
+            return False, "api_path must start with '/'"
         return True, None
 
     async def fetch(self) -> FetchResult:
-        """执行抓取。"""
         start_time = time.time()
-
         valid, error = self.validate_config()
         if not valid:
             return FetchResult.failed(error or "Invalid config")
 
-        try:
-            items = await self._fetch_items()
-            duration_ms = int((time.time() - start_time) * 1000)
+        source_id = str(self.config["source_id"]).strip()
+        api_url = f"{self._get_base_url().rstrip('/')}{self._get_api_path()}"
+        latest_flag = "1" if self._get_latest_flag() else "0"
 
+        try:
+            async with httpx.AsyncClient(
+                timeout=settings.FETCHER_TIMEOUT_SEC,
+                follow_redirects=False,
+            ) as client:
+                response = await client.get(
+                    api_url,
+                    params={"id": source_id, "latest": latest_flag},
+                    headers={
+                        "User-Agent": settings.FETCHER_USER_AGENT,
+                        "Accept": "application/json",
+                    },
+                )
+                response.raise_for_status()
+                payload = response.json()
+
+            items = self._parse_payload(payload)
+            duration_ms = int((time.time() - start_time) * 1000)
             return FetchResult.success(
                 items=items[: self.max_items],
                 duration_ms=duration_ms,
                 metadata={
-                    "source_id": self.config.get("source_id"),
+                    "source_id": source_id,
+                    "api_url": api_url,
+                    "latest": latest_flag == "1",
                     "total_found": len(items),
                 },
             )
-        except httpx.TimeoutException as e:
+        except httpx.TimeoutException as exc:
             duration_ms = int((time.time() - start_time) * 1000)
-            logger.warning(f"NewsNow fetch timeout: {e}")
+            logger.warning(f"NewsNow fetch timeout for {source_id}: {exc}")
             return FetchResult.failed(
-                f"Timeout: {str(e)}",
+                f"Timeout: {str(exc)}",
                 duration_ms=duration_ms,
             )
-        except httpx.HTTPStatusError as e:
+        except httpx.HTTPStatusError as exc:
             duration_ms = int((time.time() - start_time) * 1000)
-            logger.warning(f"NewsNow fetch HTTP error: {e.response.status_code}")
+            logger.warning(
+                f"NewsNow fetch HTTP error for {source_id}: {exc.response.status_code}"
+            )
             return FetchResult.failed(
-                f"HTTP {e.response.status_code}: {str(e)}",
+                f"HTTP {exc.response.status_code}",
                 duration_ms=duration_ms,
             )
-        except Exception as e:
+        except (httpx.HTTPError, ValueError, TypeError) as exc:
             duration_ms = int((time.time() - start_time) * 1000)
-            logger.exception(f"NewsNow fetch error: {e}")
+            logger.warning(f"NewsNow fetch error for {source_id}: {exc}")
             return FetchResult.failed(
-                f"Error: {str(e)}",
+                f"Error: {str(exc)}",
                 duration_ms=duration_ms,
             )
 
-    async def _fetch_items(self) -> list[FetchedItem]:
-        """实际抓取逻辑。"""
-        base_url = self.config["base_url"]
-        category_path = self.config.get("category_path", "")
+    def _parse_payload(self, payload: Any) -> list[FetchedItem]:
+        if not isinstance(payload, dict):
+            raise ValueError("NewsNow response payload must be an object")
 
-        # 如果没有 category_path，从 source_id 构建
-        if not category_path and self.config.get("source_id"):
-            category_path = f"/h/{self.config['source_id']}"
+        status = payload.get("status")
+        if status not in ("success", "cache"):
+            message = payload.get("message")
+            if isinstance(message, str) and message:
+                raise ValueError(f"NewsNow API error: {message}")
+            raise ValueError("NewsNow API returned non-success status")
 
-        url = urljoin(base_url, category_path)
+        items_raw = payload.get("items")
+        if not isinstance(items_raw, list):
+            raise ValueError("NewsNow API response missing items list")
 
-        async with httpx.AsyncClient(
-            timeout=settings.FETCHER_TIMEOUT_SEC,
-            follow_redirects=True,
-        ) as client:
-            response = await client.get(
-                url,
-                headers={
-                    "User-Agent": settings.FETCHER_USER_AGENT,
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    "Accept-Language": "en-US,en;q=0.5",
-                },
-            )
-            response.raise_for_status()
-
-            return self._parse_html(response.text, base_url)
-
-    def _parse_html(self, html: str, base_url: str) -> list[FetchedItem]:
-        """解析 HTML 内容提取新闻条目。
-
-        NewsNow 的页面结构可能会变化，这里使用正则和简单解析。
-        生产环境建议使用 BeautifulSoup 或 lxml。
-        """
-        items: list[FetchedItem] = []
-
-        try:
-            # 尝试使用 BeautifulSoup 解析（如果可用）
-            from bs4 import BeautifulSoup
-
-            soup = BeautifulSoup(html, "html.parser")
-
-            # NewsNow 的新闻条目通常在 .hl 或类似的类中
-            # 这是一个简化的解析逻辑，实际需要根据真实页面结构调整
-            for article in soup.select("div.hl, article, .news-item, .headline"):
-                try:
-                    # 查找链接
-                    link_elem = article.select_one("a[href]")
-                    if not link_elem:
-                        continue
-
-                    url = link_elem.get("href", "")
-                    if not url:
-                        continue
-
-                    # 处理相对路径
-                    if url.startswith("/"):
-                        url = urljoin(base_url, url)
-                    if not self._is_allowed_url(url):
-                        continue
-
-                    if not self._is_valid_news_url(url):
-                        continue
-
-                    # 提取标题
-                    title = self._clean_title(link_elem.get_text())
-                    if not title:
-                        continue
-
-                    # 提取摘要（如果有）
-                    snippet_elem = article.select_one(".snippet, .summary, .excerpt, p")
-                    snippet = None
-                    if snippet_elem and snippet_elem != link_elem:
-                        snippet = self._truncate_snippet(snippet_elem.get_text())
-
-                    # 提取发布时间（如果有）
-                    time_elem = article.select_one("time, .time, .date, [datetime]")
-                    published_at = None
-                    if time_elem:
-                        published_at = self._parse_time(
-                            time_elem.get("datetime") or time_elem.get_text()
-                        )
-
-                    items.append(
-                        FetchedItem(
-                            url=url,
-                            title=title,
-                            snippet=snippet,
-                            published_at=published_at,
-                            raw_data={"source": "newsnow"},
-                        )
-                    )
-                except Exception as e:
-                    logger.debug(f"Failed to parse article: {e}")
-                    continue
-
-        except ImportError:
-            # 如果没有 BeautifulSoup，使用正则表达式
-            logger.warning("BeautifulSoup not available, using regex parsing")
-            items = self._parse_with_regex(html, base_url)
-
-        return items
-
-    def _parse_with_regex(self, html: str, base_url: str) -> list[FetchedItem]:
-        """使用正则表达式解析（备用方案）。"""
-        items: list[FetchedItem] = []
-
-        # 简单的正则匹配链接和标题
-        pattern = r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>([^<]+)</a>'
-        matches = re.findall(pattern, html, re.IGNORECASE)
-
-        for url, title in matches:
-            if not url or not title:
+        parsed_items: list[FetchedItem] = []
+        seen_urls: set[str] = set()
+        for raw_item in items_raw:
+            if not isinstance(raw_item, dict):
                 continue
 
-            # 处理相对路径
-            if url.startswith("/"):
-                url = urljoin(base_url, url)
-
-            # 过滤
-            if not self._is_valid_news_url(url):
+            url_value = raw_item.get("url")
+            title_value = raw_item.get("title")
+            if not isinstance(url_value, str) or not isinstance(title_value, str):
                 continue
 
-            title = self._clean_title(title)
-            if not title or len(title) < 10:
+            url = url_value.strip()
+            if not url or not self._is_allowed_url(url):
+                continue
+            if url in seen_urls:
+                continue
+            seen_urls.add(url)
+
+            title = self._clean_text(title_value)
+            if not title:
                 continue
 
-            items.append(
+            snippet = self._extract_snippet(raw_item.get("extra"))
+            published_at = self._extract_published_at(raw_item)
+
+            parsed_items.append(
                 FetchedItem(
                     url=url,
                     title=title,
-                    snippet=None,
-                    published_at=None,
-                    raw_data={"source": "newsnow", "parsed_with": "regex"},
+                    snippet=snippet,
+                    published_at=published_at,
+                    raw_data={
+                        "source": "newsnow",
+                        "id": raw_item.get("id"),
+                        "status": status,
+                    },
                 )
             )
+        return parsed_items
 
-        return items
+    def _extract_snippet(self, extra_value: object) -> str | None:
+        if not isinstance(extra_value, dict):
+            return None
+        hover = extra_value.get("hover")
+        if not isinstance(hover, str):
+            return None
+        cleaned = self._clean_text(hover)
+        if not cleaned:
+            return None
+        if len(cleaned) <= 500:
+            return cleaned
+        return f"{cleaned[:497]}..."
 
-    def _is_valid_news_url(self, url: str) -> bool:
-        """检查是否是有效的新闻 URL。"""
-        if not url:
-            return False
+    @staticmethod
+    def _clean_text(value: str) -> str:
+        cleaned = re.sub(r"<[^>]+>", "", value)
+        return " ".join(cleaned.split())
 
-        # 跳过 NewsNow 内部链接
-        if "newsnow.co.uk" in url and not url.startswith("http"):
-            return False
+    def _extract_published_at(self, item: dict[str, Any]) -> datetime | None:
+        pub_date = item.get("pubDate")
+        if pub_date is not None:
+            parsed = self._parse_datetime_value(pub_date)
+            if parsed is not None:
+                return parsed
 
-        # 跳过常见的非新闻链接
-        skip_patterns = [
-            "/login",
-            "/register",
-            "/about",
-            "/contact",
-            "/privacy",
-            "/terms",
-            "/advertise",
-            "/help",
-            "javascript:",
-            "mailto:",
-            "#",
-        ]
-        for pattern in skip_patterns:
-            if pattern in url.lower():
-                return False
+        extra = item.get("extra")
+        if isinstance(extra, dict):
+            return self._parse_datetime_value(extra.get("date"))
+        return None
 
-        return True
-
-    def _parse_time(self, time_str: str | None) -> datetime | None:
-        """解析时间字符串。"""
-        if not time_str:
+    @staticmethod
+    def _parse_datetime_value(value: object) -> datetime | None:
+        if value is None:
             return None
 
-        try:
-            # ISO 格式
-            if "T" in time_str:
-                return datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+        if isinstance(value, (int, float)):
+            if not math.isfinite(value):
+                return None
+            timestamp = float(value)
+            if timestamp > 1_000_000_000_000:
+                timestamp /= 1000.0
+            if timestamp <= 0:
+                return None
+            return datetime.fromtimestamp(timestamp, tz=UTC)
 
-            # 相对时间格式（如 "2 hours ago"）
-            time_str = time_str.lower().strip()
-            if "ago" in time_str:
-                return self._parse_relative_time(time_str)
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return None
 
-            # 其他格式尝试
-            for fmt in [
-                "%Y-%m-%d %H:%M:%S",
-                "%Y-%m-%d %H:%M",
-                "%Y-%m-%d",
-                "%d %b %Y",
-                "%B %d, %Y",
-            ]:
+            if text.isdigit():
                 try:
-                    return datetime.strptime(time_str, fmt).replace(tzinfo=UTC)
+                    return NewsNowFetcher._parse_datetime_value(int(text))
                 except ValueError:
-                    continue
+                    return None
 
-        except Exception as e:
-            logger.debug(f"Failed to parse time string '{time_str}': {e}")
-
-        return None
-
-    def _parse_relative_time(self, time_str: str) -> datetime | None:
-        """解析相对时间（如 "2 hours ago"）。"""
-        now = datetime.now(UTC)
-
-        # 匹配数字和单位
-        match = re.search(
-            r"(\d+)\s*(second|minute|hour|day|week|month)s?\s*ago", time_str
-        )
-        if not match:
-            return None
-
-        value = int(match.group(1))
-        unit = match.group(2)
-
-        deltas = {
-            "second": timedelta(seconds=value),
-            "minute": timedelta(minutes=value),
-            "hour": timedelta(hours=value),
-            "day": timedelta(days=value),
-            "week": timedelta(weeks=value),
-            "month": timedelta(days=value * 30),
-        }
-
-        delta = deltas.get(unit)
-        if delta:
-            return now - delta
+            try:
+                parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+                if parsed.tzinfo is None:
+                    return parsed.replace(tzinfo=UTC)
+                return parsed
+            except ValueError:
+                return None
 
         return None
+
+    def _get_base_url(self) -> str:
+        base_url = self.config.get("base_url", settings.NEWSNOW_API_BASE_URL)
+        return str(base_url).strip()
+
+    def _get_api_path(self) -> str:
+        api_path = self.config.get("api_path", settings.NEWSNOW_API_PATH)
+        path = str(api_path).strip()
+        return path or settings.NEWSNOW_API_PATH
+
+    def _get_latest_flag(self) -> bool:
+        value = self.config.get("latest", False)
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            return value != 0
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            return normalized in {"1", "true", "yes", "y", "on"}
+        return False
