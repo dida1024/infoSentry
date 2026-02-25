@@ -20,6 +20,7 @@ class ItemModel(BaseModel, table=True):
     source_id: str = Field(nullable=False, index=True)
     url: str = Field(nullable=False, sa_type=Text)
     url_hash: str = Field(nullable=False, unique=True, index=True)
+    topic_key: str | None = Field(default=None, nullable=True, index=True)
     title: str = Field(nullable=False, sa_type=Text)
     snippet: str | None = Field(default=None, sa_type=Text, nullable=True)
     summary: str | None = Field(default=None, sa_type=Text, nullable=True)
@@ -70,6 +71,13 @@ class GoalItemMatchModel(BaseModel, table=True):
 
     goal_id: str = Field(nullable=False, index=True)
     item_id: str = Field(nullable=False, index=True)
+    topic_key: str | None = Field(default=None, nullable=True, index=True)
+    item_time: datetime | None = Field(
+        default=None,
+        sa_type=DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
     match_score: float = Field(nullable=False, index=True)
     features_json: dict = Field(default_factory=dict, sa_type=JSON, nullable=False)
     reasons_json: dict = Field(default_factory=dict, sa_type=JSON, nullable=False)

@@ -382,7 +382,7 @@ async def _match_items_for_goal_async(goal_id: str, hours_back: int) -> None:
             for item in items:
                 result = await match_service.match_item_to_goal(item, goal)
                 if result.is_valid and result.score > 0:
-                    await match_service._save_match(result)
+                    await match_service._save_match(result, item)
                     match_count += 1
 
             await session.commit()

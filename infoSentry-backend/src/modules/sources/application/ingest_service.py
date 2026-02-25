@@ -236,6 +236,7 @@ class IngestService:
                 source_id=source.id,
                 url=fetched.url,
                 url_hash=url_hash,
+                topic_key=build_topic_key(fetched.url),
                 title=fetched.title,
                 snippet=fetched.snippet,
                 published_at=fetched.published_at,

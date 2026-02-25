@@ -23,6 +23,7 @@ from src.core.config import settings
 from src.core.domain.events import EventBus
 from src.core.domain.ports.business_logger import BusinessEventLogger
 from src.core.domain.ports.kv import KVClient
+from src.core.domain.url_topic import build_topic_key
 
 if TYPE_CHECKING:
     pass
@@ -239,7 +240,7 @@ class MatchService:
 
             # 保存匹配结果
             if result.score > 0:
-                await self._save_match(result)
+                await self._save_match(result, item)
 
                 # 发布事件
                 await self.event_bus.publish(
@@ -781,11 +782,13 @@ class MatchService:
         # 确保分数在 [0, 1] 范围
         return max(0.0, min(1.0, score))
 
-    async def _save_match(self, result: MatchResult) -> None:
+    async def _save_match(self, result: MatchResult, item: Item) -> None:
         """保存匹配结果到数据库。"""
         match = GoalItemMatch(
             goal_id=result.goal_id,
             item_id=result.item_id,
+            topic_key=item.topic_key or build_topic_key(item.url),
+            item_time=item.published_at or item.ingested_at,
             match_score=result.score,
             features_json=result.features.to_dict(),
             reasons_json=result.reasons.to_dict(),

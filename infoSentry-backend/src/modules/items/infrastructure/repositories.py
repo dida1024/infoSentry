@@ -1,10 +1,10 @@
 """Item repository implementations."""
 
 from datetime import datetime
-from typing import cast
+from typing import Any, cast
 
 from loguru import logger
-from sqlalchemy import func, text
+from sqlalchemy import func, literal, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
@@ -185,6 +185,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
                 source_id=row.source_id,
                 url=row.url,
                 url_hash=row.url_hash,
+                topic_key=row.topic_key,
                 title=row.title,
                 snippet=row.snippet,
                 summary=row.summary,
@@ -235,6 +236,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
                 source_id=model.source_id,
                 url=model.url,
                 url_hash=model.url_hash,
+                topic_key=model.topic_key,
                 title=model.title,
                 snippet=model.snippet,
                 summary=model.summary,
@@ -271,6 +273,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
         existing.title = item.title
         existing.snippet = item.snippet
         existing.summary = item.summary
+        existing.topic_key = item.topic_key
         existing.embedding = item.embedding
         existing.embedding_status = item.embedding_status
         existing.embedding_model = item.embedding_model
@@ -420,6 +423,81 @@ class PostgreSQLGoalItemMatchRepository(
         models = [row.GoalItemMatchModel for row in rows]
         return self.mapper.to_domain_list(models), total_count
 
+    async def list_by_goal_deduped(
+        self,
+        goal_id: str,
+        min_score: float | None = None,
+        since: datetime | None = None,
+        rank_mode: RankMode = RankMode.HYBRID,
+        half_life_days: float | None = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[list[GoalItemMatch], int]:
+        effective_half_life = (
+            half_life_days
+            if half_life_days is not None and half_life_days > 0
+            else settings.GOAL_MATCH_RANK_HALF_LIFE_DAYS
+        )
+
+        base_filters = [
+            col(GoalItemMatchModel.goal_id) == goal_id,
+            col(GoalItemMatchModel.is_deleted).is_(False),
+        ]
+        if min_score is not None:
+            base_filters.append(col(GoalItemMatchModel.match_score) >= min_score)
+        if since:
+            base_filters.append(col(GoalItemMatchModel.computed_at) >= since)
+
+        item_time = cast(
+            ColumnElement[datetime],
+            func.coalesce(GoalItemMatchModel.item_time, GoalItemMatchModel.computed_at),
+        )
+        order_by = self._build_rank_order_by(
+            rank_mode=rank_mode,
+            item_time=item_time,
+            half_life_days=effective_half_life,
+        )
+        topic_partition = cast(
+            ColumnElement[str],
+            func.coalesce(
+                GoalItemMatchModel.topic_key,
+                func.concat(literal("item:"), GoalItemMatchModel.item_id),
+            ),
+        )
+
+        ranked_matches = (
+            select(
+                col(GoalItemMatchModel.id).label("match_id"),
+                func.row_number()
+                .over(partition_by=topic_partition, order_by=order_by)
+                .label("rn"),
+            )
+            .where(*base_filters)
+            .subquery("ranked_goal_matches")
+        )
+        deduped_ids = (
+            select(ranked_matches.c.match_id)
+            .where(ranked_matches.c.rn == 1)
+            .subquery("deduped_goal_match_ids")
+        )
+
+        count_statement = select(func.count()).select_from(deduped_ids)
+        count_result = await self.session.execute(count_statement)
+        total_count = int(count_result.scalar_one() or 0)
+        if total_count == 0:
+            return [], 0
+
+        statement = (
+            select(GoalItemMatchModel)
+            .join(deduped_ids, deduped_ids.c.match_id == col(GoalItemMatchModel.id))
+            .order_by(*order_by)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        result = await self.session.execute(statement)
+        models = result.scalars().all()
+        return self.mapper.to_domain_list(list(models)), total_count
+
     async def list_by_item(self, item_id: str) -> list[GoalItemMatch]:
         statement = select(GoalItemMatchModel).where(
             GoalItemMatchModel.item_id == item_id,
@@ -437,6 +515,8 @@ class PostgreSQLGoalItemMatchRepository(
                 match.features_json,
                 match.reasons_json,
             )
+            existing.topic_key = match.topic_key
+            existing.item_time = match.item_time
             return await self.update(existing)
         return await self.create(match)
 
@@ -456,6 +536,8 @@ class PostgreSQLGoalItemMatchRepository(
             raise EntityNotFoundError("GoalItemMatch", match.id)
 
         existing.match_score = match.match_score
+        existing.topic_key = match.topic_key
+        existing.item_time = match.item_time
         existing.features_json = match.features_json
         existing.reasons_json = match.reasons_json
         existing.computed_at = match.computed_at
@@ -486,6 +568,38 @@ class PostgreSQLGoalItemMatchRepository(
         include_deleted: bool = False,
     ) -> tuple[list[GoalItemMatch], int]:
         return [], 0
+
+    def _build_rank_order_by(
+        self,
+        rank_mode: RankMode,
+        item_time: ColumnElement[datetime],
+        half_life_days: float,
+    ) -> list[ColumnElement[Any]]:
+        if rank_mode == RankMode.HYBRID:
+            age_seconds = func.extract("epoch", func.now() - item_time)
+            age_days = func.greatest(age_seconds / 86400.0, 0.0)
+            rank_score = cast(
+                ColumnElement[float],
+                GoalItemMatchModel.match_score
+                * func.power(0.5, age_days / half_life_days),
+            )
+            return [
+                rank_score.desc().nullslast(),
+                col(GoalItemMatchModel.match_score).desc(),
+                col(GoalItemMatchModel.computed_at).desc(),
+            ]
+
+        if rank_mode == RankMode.RECENT:
+            return [
+                item_time.desc().nullslast(),
+                col(GoalItemMatchModel.match_score).desc(),
+                col(GoalItemMatchModel.computed_at).desc(),
+            ]
+
+        return [
+            col(GoalItemMatchModel.match_score).desc(),
+            col(GoalItemMatchModel.computed_at).desc(),
+        ]
 
     async def list_top_by_goal(
         self,

@@ -31,7 +31,7 @@ class _FakeMatchRepo:
     def __init__(self, matches: list[GoalItemMatch]) -> None:
         self._matches = matches
 
-    async def list_by_goal(
+    async def list_by_goal_deduped(
         self,
         goal_id: str,
         min_score: float | None = None,
@@ -44,9 +44,20 @@ class _FakeMatchRepo:
         filtered = [m for m in self._matches if m.goal_id == goal_id]
         if min_score is not None:
             filtered = [m for m in filtered if m.match_score >= min_score]
+        deduped_by_topic: dict[str, GoalItemMatch] = {}
+        for match in filtered:
+            key = match.topic_key or f"item:{match.item_id}"
+            existing = deduped_by_topic.get(key)
+            if not existing or match.match_score > existing.match_score:
+                deduped_by_topic[key] = match
+        ordered = sorted(
+            deduped_by_topic.values(),
+            key=lambda m: m.match_score,
+            reverse=True,
+        )
         start = (page - 1) * page_size
         end = start + page_size
-        return filtered[start:end], len(filtered)
+        return ordered[start:end], len(ordered)
 
 
 class _FakeItemRepo:
@@ -88,11 +99,13 @@ def _make_item(item_id: str, url: str, source_id: str = "src-1") -> Item:
     )
 
 
-def _make_match(item_id: str, score: float) -> GoalItemMatch:
+def _make_match(item_id: str, score: float, topic_key: str) -> GoalItemMatch:
     return GoalItemMatch(
         id=f"match-{item_id}",
         goal_id="goal-1",
         item_id=item_id,
+        topic_key=topic_key,
+        item_time=datetime.now(UTC),
         match_score=score,
         features_json={},
         reasons_json={},
@@ -110,9 +123,9 @@ async def test_list_matches_dedupes_by_topic_and_preserves_best_ranked_item() ->
         priority_mode=PriorityMode.SOFT,
     )
     matches = [
-        _make_match("item-1", 0.92),
-        _make_match("item-2", 0.91),
-        _make_match("item-3", 0.85),
+        _make_match("item-1", 0.92, "topic-100"),
+        _make_match("item-2", 0.91, "topic-100"),
+        _make_match("item-3", 0.85, "topic-101"),
     ]
     items = {
         "item-1": _make_item("item-1", "https://www.v2ex.com/t/100#reply0"),
