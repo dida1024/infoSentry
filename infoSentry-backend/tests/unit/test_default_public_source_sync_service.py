@@ -16,7 +16,6 @@ from src.modules.sources.domain.catalog import (
 )
 from src.modules.sources.domain.entities import Source, SourceType
 
-
 pytestmark = pytest.mark.anyio
 
 
@@ -24,7 +23,7 @@ class InMemorySourceRepository:
     """Simple in-memory repository for sync service tests."""
 
     def __init__(self, sources: list[Source] | None = None) -> None:
-        self.sources: "OrderedDict[str, Source]" = OrderedDict()
+        self.sources: OrderedDict[str, Source] = OrderedDict()
         for source in sources or []:
             self.sources[source.id] = source
 
@@ -64,7 +63,11 @@ class InMemorySourceRepository:
         return filtered[start:end], len(filtered)
 
     async def get_by_ids(self, source_ids: list[str]) -> dict[str, Source]:
-        return {source_id: self.sources[source_id] for source_id in source_ids if source_id in self.sources}
+        return {
+            source_id: self.sources[source_id]
+            for source_id in source_ids
+            if source_id in self.sources
+        }
 
     async def get_by_name(self, name: str) -> Source | None:
         for source in self.sources.values():

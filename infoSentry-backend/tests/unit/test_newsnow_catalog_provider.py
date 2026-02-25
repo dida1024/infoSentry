@@ -10,7 +10,6 @@ from src.modules.sources.infrastructure.newsnow_catalog_provider import (
     InfrastructureNewsNowCatalogProvider,
 )
 
-
 pytestmark = pytest.mark.anyio
 
 

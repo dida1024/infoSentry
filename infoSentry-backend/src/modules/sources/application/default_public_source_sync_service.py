@@ -43,7 +43,9 @@ class DefaultPublicSourceSyncService:
     async def sync(self) -> DefaultPublicSourceSyncResult:
         """Sync catalog into sources table with idempotent updates."""
         catalog = await self.catalog_provider.load_catalog()
-        active_catalog_sources = [source for source in catalog.sources if not source.disable]
+        active_catalog_sources = [
+            source for source in catalog.sources if not source.disable
+        ]
 
         existing_sources_by_key = await self._load_existing_default_sources()
         active_external_keys: set[str] = set()

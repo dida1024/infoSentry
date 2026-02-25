@@ -107,7 +107,9 @@ async def _sync_default_public_sources_on_startup() -> None:
     from src.modules.sources.infrastructure.newsnow_catalog_provider import (
         InfrastructureNewsNowCatalogProvider,
     )
-    from src.modules.sources.infrastructure.repositories import PostgreSQLSourceRepository
+    from src.modules.sources.infrastructure.repositories import (
+        PostgreSQLSourceRepository,
+    )
 
     business_log = get_business_logger()
 
