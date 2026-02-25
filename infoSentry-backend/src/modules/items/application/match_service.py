@@ -20,10 +20,10 @@ from loguru import logger
 from openai import AsyncOpenAI
 
 from src.core.config import settings
-from src.core.domain.url_topic import build_topic_key
 from src.core.domain.events import EventBus
 from src.core.domain.ports.business_logger import BusinessEventLogger
 from src.core.domain.ports.kv import KVClient
+from src.core.domain.url_topic import build_topic_key
 
 if TYPE_CHECKING:
     pass

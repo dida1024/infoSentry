@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engin
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 
-from src.core.domain.url_topic import build_topic_key
 from src.core.domain.events import EventBus
+from src.core.domain.url_topic import build_topic_key
 from src.modules.goals.domain.entities import GoalStatus, PriorityMode
 from src.modules.goals.infrastructure.models import GoalModel
 from src.modules.items.domain.entities import RankMode
