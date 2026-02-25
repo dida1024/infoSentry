@@ -216,6 +216,8 @@
 ### GET /api/sources?type=
 获取信息源列表
 
+> NEWSNOW 默认公共源会在服务启动后自动对齐上游目录（`shared/sources.json`），并出现在公共源列表中。
+
 **Query Params:**
 - `type`: NEWSNOW | RSS | SITE（可选）
 
@@ -248,10 +250,12 @@
 ```json
 {
   "type": "NEWSNOW",
-  "name": "Reuters Tech",
+  "name": "NewsNow | Github",
   "config": {
     "base_url": "https://newsnow.busiyi.world",
-    "source_id": "reuters-tech"
+    "api_path": "/api/s",
+    "source_id": "github",
+    "latest": false
   }
 }
 ```
@@ -553,4 +557,3 @@
 - `FORBIDDEN`: 无权限
 - `RATE_LIMITED`: 请求过于频繁
 - `INTERNAL_ERROR`: 服务器内部错误
-

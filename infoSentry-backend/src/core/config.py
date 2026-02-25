@@ -205,6 +205,8 @@ class Settings(BaseSettings):
     NEWSNOW_FETCH_INTERVAL_SEC: int = 1800  # 30 minutes
     RSS_FETCH_INTERVAL_SEC: int = 900  # 15 minutes
     SITE_FETCH_INTERVAL_SEC: int = 1800  # 30 minutes
+    NEWSNOW_SOURCE_INTERVAL_MIN_SEC: int = 60
+    NEWSNOW_SOURCE_INTERVAL_MAX_SEC: int = 7200
     ITEMS_PER_SOURCE_PER_FETCH: int = 20
     INGEST_SOURCES_PER_MIN: int = 60
     INGEST_ERROR_BACKOFF_BASE: int = 60  # 错误退避基础秒数
@@ -260,6 +262,14 @@ class Settings(BaseSettings):
     FETCHER_USER_AGENT: str = (
         "Mozilla/5.0 (compatible; InfoSentry/1.0; +https://infosentry.app)"
     )
+    NEWSNOW_API_BASE_URL: str = "https://newsnow.busiyi.world"
+    NEWSNOW_API_PATH: str = "/api/s"
+    NEWSNOW_CATALOG_URL: str = (
+        "https://raw.githubusercontent.com/ourongxing/newsnow/main/shared/sources.json"
+    )
+    NEWSNOW_CATALOG_FETCH_TIMEOUT_SEC: float = 10.0
+    NEWSNOW_PUBLIC_SOURCE_SYNC_ON_STARTUP: bool = True
+    NEWSNOW_PUBLIC_SOURCE_PREFIX: str = "NewsNow |"
     # RSSHub 配置 - 支持 rsshub:// 协议的 URL 转换
     RSSHUB_BASE_URL: str = "https://rsshub.app"  # 默认使用官方实例，可配置私有实例
 
