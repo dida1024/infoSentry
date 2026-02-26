@@ -132,15 +132,15 @@ class AgentState(BaseModel):
 │ PushWorthinessNode │ LLM 二判：PUSH / SKIP；SKIP 会降分到 DIGEST_MIN_SCORE 以下并标记 IGNORE
 └────────┬───────────┘
          │
-         v (若 IMMEDIATE)
-┌─────────────────┐
-│  CoalesceNode   │ 5min 合并窗口，最多 3 条/封（写 Redis buffer）
-└────────┬────────┘
-         │
          v
 ┌─────────────────┐
 │ EmitActionsNode │ tools.emit_decision（幂等）
-│                 │ tools.enqueue_email（或写入 email queue）
+└────────┬────────┘
+         │
+         v (若 IMMEDIATE)
+┌─────────────────┐
+│  CoalesceNode   │ 5min 合并窗口，最多 3 条/封（写 decision_id 到 Redis buffer）
+│                 │ 仅缓存非 deduplicated 决策
 └─────────────────┘
 ```
 
@@ -194,6 +194,7 @@ class AgentState(BaseModel):
 ## 7. 幂等与一致性
 - emit_decision 必须使用 dedupe_key unique
 - coalesce buffer 的 key = goal_id + time_bucket
+- coalesce buffer 的 value 必须是 push_decisions.id（decision_id），禁止写 item_id
 - email enqueue 只基于 push_decisions.id，避免重复内容
 
 ---
