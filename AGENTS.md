@@ -5,6 +5,7 @@
   - interfaces -> application -> domain
   - infrastructure implements domain interfaces
   - domain must not depend on infrastructure
+- For async notification/email pipeline changes, enforce end-to-end delivery guardrails (contract mapping, TDD regression, runtime verification evidence).
 - Do not put business logic in routers/controllers.
 - Prefer async/await across the backend.
 - Use full type annotations (mypy strict).
@@ -38,10 +39,18 @@
 - Frontend: `npm run lint` and `npm run build`.
 - If checks fail due to pre-existing issues, report them and proceed only if unrelated.
 
+## Delivery guardrails (mandatory for async notification/email flows)
+- Scope: any change or incident under `src/modules/agent/**`, `src/modules/push/**`, `src/modules/items/**`, `src/core/infrastructure/celery/**`.
+- Must produce a chain map before fix: trigger -> decision record -> queue/buffer -> worker task -> sender -> status update.
+- Must add failing regression test(s) first, then implement minimal fix, then re-run tests.
+- Must provide runtime evidence (not only unit tests): worker/beat alive, queue state, and DB status transition evidence.
+- Do not claim "fixed" without command outputs for required checks and runtime verification.
+
 ## AI skill triggers
 - `skill-backend-ddd-change`: any change under `src/modules/**` or `src/core/**`.
 - `skill-fetcher-security`: any change under `src/modules/sources/**` or URL fetching.
 - `skill-agent-runtime-change`: any change under `src/modules/agent/**` or `docs/agents/**`.
+- `skill-delivery-guardrails`: any notification/email pipeline change or incident (`src/modules/agent/**`, `src/modules/push/**`, `src/modules/items/**`, `src/core/infrastructure/celery/**`).
 - `skill-config-and-secrets`: any change to config, env, or auth settings.
 - `skill-migrations`: any DB schema or model change.
 - `skill-frontend-ui`: any CSS/layout/visual change in `infosentry-web`.
