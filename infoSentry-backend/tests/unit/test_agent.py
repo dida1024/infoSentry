@@ -20,10 +20,12 @@ from src.modules.agent.application.llm_service import (
 from src.modules.agent.application.nodes import (
     BoundaryJudgeNode,
     BucketNode,
+    CoalesceNode,
     EmitActionsNode,
     NodePipeline,
     PushWorthinessNode,
     RuleGateNode,
+    create_immediate_pipeline,
 )
 from src.modules.agent.application.state import (
     ActionProposal,
@@ -662,12 +664,89 @@ class TestEmitActionsNode:
 
 
 # ============================================
+# CoalesceNode 回归测试
+# ============================================
+
+
+class _MemoryRedisForCoalesce:
+    """轻量 Redis stub，用于验证 coalesce 入队内容。"""
+
+    def __init__(self) -> None:
+        self.values_by_key: dict[str, list[str]] = {}
+
+    async def llen(self, key: str) -> int:
+        return len(self.values_by_key.get(key, []))
+
+    async def rpush(self, key: str, value: str) -> int:
+        values = self.values_by_key.setdefault(key, [])
+        values.append(value)
+        return len(values)
+
+    async def expire(self, key: str, _ttl: int) -> bool:
+        return key in self.values_by_key
+
+
+class TestCoalesceNodeRegression:
+    """确保 coalesce 缓冲区写入 decision_id，而非 item_id。"""
+
+    async def test_coalesce_buffers_decision_id_not_item_id(self) -> None:
+        class EmitDecisionTool(BaseTool):
+            name = "emit_decision"
+
+            async def execute(self, **kwargs):
+                return ToolResult(
+                    success=True,
+                    data={"id": "decision-123", "deduplicated": False},
+                )
+
+        tools = ToolRegistry()
+        tools.register(EmitDecisionTool())
+        redis = _MemoryRedisForCoalesce()
+
+        state = AgentState(
+            goal=GoalContext(
+                goal_id="goal-1",
+                user_id="user-1",
+                name="Test",
+                description="Test",
+                priority_mode="SOFT",
+            ),
+            item=ItemContext(
+                item_id="item-1",
+                source_id="src-1",
+                title="Test",
+                url="https://test.com",
+            ),
+            match=MatchContext(score=0.95, features={}, reasons={}),
+        )
+        state.draft.preliminary_bucket = DecisionBucket.IMMEDIATE
+
+        pipeline = NodePipeline(
+            [
+                EmitActionsNode(tools=tools),
+                CoalesceNode(redis_client=redis),
+            ]
+        )
+
+        await pipeline.run(state)
+
+        buffered_values = [v for values in redis.values_by_key.values() for v in values]
+        assert buffered_values == ["decision-123"]
+
+
+# ============================================
 # NodePipeline 测试
 # ============================================
 
 
 class TestNodePipeline:
     """NodePipeline 测试。"""
+
+    def test_immediate_pipeline_emits_before_coalesce(self) -> None:
+        """回归：Immediate pipeline 中必须先 emit 再 coalesce。"""
+        pipeline = create_immediate_pipeline()
+        node_names = [node.name for node in pipeline.nodes]
+        assert node_names.index("emit_actions") < node_names.index("coalesce")
 
     async def test_pipeline_execution(self):
         """测试管道执行。"""

@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 import structlog
 from loguru import logger
 
+from src.core.config import settings
 from src.modules.agent.application.state import (
     DEFAULT_THRESHOLDS,
     ActionProposal,
@@ -318,7 +319,7 @@ class CoalesceNode(BaseNode):
     """合并窗口节点。
 
     对于 IMMEDIATE 决策：
-    - 写入 Redis 5 分钟合并缓冲区
+    - 将决策 ID 写入 Redis 5 分钟合并缓冲区
     - 最多 3 条/封
     """
 
@@ -348,23 +349,52 @@ class CoalesceNode(BaseNode):
         if self.redis:
             from src.core.infrastructure.redis.keys import RedisKeys
 
+            decision_id = self._extract_immediate_decision_id(state)
+            if not decision_id:
+                state.metadata["coalesce_skipped_reason"] = "missing_decision_id"
+                logger.warning(
+                    "Coalesce: Missing decision_id for immediate action, skipping"
+                )
+                return state
+
             buffer_key = RedisKeys.immediate_buffer(state.goal.goal_id, time_bucket)
 
             # 获取当前缓冲区大小
             current_size = await self.redis.llen(buffer_key)
 
-            if current_size >= 3:
-                # 超过 3 条，不再合并
+            if current_size >= settings.IMMEDIATE_MAX_ITEMS:
+                # 超过上限，不再合并
                 logger.info(f"Coalesce: Buffer full ({current_size}), skipping")
                 state.metadata["coalesce_skipped"] = True
             else:
                 # 加入缓冲区
-                await self.redis.rpush(buffer_key, state.item.item_id)
+                await self.redis.rpush(buffer_key, decision_id)
                 await self.redis.expire(buffer_key, 600)  # 10 分钟过期
                 state.metadata["coalesce_buffer_key"] = buffer_key
+                state.metadata["coalesce_decision_id"] = decision_id
                 logger.debug(f"Coalesce: Added to buffer {buffer_key}")
 
         return state
+
+    @staticmethod
+    def _extract_immediate_decision_id(state: AgentState) -> str | None:
+        """Extract decision id from emitted immediate action.
+
+        Only non-deduplicated actions should be enqueued to avoid repeated buffering.
+        """
+        for action in reversed(state.actions):
+            if action.action_type != "EMIT_DECISION":
+                continue
+            if action.decision != DecisionBucket.IMMEDIATE.value:
+                continue
+
+            decision_id = action.metadata.get("decision_id")
+            deduplicated = action.metadata.get("deduplicated", False)
+            if deduplicated:
+                return None
+            if isinstance(decision_id, str) and decision_id:
+                return decision_id
+        return None
 
 
 class PushWorthinessNode(BaseNode):
@@ -662,7 +692,7 @@ def create_immediate_pipeline(
         BucketNode(tools, thresholds),
         BoundaryJudgeNode(tools, llm_service),
         PushWorthinessNode(tools, llm_service),
-        CoalesceNode(tools, redis_client),
         EmitActionsNode(tools),
+        CoalesceNode(tools, redis_client),
     ]
     return NodePipeline(nodes)
