@@ -13,7 +13,7 @@
 理由：
 - 项目已采用 DDD 架构风格（domain/infrastructure/interfaces 分层）
 - 表按业务模块划分便于后续维护和扩展
-- 符合 `docs/specs/TECH_SPEC_v0.md` 的模块化单体架构要求
+- 符合 `specs/TECH_SPEC_v0.md` 的模块化单体架构要求
 
 **表清单（共 15 张核心表）：**
 
@@ -82,7 +82,7 @@ q_email   - 邮件发送任务
 ```
 
 理由：
-- `docs/specs/TECH_SPEC_v0.md` 第 7.1 节明确要求队列拆分
+- `specs/TECH_SPEC_v0.md` 第 7.1 节明确要求队列拆分
 - 隔离不同优先级任务，避免低优先级阻塞高优先级
 - 便于独立扩缩容和故障隔离
 - 监控更清晰（可分别监控各队列积压）
@@ -287,7 +287,7 @@ ingest_logs (
 
 ### 8.1 测试分层策略
 
-根据 `docs/specs/TECH_SPEC_v0.md` 第 10 节的测试策略要求，采用三层测试架构：
+根据 `specs/TECH_SPEC_v0.md` 第 10 节的测试策略要求，采用三层测试架构：
 
 ```
 tests/

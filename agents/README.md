@@ -89,7 +89,7 @@ agents/
 
 项目核心文档位于 `docs/` 目录：
 - `docs/product/PRD_v0.md` - 产品需求文档
-- `docs/specs/TECH_SPEC_v0.md` - 技术规格
+- `specs/TECH_SPEC_v0.md` - 技术规格
 - `docs/decisions/ARCHITECTURE_DECISIONS.md` - 架构决策记录
 - `docs/dev/FRONTEND_CONVENTIONS.md` - 前端开发规范（详细版）
 

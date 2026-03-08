@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "prompt": {
+    "name": "agent.push_worthiness",
+    "language": "zh-CN"
+  },
+  "cases": [
+    {
+      "name": "push_worthiness_should_include_label_and_evidence",
+      "vars": {
+        "goal_description": "关注 AI 行业投融资与头部公司动态",
+        "item_title": "OpenAI 完成新一轮 65 亿美元融资",
+        "item_snippet": "OpenAI 今日宣布完成 65 亿美元新一轮融资，估值达 1500 亿美元。",
+        "match_score": "0.92",
+        "match_reason_summary": "\n匹配原因：标题命中优先词 OpenAI，语义高度相关"
+      },
+      "assertions": {
+        "rendered": {
+          "must_contain": [
+            "\"label\": \"PUSH\" 或 \"SKIP\"",
+            "如果不确定，设置 uncertain=true",
+            "用户目标：",
+            "新闻标题：",
+            "匹配分数："
+          ],
+          "must_not_contain": ["{{ goal_description }}", "{{ item_title }}", "{{ match_score }}"]
+        }
+      }
+    }
+  ]
+}

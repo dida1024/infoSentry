@@ -74,7 +74,7 @@ src/
 | 文档 | 路径 | 内容 |
 |------|------|------|
 | 产品需求 | `docs/product/PRD_v0.md` | 功能范围、推送规则、验收标准 |
-| 技术规格 | `docs/specs/TECH_SPEC_v0.md` | 架构、数据模型、API 设计 |
+| 技术规格 | `specs/TECH_SPEC_v0.md` | 架构、数据模型、API 设计 |
 | 架构决策 | `docs/decisions/ARCHITECTURE_DECISIONS.md` | ADR 记录 |
 | 前端规范 | `docs/dev/FRONTEND_CONVENTIONS.md` | 前端开发规范（详细） |
 | Agent 运行时 | `docs/agents/AGENT_RUNTIME_SPEC.md` | Push Agent 设计 |

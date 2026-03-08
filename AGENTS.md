@@ -46,6 +46,21 @@
 - Must provide runtime evidence (not only unit tests): worker/beat alive, queue state, and DB status transition evidence.
 - Do not claim "fixed" without command outputs for required checks and runtime verification.
 
+## Canonical repository locations
+
+All AI-facing repository artifacts have one source of truth:
+
+- `skills/` — repository-local skill definitions (not `.claude/skills/` or `.codex/skills/`)
+- `specs/` — product specs, API specs, tech specs, acceptance criteria
+- `agents/` — agent role definitions, runtime policies, prompt governance
+- `runbooks/` — operational failure response procedures
+- `infoSentry-backend/evals/` — prompt regression and decision eval cases
+- `infoSentry-backend/prompts/` — prompt templates
+- `docs/architecture/` — stable system architecture and ADR material
+- `docs/product/` — PRD, roadmap, lifecycle
+
+Tool-specific hidden directories (`.claude/`, `.codex/`, `.agents/`) may only contain adapter metadata, not authoritative skill bodies or documentation.
+
 ## AI skill triggers
 - `skill-backend-ddd-change`: any change under `src/modules/**` or `src/core/**`.
 - `skill-fetcher-security`: any change under `src/modules/sources/**` or URL fetching.

@@ -129,7 +129,7 @@
 |------|------|------|
 | 项目上下文 | `agents/lead/project-context.md` | 项目概述、技术栈 |
 | 产品需求 | `docs/product/PRD_v0.md` | 功能范围、边界 |
-| 技术规格 | `docs/specs/TECH_SPEC_v0.md` | 架构、数据模型 |
+| 技术规格 | `specs/TECH_SPEC_v0.md` | 架构、数据模型 |
 | 架构决策 | `docs/decisions/ARCHITECTURE_DECISIONS.md` | 已确定的决策 |
 | 决策框架 | `agents/lead/decision-framework.md` | 如何做决策 |
 

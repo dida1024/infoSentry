@@ -31,7 +31,7 @@
 
 | 文档 | 路径 | 用途 |
 |------|------|------|
-| 技术规格 | `docs/specs/TECH_SPEC_v0.md` | 架构、数据模型 |
+| 技术规格 | `specs/TECH_SPEC_v0.md` | 架构、数据模型 |
 | 架构决策 | `docs/decisions/ARCHITECTURE_DECISIONS.md` | 已确定的决策 |
 | 后端规范 | `agents/backend/conventions.md` | 开发规范 |
 | 架构指南 | `agents/backend/architecture.md` | 分层规范 |
