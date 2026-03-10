@@ -13,7 +13,7 @@
 理由：
 - 项目已采用 DDD 架构风格（domain/infrastructure/interfaces 分层）
 - 表按业务模块划分便于后续维护和扩展
-- 符合 `specs/TECH_SPEC_v0.md` 的模块化单体架构要求
+- 符合 `openspec/specs/system-architecture/spec.md` 的模块化单体架构要求
 
 **表清单（共 15 张核心表）：**
 
@@ -82,7 +82,7 @@ q_email   - 邮件发送任务
 ```
 
 理由：
-- `specs/TECH_SPEC_v0.md` 第 7.1 节明确要求队列拆分
+- `openspec/specs/system-architecture/spec.md` 第 7.1 节明确要求队列拆分
 - 隔离不同优先级任务，避免低优先级阻塞高优先级
 - 便于独立扩缩容和故障隔离
 - 监控更清晰（可分别监控各队列积压）
@@ -287,7 +287,7 @@ ingest_logs (
 
 ### 8.1 测试分层策略
 
-根据 `specs/TECH_SPEC_v0.md` 第 10 节的测试策略要求，采用三层测试架构：
+根据 `openspec/specs/system-architecture/spec.md` 第 10 节的测试策略要求，采用三层测试架构：
 
 ```
 tests/
@@ -934,6 +934,71 @@ async def replay(run_id: str) -> dict:
 
 ---
 
+## 13. v0 关键产品决策（2025-12-28 确认）
+
+### 产品定位
+- Email-first：主要消费在邮件；Web 端负责配置/查看/反馈
+- 单人自用为主，但设计上保留未来扩展（非强制）
+
+### v0 范围边界
+- Query 不进 v0
+- 不做简历文件上传解析（只做多行 terms）
+- 不做全文抓取存储（只存元数据+摘要+embedding）
+- 不做 source groups、block keyword（后续版本）
+
+### 推送策略（反对硬 cap）
+- 不接受"每日最多 N 封 Trigger"这种硬 cap（会压掉真正高价值信息）
+- 替代方案：三层推送 + 合并/单封长度上限
+  - Immediate：5分钟合并，最多3条/封
+  - Batch：每窗口每Goal最多8条/封
+  - Digest：每日 top10/Goal 兜底
+
+### 超高价值定义
+- 每个 Goal 除描述外允许用户补充多行 terms
+- 若用户填了补充信息：作为超高价值的优先匹配标准（priority_terms）
+- 若用户没填：使用 description 作为超高价值依据
+
+### priority_mode
+- STRICT：不命中 priority_terms 不得 Immediate
+- SOFT：priority_terms 加分偏好，不强制
+
+---
+
+## 14. 参数默认值（v0）
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| 候选线 | match_score >= 0.75 | 低于此分数不进入推送决策 |
+| 规则直通 Immediate | match_score >= 0.93 | 且通过守门规则 |
+| 边界区间 | 0.88–0.93 | 调用 LLM 判别 |
+| Digest min | 0.60 | 防噪音，可调 |
+| Immediate 合并窗口 | 5 分钟 | 最多 3 条/封 |
+| Batch 单封上限 | 8 条 | 每窗口每Goal |
+| Digest 单Goal上限 | 10 条 | 每日 |
+
+---
+
+## 15. 待未来版本复议的决策点
+
+### v1 待定
+- [ ] 是否引入夜间静默
+- [ ] 是否支持 block keyword
+- [ ] 是否引入 source groups
+- [ ] Goal Health 建议的交互方式
+
+### v2 待定
+- [ ] 是否引入多渠道推送（Telegram/Slack）
+- [ ] 是否引入多用户与配额
+- [ ] 是否引入简历上传解析（取决于产品方向）
+- [ ] Source Plugin 接口设计
+
+### v3 待定
+- [ ] 插件 marketplace 架构
+- [ ] 团队权限模型
+- [ ] Workflow 输出范围与安全边界
+
+---
+
 ## 更新日志
 
 | 日期 | 内容 |
@@ -942,3 +1007,4 @@ async def replay(run_id: str) -> dict:
 | 2025-01-06 | 添加信息摄取（Ingest）模块设计决策 |
 | 2025-01-06 | 添加向量化与匹配（Embed & Match）模块设计决策 |
 | 2025-01-06 | 添加 Push Orchestrator Agent Runtime 设计决策 |
+| 2025-12-28 | 合并 v0 关键产品决策、参数默认值、待复议清单（原 DECISIONS.md） |

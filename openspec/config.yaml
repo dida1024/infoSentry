@@ -1,0 +1,72 @@
+schema: spec-driven
+
+context: |
+  ## Project: infoSentry
+  Information tracking Agent system. Core flow: fetch multi-source → semantic match Goal →
+  three-layer push decision (Immediate/Batch/Digest) → email delivery.
+  Delivery target: v0 MVP, single VM (2c4g).
+
+  ## Tech Stack
+  - Backend: FastAPI (async) + SQLAlchemy 2.0 (async) + PostgreSQL + pgvector + Celery + Redis + Pydantic v2
+  - Frontend: Next.js 15 (App Router) + TypeScript (strict) + Tailwind CSS + shadcn/ui
+  - Deploy: Docker Compose, modular monolith + queue isolation, timezone Asia/Shanghai
+  - AI: OpenAI API (embedding + boundary judge), budget ≤ $10/month
+
+  ## Architecture: DDD Modular Monolith
+  7 modules: agent, goals, items, push, sources, users, api_keys
+  Module layout: src/modules/<module>/{domain, application, infrastructure, interfaces}
+  Dependency direction: interfaces → application → domain; infra implements domain ports
+
+  ## Project Invariants
+  - IDs: string UUIDs
+  - Timestamps: DateTime(timezone=True), stored UTC
+  - Soft delete: is_deleted flag on all tables
+  - Idempotency: push_decisions.dedupe_key, items.url_hash, goal_item_matches(goal+item), budget_daily.date
+  - Logging: structlog for business events (include goal_id/item_id/dedupe_key)
+  - Queues: q_ingest, q_embed, q_match, q_agent, q_email
+  - Config: never hardcode; use settings/env, inject via DI
+
+  ## Coding Standards (Backend Python)
+  - async/await by default
+  - Full type annotations; mypy strict; no # type: ignore
+  - Code style: Ruff (check + format)
+  - Pydantic v2 at interfaces layer only; domain uses pure types
+  - No business logic in routers; route layer validates, wires DI, calls app services
+  - Repository pattern for data access; mapper for ORM ↔ domain entities
+  - Explicit error handling; no silent exception swallowing
+  - While-True loops must have explicit exit mechanism
+
+  ## Coding Standards (Frontend)
+  - Follow docs/dev/FRONTEND_CONVENTIONS.md
+  - ESLint + Prettier, TypeScript strict mode
+  - shadcn/ui components, React Query + Zod
+  - Content-first UI; no decorative AI visual patterns
+
+  ## Required Checks
+  - Backend: uv run pytest && uv run mypy src
+  - Frontend: npm run lint && npm run build
+
+  ## Key Reference Documents
+  - Architecture decisions: docs/decisions/ARCHITECTURE_DECISIONS.md
+  - Frontend conventions: docs/dev/FRONTEND_CONVENTIONS.md
+  - Product requirements: docs/product/PRD_v0.md
+  - Operational runbooks: runbooks/
+
+rules:
+  proposal:
+    - Include impact assessment for DDD module boundaries
+    - Identify affected Celery queues if any
+    - Note delivery guardrail implications for push/agent/items changes
+  specs:
+    - Use Given/When/Then format for scenarios
+    - Reference existing API contract patterns from openspec/specs/api-contracts/
+    - Include idempotency and error handling scenarios
+  design:
+    - Preserve DDD layering in design decisions
+    - Document which layer (domain/application/infrastructure) owns each change
+    - Include database migration considerations
+    - Note delivery guardrail chain if touching push/agent/items/celery modules
+  tasks:
+    - Include required check commands for each task
+    - Add migration task if DB schema changes
+    - Add regression test task for push/notification pipeline changes
