@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { PageHeader, PageShell } from "@/components/layout";
 import { Button, Card, CardContent, CardHeader, Input } from "@/components/ui";
@@ -8,6 +9,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useTheme } from "@/contexts/theme-context";
 import { authApi } from "@/lib/api/auth";
 import { cn } from "@/lib/utils/cn";
+import { Code2, ChevronRight } from "lucide-react";
 
 // 常用时区列表（按地区分组）
 const COMMON_TIMEZONES = [
@@ -212,6 +214,30 @@ export default function SettingsPage() {
             </p>
           </CardContent>
         </Card>
+
+        {/* Developer Center */}
+        <Link href="/settings/developers">
+          <Card className="hover:border-[var(--color-accent)] hover:shadow-sm transition-all cursor-pointer group">
+            <CardContent>
+              <div className="flex items-center justify-between py-2">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-[var(--color-surface-2)] rounded-lg flex items-center justify-center group-hover:bg-[var(--color-accent)]/10 transition-colors">
+                    <Code2 className="h-5 w-5 text-[var(--color-accent)]" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                      开发者中心
+                    </h3>
+                    <p className="text-xs text-[var(--color-text-tertiary)]">
+                      管理 API Keys，通过 Agent 接入 infoSentry
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-[var(--color-text-tertiary)] group-hover:text-[var(--color-accent)] transition-colors" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
 
         {/* About */}
         <Card>
