@@ -1,254 +1,193 @@
 # infoSentry Backend
 
-信息追踪 Agent 系统后端服务 - 抓取、匹配、推送一体化解决方案。
+`infoSentry-backend/` 是 infoSentry 的后端与异步任务核心，负责认证、目标与信息源管理、内容抓取、向量化、匹配、Agent 决策、通知与运行记录。
 
-## 技术栈
+技术栈：
 
-- **框架**: FastAPI + SQLModel
-- **数据库**: PostgreSQL + pgvector
-- **任务队列**: Celery + Redis
-- **AI**: OpenAI API (embedding + 边界判别)
-- **认证**: JWT + Magic Link
+- FastAPI
+- SQLModel + Alembic
+- PostgreSQL + pgvector
+- Celery + Redis
+- OpenAI API 协议模型（embedding + 边界判别）
 
-## 项目结构
+## 后端负责什么
 
-```
+后端承载整条业务闭环：
+
+`Source ingest -> item dedupe -> embedding -> goal match -> agent decide -> push -> click/feedback`
+
+它不仅暴露 REST API，也负责异步队列、调度任务、Agent Runtime 和关键业务持久化。
+
+## 目录结构
+
+```text
 src/
-├── core/                    # 核心模块
-│   ├── config.py           # 配置管理
-│   ├── domain/             # 领域基类
-│   ├── infrastructure/     # 基础设施
-│   └── interfaces/         # HTTP 接口
-├── modules/                 # 业务模块
-│   ├── users/              # 用户管理
-│   ├── sources/            # 信息源管理
-│   ├── goals/              # 追踪目标
-│   ├── items/              # 信息条目
-│   ├── push/               # 推送决策
-│   └── agent/              # Agent 运行
+├── core/                    # 核心配置、基础设施、跨模块能力
+├── modules/
+│   ├── users/              # 用户、登录、会话
+│   ├── sources/            # 信息源接入与抓取
+│   ├── goals/              # Goal 管理与辅助生成
+│   ├── items/              # Item、embedding、match
+│   ├── push/               # 推送决策与邮件发送
+│   └── agent/              # Agent Runtime、运行记录与工具编排
 ├── alembic/                # 数据库迁移
-└── tests/                  # 测试
+└── tests/                  # unit / integration / e2e
 ```
 
----
+## 快速开始
 
-## 生产部署（推荐）
+### 本地开发
 
-使用 Docker Compose 一键部署，适用于 2c4g 单机环境。
-
-### 1. 配置环境变量
-
-```bash
-# 在仓库根目录复制配置模板
-cd ..
-cp .env.example .env
-
-# 编辑配置（必填项请参考 .env.example 中的注释）
-vim .env
-```
-
-### 2. 启动服务
-
-```bash
-# 返回项目根目录
-cd ..
-
-# 启动所有服务
-docker-compose -f docker-compose.prod.yml up -d
-
-# 初始化数据库
-docker-compose -f docker-compose.prod.yml exec api uv run alembic upgrade head
-
-# 验证部署
-curl http://localhost:8000/health
-```
-
-### 3. 查看日志
-
-```bash
-docker-compose -f docker-compose.prod.yml logs -f
-```
-
-详细部署文档请参考 [docs/ops/DEPLOYMENT.md](../docs/ops/DEPLOYMENT.md)
-
----
-
-## 本地开发
-
-### 环境准备
-
-1. 安装 Python 3.12+
-2. 安装 PostgreSQL 15+ (with pgvector extension)
-3. 安装 Redis
-
-### 安装依赖
-
-使用 uv (推荐):
+1. 安装依赖：
 
 ```bash
 uv sync
 ```
 
-或使用 pip:
-
-```bash
-pip install -e .
-```
-
-### 配置环境变量
-
-复制环境变量示例文件并修改:
+2. 复制环境变量：
 
 ```bash
 cp .env.example .env
-# 编辑 .env 文件
 ```
 
-### 启动依赖服务（Docker）
+3. 启动 PostgreSQL 和 Redis：
 
 ```bash
-docker-compose up -d  # 启动 PostgreSQL 和 Redis
+docker-compose up -d
 ```
 
-### 数据库迁移
+4. 初始化数据库：
 
 ```bash
-# 创建 pgvector 扩展
-psql -d infosentry -c "CREATE EXTENSION IF NOT EXISTS vector"
-
-# 运行迁移
 uv run alembic upgrade head
 ```
 
-### 启动服务
-
-开发模式:
-
-```bash
-uv run python main.py
-```
-
-或使用 uvicorn:
+5. 启动 API：
 
 ```bash
 uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 启动 Worker
+6. 启动 Worker 和 Beat：
 
 ```bash
-# 启动所有 Worker（开发环境）
 uv run celery -A src.core.infrastructure.celery.app worker -Q q_ingest,q_embed,q_match,q_agent,q_email -c 2 -l INFO
-
-# 启动 Beat（定时任务调度）
 uv run celery -A src.core.infrastructure.celery.app beat -l INFO
 ```
 
-### API 文档
+接口地址：
 
-启动服务后访问:
+- Swagger UI: `http://localhost:8000/api/v1/docs`
+- ReDoc: `http://localhost:8000/api/v1/redoc`
+- Health: `http://localhost:8000/health`
 
-- Swagger UI: http://localhost:8000/api/v1/docs
-- ReDoc: http://localhost:8000/api/v1/redoc
+### 仓库级一键开发
+
+如果你在仓库根目录协同开发前后端，优先使用：
+
+```bash
+make dev-infra
+make dev
+```
+
+这会按 [`../Procfile.dev`](/Users/ray/Documents/code/infoSentry/Procfile.dev) 同时拉起 API、Web、Worker、Beat。
+
+### 单机部署
+
+生产环境推荐使用仓库根目录编排：
+
+```bash
+cd ..
+cp .env.example .env
+docker-compose up -d
+docker-compose exec api uv run alembic upgrade head
+```
+
+更完整的部署与运行验证见 [`../runbooks/DEPLOYMENT.md`](/Users/ray/Documents/code/infoSentry/runbooks/DEPLOYMENT.md)。
 
 ## 核心概念
 
-### 信息源 (Sources)
+### Sources
 
-支持三种类型:
-- **NEWSNOW**: NewsNow 聚合源
-- **RSS**: RSS Feed
-- **SITE**: 网页列表抓取
+支持三类信息源：
 
-NEWSNOW 默认公共源在服务启动时自动同步（可通过配置关闭）：
-- 启动时拉取上游目录：`NEWSNOW_CATALOG_URL`
-- 抓取接口：`{NEWSNOW_API_BASE_URL}{NEWSNOW_API_PATH}?id=<source_id>`
-- 目录拉取失败时回退本地快照：`resources/sources/newsnow_sources_snapshot.json`
-- 同步仅维护公共源，不会自动为用户创建订阅
+- `NEWSNOW`
+- `RSS`
+- `SITE`
 
-### 追踪目标 (Goals)
+默认公共源可以在服务启动时自动同步。若上游目录拉取失败，会回退本地快照 `resources/sources/newsnow_sources_snapshot.json`。
 
-用户定义的追踪目标，包含:
-- 描述和优先词条
-- 优先模式 (STRICT/SOFT)
-- 推送配置 (窗口时间、摘要时间)
+### Goals
 
-### 推送三桶
+Goal 是追踪入口，通常包含：
 
-- **IMMEDIATE**: 事件触发，超高价值
-- **BATCH**: 窗口合并推送
-- **DIGEST**: 每日汇总兜底
+- `name`
+- `description`
+- `priority_terms`
+- `priority_mode`
+- `batch_windows`
+- `digest_send_time`
+
+### 三层推送
+
+- `IMMEDIATE`：高优先级事件触发，支持短窗口合并
+- `BATCH`：窗口聚合推送
+- `DIGEST`：每日汇总兜底
 
 ### Agent Runtime
 
-- 可控的决策系统
-- 结构化输入输出
-- 完整的运行记录和可回放能力
+Agent Runtime 负责边界区间的推送判定，并保留：
 
-## 开发指南
+- `agent_runs`
+- `tool_calls`
+- `action_ledger`
 
-### 代码风格
+规则优先于 LLM，LLM 只处理不确定样本，失败时保守降级。
 
-使用 ruff 进行代码检查和格式化:
+## 开发约束
+
+本项目不是“普通 FastAPI 项目”，实现时要遵守仓库级规则：
+
+- 遵循 DDD 分层：`interfaces -> application -> domain`
+- domain 不依赖 infrastructure
+- 路由层只做校验和依赖注入，不承载业务逻辑
+- 使用完整类型标注并满足 mypy strict
+- 异步通知链路修改必须补齐回归测试和运行证据
+
+实现前先看 [`../AGENTS.md`](/Users/ray/Documents/code/infoSentry/AGENTS.md)。
+
+## 常用命令
 
 ```bash
-uv run ruff check .
 uv run ruff format .
-```
-
-### 运行测试
-
-```bash
+uv run ruff check .
 uv run pytest
-```
-
-### 添加新迁移
-
-```bash
+uv run mypy src
+uv run alembic upgrade head
 uv run alembic revision --autogenerate -m "description"
 ```
 
-## API 端点
+## API 范围
 
-### 认证
+当前后端主要暴露这些能力：
 
-- `POST /api/v1/auth/request_link` - 请求 Magic Link
-- `GET /api/v1/auth/consume` - 消费 Magic Link
+- Auth / Magic Link
+- Users / Sessions
+- Goals / Goal Draft / Goal Email
+- Sources / Source Subscription
+- Notifications / Feedback / Redirect Tracking
+- Agent Runs / Monitoring / Budget
+- API Keys
 
-### 用户
+更详细的行为规格见：
 
-- `GET /api/v1/users/me` - 获取当前用户
-- `PUT /api/v1/users/me` - 更新用户资料
+- [`../openspec/specs/api-contracts/spec.md`](/Users/ray/Documents/code/infoSentry/openspec/specs/api-contracts/spec.md)
+- [`../openspec/specs/system-architecture/spec.md`](/Users/ray/Documents/code/infoSentry/openspec/specs/system-architecture/spec.md)
+- [`../openspec/specs/agent-runtime/spec.md`](/Users/ray/Documents/code/infoSentry/openspec/specs/agent-runtime/spec.md)
 
-### 信息源
+## 相关文档
 
-- `GET /api/v1/sources` - 获取信息源列表
-- `POST /api/v1/sources` - 创建信息源
-- `PUT /api/v1/sources/{id}` - 更新信息源
-- `POST /api/v1/sources/{id}/enable` - 启用信息源
-- `POST /api/v1/sources/{id}/disable` - 禁用信息源
-
-### 追踪目标
-
-- `GET /api/v1/goals` - 获取 Goal 列表
-- `POST /api/v1/goals` - 创建 Goal
-- `GET /api/v1/goals/{id}` - 获取 Goal 详情
-- `PUT /api/v1/goals/{id}` - 更新 Goal
-- `POST /api/v1/goals/{id}/pause` - 暂停 Goal
-- `POST /api/v1/goals/{id}/resume` - 恢复 Goal
-
-### 通知
-
-- `GET /api/v1/notifications` - 获取通知列表
-- `POST /api/v1/items/{id}/feedback` - 提交反馈
-- `GET /api/v1/r/{item_id}` - 点击跟踪重定向
-
-### Agent
-
-- `GET /api/v1/agent/runs` - 获取 Agent 运行记录
-- `GET /api/v1/agent/runs/{id}` - 获取运行详情
-- `GET /api/v1/admin/budget` - 获取预算状态
-
-## License
-
-MIT
+- 仓库入口：[`../README.md`](/Users/ray/Documents/code/infoSentry/README.md)
+- 文档索引：[`../docs/README.md`](/Users/ray/Documents/code/infoSentry/docs/README.md)
+- 队列与 Worker：[`../runbooks/celery-queues-and-workers.md`](/Users/ray/Documents/code/infoSentry/runbooks/celery-queues-and-workers.md)
+- 邮件投递：[`../runbooks/email-delivery.md`](/Users/ray/Documents/code/infoSentry/runbooks/email-delivery.md)
