@@ -6,4 +6,4 @@ export { authApi } from "./auth";
 export { goalsApi } from "./goals";
 export { sourcesApi } from "./sources";
 export { notificationsApi } from "./notifications";
-
+export { discoveryApi } from "./discovery";
