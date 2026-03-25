@@ -2,20 +2,18 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from loguru import logger
 from pydantic_ai import RunContext
 
 from src.core.infrastructure.logging import get_business_logger
+from src.modules.agent.application.discovery.agent import DiscoveryDeps
 from src.modules.sources.application.commands import (
     CreateSourceCommand,
     SubscribeSourceCommand,
 )
 from src.modules.sources.domain.entities import SourceType
-
-if TYPE_CHECKING:
-    from src.modules.agent.application.discovery.agent import DiscoveryDeps
 
 
 async def add_source(

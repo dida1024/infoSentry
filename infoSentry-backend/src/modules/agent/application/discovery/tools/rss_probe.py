@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -11,13 +11,11 @@ from loguru import logger
 from pydantic_ai import RunContext
 
 import feedparser
+from src.modules.agent.application.discovery.agent import DiscoveryDeps
 from src.modules.agent.application.discovery.tools.http_safe import (
     is_allowed_url,
     safe_get,
 )
-
-if TYPE_CHECKING:
-    from src.modules.agent.application.discovery.agent import DiscoveryDeps
 
 COMMON_FEED_PATHS = ["/rss", "/feed", "/atom.xml", "/rss.xml", "/feed.xml", "/feed/"]
 

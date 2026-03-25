@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import httpx
 from loguru import logger
 from pydantic_ai import RunContext
 
 import feedparser
+from src.modules.agent.application.discovery.agent import DiscoveryDeps
 from src.modules.agent.application.discovery.tools.http_safe import safe_get
-
-if TYPE_CHECKING:
-    from src.modules.agent.application.discovery.agent import DiscoveryDeps
 
 
 def _build_candidate_routes(keywords: list[str], domain: str | None) -> list[str]:

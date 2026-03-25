@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from pydantic_ai import RunContext
 
+from src.modules.agent.application.discovery.agent import DiscoveryDeps
 from src.modules.sources.domain.entities import SourceType
-
-if TYPE_CHECKING:
-    from src.modules.agent.application.discovery.agent import DiscoveryDeps
 
 
 async def search_catalog(

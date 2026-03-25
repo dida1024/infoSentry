@@ -3,19 +3,17 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import httpx
 from loguru import logger
 from pydantic_ai import RunContext
 
+from src.modules.agent.application.discovery.agent import DiscoveryDeps
 from src.modules.agent.application.discovery.tools.http_safe import (
     is_allowed_url,
     safe_get,
 )
-
-if TYPE_CHECKING:
-    from src.modules.agent.application.discovery.agent import DiscoveryDeps
 
 
 def _clean_html(html: str, max_chars: int = 8000) -> str:
