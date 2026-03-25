@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from loguru import logger
 from pydantic_ai import RunContext
 
 from src.core.infrastructure.logging import get_business_logger
+from src.modules.agent.application.discovery.agent import DiscoveryDeps
 from src.modules.agent.domain.discovery_entities import CandidateSource, CandidateStatus
 from src.modules.sources.domain.entities import SourceType
-
-if TYPE_CHECKING:
-    from src.modules.agent.application.discovery.agent import DiscoveryDeps
 
 
 async def validate_source(
@@ -109,11 +107,7 @@ async def validate_source(
         )
         if not update_ok:
             return {"valid": False, "error": "候选状态更新失败: validation_success"}
-        return {
-            **validation_result,
-            "candidate_id": candidate.id,
-            "_signal": "candidates_valid",
-        }
+        return {**validation_result, "candidate_id": candidate.id, "_signal": "candidates_valid"}
     else:
         validation_result = {
             "valid": False,

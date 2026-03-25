@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from pydantic_ai import RunContext
 
+from src.modules.agent.application.discovery.agent import DiscoveryDeps
 from src.modules.sources.domain.entities import SourceType
-
-if TYPE_CHECKING:
-    from src.modules.agent.application.discovery.agent import DiscoveryDeps
 
 
 async def search_catalog(
@@ -35,14 +33,12 @@ async def search_catalog(
                 source_type=SourceType.NEWSNOW,
                 url=src.source_id,
             )
-            matches.append(
-                {
-                    "source_id": src.source_id,
-                    "name": src.name,
-                    "title": src.title,
-                    "already_exists": already_exists,
-                }
-            )
+            matches.append({
+                "source_id": src.source_id,
+                "name": src.name,
+                "title": src.title,
+                "already_exists": already_exists,
+            })
         if len(matches) >= 10:
             break
 
