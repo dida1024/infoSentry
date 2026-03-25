@@ -31,6 +31,7 @@ import {
   useSubscribeSource,
 } from "@/hooks/use-sources";
 import { AddSourceDialog } from "./add-source-dialog";
+import { DiscoveryAssistantCard } from "./discovery-assistant-card";
 import type { PublicSource, Source } from "@/types";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
@@ -424,6 +425,8 @@ export default function SourcesPage() {
           </Button>
         }
       />
+
+      <DiscoveryAssistantCard />
 
       {/* 搜索 + Tab 导航 */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

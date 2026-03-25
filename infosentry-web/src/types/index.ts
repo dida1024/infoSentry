@@ -81,6 +81,86 @@ export interface PublicSource extends Source {
   is_subscribed: boolean;
 }
 
+export type DiscoverySessionStatus =
+  | "active"
+  | "waiting_user"
+  | "completed"
+  | "failed"
+  | "expired";
+
+export type DiscoveryMessageRole = "user" | "agent" | "system";
+
+export type DiscoveryCandidateStatus =
+  | "discovered"
+  | "validating"
+  | "valid"
+  | "invalid"
+  | "accepted"
+  | "rejected";
+
+export interface DiscoverySessionMessage {
+  role: DiscoveryMessageRole;
+  content: string;
+  timestamp: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface DiscoveryCandidate {
+  id: string;
+  source_type: string;
+  name: string;
+  url: string;
+  status: DiscoveryCandidateStatus;
+  discovered_via: string;
+  validation_result?: Record<string, unknown> | null;
+  source_id?: string | null;
+}
+
+export interface DiscoverySession {
+  id: string;
+  status: DiscoverySessionStatus;
+  initial_query: string;
+  messages: DiscoverySessionMessage[];
+  candidates: DiscoveryCandidate[];
+  created_at: string;
+  updated_at: string;
+  expires_at?: string | null;
+}
+
+export interface DiscoveryStreamEventMap {
+  agent_message: {
+    content: string;
+    delta?: boolean;
+  };
+  tool_call: {
+    tool: string;
+    args: unknown;
+  };
+  tool_result: {
+    tool_call_id: string;
+    summary: string;
+  };
+  confirm_required: {
+    message: string;
+  };
+  session_completed: {
+    message: string;
+  };
+  error: {
+    message: string;
+    recoverable?: boolean;
+  };
+}
+
+export type DiscoveryStreamEventName = keyof DiscoveryStreamEventMap;
+
+export type DiscoveryStreamEvent = {
+  [K in DiscoveryStreamEventName]: {
+    event: K;
+    data: DiscoveryStreamEventMap[K];
+  };
+}[DiscoveryStreamEventName];
+
 // Item
 export interface Item {
   id: string;
