@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -11,13 +11,11 @@ from loguru import logger
 from pydantic_ai import RunContext
 
 import feedparser
+from src.modules.agent.application.discovery.agent import DiscoveryDeps
 from src.modules.agent.application.discovery.tools.http_safe import (
     is_allowed_url,
     safe_get,
 )
-
-if TYPE_CHECKING:
-    from src.modules.agent.application.discovery.agent import DiscoveryDeps
 
 COMMON_FEED_PATHS = ["/rss", "/feed", "/atom.xml", "/rss.xml", "/feed.xml", "/feed/"]
 
@@ -59,9 +57,7 @@ async def probe_rss(
                 if href_match:
                     feed_url = urljoin(url, href_match.group(1))
                     if is_allowed_url(feed_url):
-                        found_feeds.append(
-                            {"url": feed_url, "format": fmt, "source": "link_tag"}
-                        )
+                        found_feeds.append({"url": feed_url, "format": fmt, "source": "link_tag"})
 
         # 2) Try common feed paths
         base = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
@@ -74,21 +70,15 @@ async def probe_rss(
                 if r.status_code == 200:
                     ct = r.headers.get("content-type", "")
                     text = r.text[:2000]
-                    if (
-                        any(x in ct for x in ["xml", "rss", "atom"])
-                        or "<rss" in text
-                        or "<feed" in text
-                    ):
+                    if any(x in ct for x in ["xml", "rss", "atom"]) or "<rss" in text or "<feed" in text:
                         parsed = feedparser.parse(text)
                         if parsed.entries:
-                            found_feeds.append(
-                                {
-                                    "url": candidate,
-                                    "format": "rss" if "<rss" in text else "atom",
-                                    "source": "path_probe",
-                                    "title": parsed.feed.get("title", ""),
-                                }
-                            )
+                            found_feeds.append({
+                                "url": candidate,
+                                "format": "rss" if "<rss" in text else "atom",
+                                "source": "path_probe",
+                                "title": parsed.feed.get("title", ""),
+                            })
             except (httpx.HTTPError, httpx.TimeoutException, ValueError):
                 continue
 
@@ -107,14 +97,12 @@ async def probe_rss(
             r = await safe_get(client, feed["url"], timeout=timeout)
             parsed = feedparser.parse(r.text)
             if parsed.entries:
-                validated.append(
-                    {
-                        "url": feed["url"],
-                        "title": parsed.feed.get("title", feed.get("title", "")),
-                        "format": feed["format"],
-                        "items_count": len(parsed.entries),
-                    }
-                )
+                validated.append({
+                    "url": feed["url"],
+                    "title": parsed.feed.get("title", feed.get("title", "")),
+                    "format": feed["format"],
+                    "items_count": len(parsed.entries),
+                })
         except (httpx.HTTPError, httpx.TimeoutException, ValueError):
             continue
 

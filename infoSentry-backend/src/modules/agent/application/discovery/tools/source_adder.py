@@ -2,20 +2,18 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from loguru import logger
 from pydantic_ai import RunContext
 
 from src.core.infrastructure.logging import get_business_logger
+from src.modules.agent.application.discovery.agent import DiscoveryDeps
 from src.modules.sources.application.commands import (
     CreateSourceCommand,
     SubscribeSourceCommand,
 )
 from src.modules.sources.domain.entities import SourceType
-
-if TYPE_CHECKING:
-    from src.modules.agent.application.discovery.agent import DiscoveryDeps
 
 
 async def add_source(
@@ -54,14 +52,9 @@ async def add_source(
             return {"success": False, "error": f"名称 '{name}' 已存在"}
 
         if config_url:
-            url_exists = await ctx.deps.source_repository.exists_by_config_url(
-                st, config_url
-            )
+            url_exists = await ctx.deps.source_repository.exists_by_config_url(st, config_url)
             if url_exists:
-                return {
-                    "success": False,
-                    "error": f"该源的配置 URL 已存在: {config_url}",
-                }
+                return {"success": False, "error": f"该源的配置 URL 已存在: {config_url}"}
     except Exception as e:
         logger.warning(f"add_source dedup check failed: {e}")
         return {"success": False, "error": f"查重检查失败: {e}"}
@@ -135,9 +128,7 @@ async def add_source(
             try:
                 await ctx.deps.source_repository.delete(source)
             except Exception as del_err:
-                logger.error(
-                    f"Compensation (delete source after candidate fail) also failed: {del_err}"
-                )
+                logger.error(f"Compensation (delete source after candidate fail) also failed: {del_err}")
                 get_business_logger().error(
                     "discovery_source_compensation_failed",
                     session_id=session.id,

@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import httpx
 from loguru import logger
 from pydantic_ai import RunContext
 
 import feedparser
+from src.modules.agent.application.discovery.agent import DiscoveryDeps
 from src.modules.agent.application.discovery.tools.http_safe import safe_get
-
-if TYPE_CHECKING:
-    from src.modules.agent.application.discovery.agent import DiscoveryDeps
 
 
 def _build_candidate_routes(keywords: list[str], domain: str | None) -> list[str]:
@@ -65,21 +63,15 @@ async def search_rsshub(
                 continue
             ct = resp.headers.get("content-type", "")
             text = resp.text[:3000]
-            if (
-                any(x in ct for x in ["xml", "rss", "atom"])
-                or "<rss" in text
-                or "<feed" in text
-            ):
+            if any(x in ct for x in ["xml", "rss", "atom"]) or "<rss" in text or "<feed" in text:
                 parsed = feedparser.parse(text)
                 if parsed.entries:
-                    found_routes.append(
-                        {
-                            "route": route,
-                            "title": parsed.feed.get("title", ""),
-                            "item_count": len(parsed.entries),
-                            "full_url": url,
-                        }
-                    )
+                    found_routes.append({
+                        "route": route,
+                        "title": parsed.feed.get("title", ""),
+                        "item_count": len(parsed.entries),
+                        "full_url": url,
+                    })
         except (httpx.HTTPError, httpx.TimeoutException, ValueError) as e:
             logger.debug(f"RSSHub route {route} failed: {e}")
             continue
