@@ -18,8 +18,18 @@ from src.modules.agent.application.discovery.tools.http_safe import (
 
 def _clean_html(html: str, max_chars: int = 8000) -> str:
     """Remove script/style/nav/footer, keep main content structure."""
-    html = re.sub(r"<(script|style|noscript)[^>]*>.*?</\1>", "", html, flags=re.DOTALL | re.IGNORECASE)
-    html = re.sub(r"<(nav|footer|header|aside)[^>]*>.*?</\1>", "", html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(
+        r"<(script|style|noscript)[^>]*>.*?</\1>",
+        "",
+        html,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    html = re.sub(
+        r"<(nav|footer|header|aside)[^>]*>.*?</\1>",
+        "",
+        html,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
     html = re.sub(r"<!--.*?-->", "", html, flags=re.DOTALL)
     html = re.sub(r"\s+", " ", html).strip()
     if len(html) > max_chars:

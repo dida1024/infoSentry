@@ -63,15 +63,21 @@ async def search_rsshub(
                 continue
             ct = resp.headers.get("content-type", "")
             text = resp.text[:3000]
-            if any(x in ct for x in ["xml", "rss", "atom"]) or "<rss" in text or "<feed" in text:
+            if (
+                any(x in ct for x in ["xml", "rss", "atom"])
+                or "<rss" in text
+                or "<feed" in text
+            ):
                 parsed = feedparser.parse(text)
                 if parsed.entries:
-                    found_routes.append({
-                        "route": route,
-                        "title": parsed.feed.get("title", ""),
-                        "item_count": len(parsed.entries),
-                        "full_url": url,
-                    })
+                    found_routes.append(
+                        {
+                            "route": route,
+                            "title": parsed.feed.get("title", ""),
+                            "item_count": len(parsed.entries),
+                            "full_url": url,
+                        }
+                    )
         except (httpx.HTTPError, httpx.TimeoutException, ValueError) as e:
             logger.debug(f"RSSHub route {route} failed: {e}")
             continue
