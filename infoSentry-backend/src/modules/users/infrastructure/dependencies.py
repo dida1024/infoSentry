@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.domain.events import get_event_bus
 from src.core.infrastructure.database.session import get_db_session
-from src.core.infrastructure.security.jwt import get_token_service
+from src.core.infrastructure.security.jwt import JWTTokenService, get_token_service
 from src.modules.users.application.budget_service import UserBudgetUsageService
 from src.modules.users.application.handlers import (
     ConsumeMagicLinkHandler,
@@ -83,7 +83,7 @@ async def get_request_magic_link_handler(
     magic_link_repository: PostgreSQLMagicLinkRepository = Depends(
         get_magic_link_repository
     ),
-    token_service=Depends(get_token_service),
+    token_service: JWTTokenService = Depends(get_token_service),
     magic_link_email_queue: MagicLinkEmailQueue = Depends(get_magic_link_email_queue),
 ) -> RequestMagicLinkHandler:
     return RequestMagicLinkHandler(
@@ -96,7 +96,7 @@ async def get_consume_magic_link_handler(
     magic_link_repository: PostgreSQLMagicLinkRepository = Depends(
         get_magic_link_repository
     ),
-    token_service=Depends(get_token_service),
+    token_service: JWTTokenService = Depends(get_token_service),
     device_session_repository: PostgreSQLDeviceSessionRepository = Depends(
         get_device_session_repository
     ),
@@ -120,7 +120,7 @@ async def get_refresh_session_handler(
     device_session_repository: PostgreSQLDeviceSessionRepository = Depends(
         get_device_session_repository
     ),
-    token_service=Depends(get_token_service),
+    token_service: JWTTokenService = Depends(get_token_service),
 ) -> RefreshSessionHandler:
     return RefreshSessionHandler(
         user_repository,

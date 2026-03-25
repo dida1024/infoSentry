@@ -7,6 +7,7 @@ v0 只支持列表页抓取，不抓详情页。
 import re
 import time
 from datetime import UTC, datetime
+from typing import Any
 from urllib.parse import urljoin
 
 import httpx
@@ -153,7 +154,7 @@ class SiteFetcher(BaseFetcher):
 
     def _extract_item(
         self,
-        container,
+        container: Any,
         selectors: dict[str, str],
         base_url: str,
     ) -> FetchedItem | None:

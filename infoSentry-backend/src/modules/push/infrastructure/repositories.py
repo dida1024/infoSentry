@@ -5,6 +5,7 @@ from typing import Any
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 from sqlmodel import col
 
 from src.core.domain.events import EventBus
@@ -68,8 +69,9 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
         await self.session.flush()
         return self.mapper.to_entity(merged)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, entity: PushDecisionRecord | str) -> bool:
         """Delete a decision."""
+        id = entity.id if isinstance(entity, PushDecisionRecord) else entity
         result = await self.session.get(PushDecisionModel, id)
         if result:
             await self.session.delete(result)
@@ -82,14 +84,14 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
     ) -> tuple[list[PushDecisionRecord], int]:
         """List all decisions with pagination."""
         # Count query
-        count_stmt = select(func.count(PushDecisionModel.id))
+        count_stmt = select(func.count(col(PushDecisionModel.id)))
         count_result = await self.session.execute(count_stmt)
         total = count_result.scalar() or 0
 
         # Data query
         stmt = (
             select(PushDecisionModel)
-            .order_by(PushDecisionModel.decided_at.desc())
+            .order_by(col(PushDecisionModel.decided_at).desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -101,7 +103,7 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
     async def get_by_dedupe_key(self, dedupe_key: str) -> PushDecisionRecord | None:
         """Get by dedupe key."""
         stmt = select(PushDecisionModel).where(
-            PushDecisionModel.dedupe_key == dedupe_key
+            col(PushDecisionModel.dedupe_key) == dedupe_key
         )
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
@@ -117,17 +119,21 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
         since: datetime | None = None,
     ) -> tuple[list[PushDecisionRecord], int]:
         """List decisions by goal."""
-        conditions = [PushDecisionModel.goal_id == goal_id]
+        conditions: list[ColumnElement[bool]] = [
+            col(PushDecisionModel.goal_id) == goal_id
+        ]
 
         if status:
-            conditions.append(PushDecisionModel.status == status)
+            conditions.append(col(PushDecisionModel.status) == status)
         if decision:
-            conditions.append(PushDecisionModel.decision == decision)
+            conditions.append(col(PushDecisionModel.decision) == decision)
         if since:
-            conditions.append(PushDecisionModel.decided_at >= since)
+            conditions.append(col(PushDecisionModel.decided_at) >= since)
 
         # Count query
-        count_stmt = select(func.count(PushDecisionModel.id)).where(and_(*conditions))
+        count_stmt = select(func.count(col(PushDecisionModel.id))).where(
+            and_(*conditions)
+        )
         count_result = await self.session.execute(count_stmt)
         total = count_result.scalar() or 0
 
@@ -135,7 +141,7 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
         stmt = (
             select(PushDecisionModel)
             .where(and_(*conditions))
-            .order_by(PushDecisionModel.decided_at.desc())
+            .order_by(col(PushDecisionModel.decided_at).desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -157,11 +163,11 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
             select(PushDecisionModel)
             .where(
                 and_(
-                    PushDecisionModel.goal_id == goal_id,
-                    PushDecisionModel.item_id.in_(item_ids),
+                    col(PushDecisionModel.goal_id) == goal_id,
+                    col(PushDecisionModel.item_id).in_(item_ids),
                 )
             )
-            .order_by(PushDecisionModel.decided_at.desc())
+            .order_by(col(PushDecisionModel.decided_at).desc())
         )
         result = await self.session.execute(stmt)
         models = result.scalars().all()
@@ -179,14 +185,14 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
             select(PushDecisionModel)
             .where(
                 and_(
-                    PushDecisionModel.goal_id == goal_id,
-                    PushDecisionModel.decision == PushDecision.BATCH,
-                    PushDecisionModel.status == PushStatus.PENDING,
-                    PushDecisionModel.decided_at >= window_start,
-                    PushDecisionModel.decided_at <= window_end,
+                    col(PushDecisionModel.goal_id) == goal_id,
+                    col(PushDecisionModel.decision) == PushDecision.BATCH,
+                    col(PushDecisionModel.status) == PushStatus.PENDING,
+                    col(PushDecisionModel.decided_at) >= window_start,
+                    col(PushDecisionModel.decided_at) <= window_end,
                 )
             )
-            .order_by(PushDecisionModel.decided_at.desc())
+            .order_by(col(PushDecisionModel.decided_at).desc())
             .limit(limit)
         )
         result = await self.session.execute(stmt)
@@ -204,13 +210,13 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
             select(PushDecisionModel)
             .where(
                 and_(
-                    PushDecisionModel.goal_id == goal_id,
-                    PushDecisionModel.decision == PushDecision.DIGEST,
-                    PushDecisionModel.status == PushStatus.PENDING,
-                    PushDecisionModel.decided_at >= since,
+                    col(PushDecisionModel.goal_id) == goal_id,
+                    col(PushDecisionModel.decision) == PushDecision.DIGEST,
+                    col(PushDecisionModel.status) == PushStatus.PENDING,
+                    col(PushDecisionModel.decided_at) >= since,
                 )
             )
-            .order_by(PushDecisionModel.decided_at.desc())
+            .order_by(col(PushDecisionModel.decided_at).desc())
             .limit(limit)
         )
         result = await self.session.execute(stmt)
@@ -227,12 +233,12 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
             select(PushDecisionModel)
             .where(
                 and_(
-                    PushDecisionModel.goal_id == goal_id,
-                    PushDecisionModel.decision == PushDecision.IMMEDIATE,
-                    PushDecisionModel.status == PushStatus.PENDING,
+                    col(PushDecisionModel.goal_id) == goal_id,
+                    col(PushDecisionModel.decision) == PushDecision.IMMEDIATE,
+                    col(PushDecisionModel.status) == PushStatus.PENDING,
                 )
             )
-            .order_by(PushDecisionModel.decided_at.asc())
+            .order_by(col(PushDecisionModel.decided_at).asc())
             .limit(limit)
         )
         result = await self.session.execute(stmt)
@@ -250,13 +256,17 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
         if not goal_ids:
             return [], 0
 
-        conditions = [PushDecisionModel.goal_id.in_(goal_ids)]
+        conditions: list[ColumnElement[bool]] = [
+            col(PushDecisionModel.goal_id).in_(goal_ids)
+        ]
 
         if status:
-            conditions.append(PushDecisionModel.status == status)
+            conditions.append(col(PushDecisionModel.status) == status)
 
         # Count query
-        count_stmt = select(func.count(PushDecisionModel.id)).where(and_(*conditions))
+        count_stmt = select(func.count(col(PushDecisionModel.id))).where(
+            and_(*conditions)
+        )
         count_result = await self.session.execute(count_stmt)
         total = count_result.scalar() or 0
 
@@ -264,7 +274,7 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
         stmt = (
             select(PushDecisionModel)
             .where(and_(*conditions))
-            .order_by(PushDecisionModel.decided_at.desc())
+            .order_by(col(PushDecisionModel.decided_at).desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -288,12 +298,12 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
 
         stmt = (
             update(PushDecisionModel)
-            .where(PushDecisionModel.id.in_(ids))
+            .where(col(PushDecisionModel.id).in_(ids))
             .values(**values)
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
-        return result.rowcount
+        return int(getattr(result, "rowcount", 0) or 0)
 
 
 class PostgreSQLClickEventRepository(ClickEventRepository):
@@ -328,8 +338,9 @@ class PostgreSQLClickEventRepository(ClickEventRepository):
         await self.session.flush()
         return self.mapper.to_entity(merged)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, entity: ClickEvent | str) -> bool:
         """Delete a click event."""
+        id = entity.id if isinstance(entity, ClickEvent) else entity
         result = await self.session.get(ClickEventModel, id)
         if result:
             await self.session.delete(result)
@@ -341,13 +352,13 @@ class PostgreSQLClickEventRepository(ClickEventRepository):
         self, page: int = 1, page_size: int = 10, include_deleted: bool = False
     ) -> tuple[list[ClickEvent], int]:
         """List all click events with pagination."""
-        count_stmt = select(func.count(ClickEventModel.id))
+        count_stmt = select(func.count(col(ClickEventModel.id)))
         count_result = await self.session.execute(count_stmt)
         total = count_result.scalar() or 0
 
         stmt = (
             select(ClickEventModel)
-            .order_by(ClickEventModel.clicked_at.desc())
+            .order_by(col(ClickEventModel.clicked_at).desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -360,8 +371,8 @@ class PostgreSQLClickEventRepository(ClickEventRepository):
         """List clicks for an item."""
         stmt = (
             select(ClickEventModel)
-            .where(ClickEventModel.item_id == item_id)
-            .order_by(ClickEventModel.clicked_at.desc())
+            .where(col(ClickEventModel.item_id) == item_id)
+            .order_by(col(ClickEventModel.clicked_at).desc())
         )
         result = await self.session.execute(stmt)
         models = result.scalars().all()
@@ -373,11 +384,13 @@ class PostgreSQLClickEventRepository(ClickEventRepository):
         since: datetime | None = None,
     ) -> int:
         """Count clicks for a goal."""
-        conditions = [ClickEventModel.goal_id == goal_id]
+        conditions: list[ColumnElement[bool]] = [
+            col(ClickEventModel.goal_id) == goal_id
+        ]
         if since:
-            conditions.append(ClickEventModel.clicked_at >= since)
+            conditions.append(col(ClickEventModel.clicked_at) >= since)
 
-        stmt = select(func.count(ClickEventModel.id)).where(and_(*conditions))
+        stmt = select(func.count(col(ClickEventModel.id))).where(and_(*conditions))
         result = await self.session.execute(stmt)
         return result.scalar() or 0
 
@@ -389,8 +402,8 @@ class PostgreSQLClickEventRepository(ClickEventRepository):
         """List clicks for a goal."""
         stmt = (
             select(ClickEventModel)
-            .where(ClickEventModel.goal_id == goal_id)
-            .order_by(ClickEventModel.clicked_at.desc())
+            .where(col(ClickEventModel.goal_id) == goal_id)
+            .order_by(col(ClickEventModel.clicked_at).desc())
             .limit(limit)
         )
         result = await self.session.execute(stmt)
@@ -430,8 +443,9 @@ class PostgreSQLItemFeedbackRepository(ItemFeedbackRepository):
         await self.session.flush()
         return self.mapper.to_entity(merged)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, entity: ItemFeedback | str) -> bool:
         """Delete a feedback."""
+        id = entity.id if isinstance(entity, ItemFeedback) else entity
         result = await self.session.get(ItemFeedbackModel, id)
         if result:
             await self.session.delete(result)
@@ -443,13 +457,13 @@ class PostgreSQLItemFeedbackRepository(ItemFeedbackRepository):
         self, page: int = 1, page_size: int = 10, include_deleted: bool = False
     ) -> tuple[list[ItemFeedback], int]:
         """List all feedback with pagination."""
-        count_stmt = select(func.count(ItemFeedbackModel.id))
+        count_stmt = select(func.count(col(ItemFeedbackModel.id)))
         count_result = await self.session.execute(count_stmt)
         total = count_result.scalar() or 0
 
         stmt = (
             select(ItemFeedbackModel)
-            .order_by(ItemFeedbackModel.created_at.desc())
+            .order_by(col(ItemFeedbackModel.created_at).desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -467,9 +481,9 @@ class PostgreSQLItemFeedbackRepository(ItemFeedbackRepository):
         """Get feedback for specific item/goal/user combination."""
         stmt = select(ItemFeedbackModel).where(
             and_(
-                ItemFeedbackModel.item_id == item_id,
-                ItemFeedbackModel.goal_id == goal_id,
-                ItemFeedbackModel.user_id == user_id,
+                col(ItemFeedbackModel.item_id) == item_id,
+                col(ItemFeedbackModel.goal_id) == goal_id,
+                col(ItemFeedbackModel.user_id) == user_id,
             )
         )
         result = await self.session.execute(stmt)
@@ -484,8 +498,8 @@ class PostgreSQLItemFeedbackRepository(ItemFeedbackRepository):
     ) -> tuple[list[ItemFeedback], int]:
         """List feedback for a goal."""
         # Count
-        count_stmt = select(func.count(ItemFeedbackModel.id)).where(
-            ItemFeedbackModel.goal_id == goal_id
+        count_stmt = select(func.count(col(ItemFeedbackModel.id))).where(
+            col(ItemFeedbackModel.goal_id) == goal_id
         )
         count_result = await self.session.execute(count_stmt)
         total = count_result.scalar() or 0
@@ -493,8 +507,8 @@ class PostgreSQLItemFeedbackRepository(ItemFeedbackRepository):
         # Data
         stmt = (
             select(ItemFeedbackModel)
-            .where(ItemFeedbackModel.goal_id == goal_id)
-            .order_by(ItemFeedbackModel.created_at.desc())
+            .where(col(ItemFeedbackModel.goal_id) == goal_id)
+            .order_by(col(ItemFeedbackModel.created_at).desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -508,20 +522,20 @@ class PostgreSQLItemFeedbackRepository(ItemFeedbackRepository):
         from src.modules.push.domain.entities import FeedbackType
 
         # Count likes
-        like_stmt = select(func.count(ItemFeedbackModel.id)).where(
+        like_stmt = select(func.count(col(ItemFeedbackModel.id))).where(
             and_(
-                ItemFeedbackModel.goal_id == goal_id,
-                ItemFeedbackModel.feedback == FeedbackType.LIKE,
+                col(ItemFeedbackModel.goal_id) == goal_id,
+                col(ItemFeedbackModel.feedback) == FeedbackType.LIKE,
             )
         )
         like_result = await self.session.execute(like_stmt)
         likes = like_result.scalar() or 0
 
         # Count dislikes
-        dislike_stmt = select(func.count(ItemFeedbackModel.id)).where(
+        dislike_stmt = select(func.count(col(ItemFeedbackModel.id))).where(
             and_(
-                ItemFeedbackModel.goal_id == goal_id,
-                ItemFeedbackModel.feedback == FeedbackType.DISLIKE,
+                col(ItemFeedbackModel.goal_id) == goal_id,
+                col(ItemFeedbackModel.feedback) == FeedbackType.DISLIKE,
             )
         )
         dislike_result = await self.session.execute(dislike_stmt)
@@ -562,8 +576,9 @@ class PostgreSQLBlockedSourceRepository(BlockedSourceRepository):
         await self.session.flush()
         return self.mapper.to_entity(merged)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, entity: BlockedSource | str) -> bool:
         """Delete a blocked source."""
+        id = entity.id if isinstance(entity, BlockedSource) else entity
         result = await self.session.get(BlockedSourceModel, id)
         if result:
             await self.session.delete(result)
@@ -575,13 +590,13 @@ class PostgreSQLBlockedSourceRepository(BlockedSourceRepository):
         self, page: int = 1, page_size: int = 10, include_deleted: bool = False
     ) -> tuple[list[BlockedSource], int]:
         """List all blocked sources with pagination."""
-        count_stmt = select(func.count(BlockedSourceModel.id))
+        count_stmt = select(func.count(col(BlockedSourceModel.id)))
         count_result = await self.session.execute(count_stmt)
         total = count_result.scalar() or 0
 
         stmt = (
             select(BlockedSourceModel)
-            .order_by(BlockedSourceModel.blocked_at.desc())
+            .order_by(col(BlockedSourceModel.blocked_at).desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -597,21 +612,21 @@ class PostgreSQLBlockedSourceRepository(BlockedSourceRepository):
         goal_id: str | None = None,
     ) -> bool:
         """Check if source is blocked."""
-        conditions = [
-            BlockedSourceModel.user_id == user_id,
-            BlockedSourceModel.source_id == source_id,
+        conditions: list[ColumnElement[bool]] = [
+            col(BlockedSourceModel.user_id) == user_id,
+            col(BlockedSourceModel.source_id) == source_id,
         ]
 
         if goal_id:
             # Check for specific goal or global block
             conditions.append(
                 or_(
-                    BlockedSourceModel.goal_id == goal_id,
+                    col(BlockedSourceModel.goal_id) == goal_id,
                     col(BlockedSourceModel.goal_id).is_(None),
                 )
             )
 
-        stmt = select(func.count(BlockedSourceModel.id)).where(and_(*conditions))
+        stmt = select(func.count(col(BlockedSourceModel.id))).where(and_(*conditions))
         result = await self.session.execute(stmt)
         count = result.scalar() or 0
         return count > 0
@@ -622,12 +637,14 @@ class PostgreSQLBlockedSourceRepository(BlockedSourceRepository):
         goal_id: str | None = None,
     ) -> list[BlockedSource]:
         """List blocked sources for user."""
-        conditions = [BlockedSourceModel.user_id == user_id]
+        conditions: list[ColumnElement[bool]] = [
+            col(BlockedSourceModel.user_id) == user_id
+        ]
 
         if goal_id:
             conditions.append(
                 or_(
-                    BlockedSourceModel.goal_id == goal_id,
+                    col(BlockedSourceModel.goal_id) == goal_id,
                     col(BlockedSourceModel.goal_id).is_(None),
                 )
             )
@@ -635,7 +652,7 @@ class PostgreSQLBlockedSourceRepository(BlockedSourceRepository):
         stmt = (
             select(BlockedSourceModel)
             .where(and_(*conditions))
-            .order_by(BlockedSourceModel.blocked_at.desc())
+            .order_by(col(BlockedSourceModel.blocked_at).desc())
         )
         result = await self.session.execute(stmt)
         models = result.scalars().all()
@@ -645,8 +662,8 @@ class PostgreSQLBlockedSourceRepository(BlockedSourceRepository):
         """List blocked sources for a specific goal."""
         stmt = (
             select(BlockedSourceModel)
-            .where(BlockedSourceModel.goal_id == goal_id)
-            .order_by(BlockedSourceModel.blocked_at.desc())
+            .where(col(BlockedSourceModel.goal_id) == goal_id)
+            .order_by(col(BlockedSourceModel.blocked_at).desc())
         )
         result = await self.session.execute(stmt)
         models = result.scalars().all()

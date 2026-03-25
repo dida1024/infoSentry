@@ -102,7 +102,7 @@ class AgentOrchestrator:
         match_reasons: dict[str, Any],
         goal_context: GoalContext | None = None,
         item_context: ItemContext | None = None,
-        match_repository=None,
+        match_repository: Any | None = None,
     ) -> AgentRun:
         """执行 Immediate 路径的 Agent 决策。
 
@@ -244,11 +244,11 @@ class AgentOrchestrator:
         self,
         goal_id: str,
         window_time: str,
-        match_repository=None,
-        decision_repository=None,
-        goal_repository=None,
-        item_repository=None,
-        llm_service=None,
+        match_repository: Any | None = None,
+        decision_repository: Any | None = None,
+        goal_repository: Any | None = None,
+        item_repository: Any | None = None,
+        llm_service: Any | None = None,
     ) -> AgentRun:
         """执行 Batch 窗口的 Agent 决策。
 
@@ -302,7 +302,7 @@ class AgentOrchestrator:
             if match_repository and decision_repository:
                 if goal_repository:
                     goal = await goal_repository.get_by_id(goal_id)
-                    if goal:
+                    if goal and state.goal:
                         state.goal.user_id = goal.user_id
                         state.goal.name = goal.name
                         state.goal.description = goal.description
@@ -517,11 +517,11 @@ class AgentOrchestrator:
     async def run_digest(
         self,
         goal_id: str,
-        match_repository=None,
-        decision_repository=None,
-        goal_repository=None,
-        item_repository=None,
-        llm_service=None,
+        match_repository: Any | None = None,
+        decision_repository: Any | None = None,
+        goal_repository: Any | None = None,
+        item_repository: Any | None = None,
+        llm_service: Any | None = None,
     ) -> AgentRun:
         """执行 Digest 的 Agent 决策。
 
@@ -567,7 +567,7 @@ class AgentOrchestrator:
             if match_repository and decision_repository:
                 if goal_repository:
                     goal = await goal_repository.get_by_id(goal_id)
-                    if goal:
+                    if goal and state.goal:
                         state.goal.user_id = goal.user_id
                         state.goal.name = goal.name
                         state.goal.description = goal.description
@@ -788,7 +788,7 @@ class AgentOrchestrator:
 
     async def _maybe_downgrade_match_score(
         self,
-        match_repository,
+        match_repository: Any,
         *,
         goal_id: str,
         item_id: str,
@@ -831,7 +831,16 @@ class AgentOrchestrator:
         # 获取原始运行记录
         original_run = await self.run_repo.get_by_id(run_id)
         if not original_run:
-            return ReplayResult(run_id=run_id, error=f"Run not found: {run_id}")
+            return ReplayResult(
+                run_id=run_id,
+                original_status=None,
+                original_actions=None,
+                replayed_actions=None,
+                diff=None,
+                tool_calls_count=0,
+                ledger_entries_count=0,
+                error=f"Run not found: {run_id}",
+            )
 
         # 获取原始工具调用
         tool_calls = await self.tool_call_repo.list_by_run(run_id)

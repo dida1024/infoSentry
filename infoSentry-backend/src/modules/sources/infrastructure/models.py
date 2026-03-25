@@ -1,12 +1,21 @@
 """Source database models."""
 
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy import JSON, DateTime, Enum, Text, UniqueConstraint
+from sqlalchemy import JSON, Column, DateTime, Enum, Text, UniqueConstraint
 from sqlmodel import Field
 
 from src.core.infrastructure.database.base_model import BaseModel
 from src.modules.sources.domain.entities import IngestStatus, SourceType
+
+__all__ = [
+    "IngestLogModel",
+    "IngestStatus",
+    "SourceModel",
+    "SourceSubscriptionModel",
+    "SourceType",
+]
 
 
 class SourceModel(BaseModel, table=True):
@@ -15,14 +24,16 @@ class SourceModel(BaseModel, table=True):
     __tablename__ = "sources"
 
     type: SourceType = Field(
-        sa_type=Enum(
-            SourceType,
-            name="sourcetype",
-            values_callable=lambda e: [i.value for i in e],
-            create_constraint=False,
+        sa_column=Column(
+            Enum(
+                SourceType,
+                name="sourcetype",
+                values_callable=lambda e: [i.value for i in e],
+                create_constraint=False,
+            ),
+            nullable=False,
+            index=True,
         ),
-        nullable=False,
-        index=True,
     )
     owner_id: str | None = Field(default=None, nullable=True, index=True)
     name: str = Field(nullable=False, unique=True, index=True)
@@ -31,18 +42,15 @@ class SourceModel(BaseModel, table=True):
     fetch_interval_sec: int = Field(default=1800, nullable=False)
     next_fetch_at: datetime | None = Field(
         default=None,
-        sa_type=DateTime(timezone=True),
-        nullable=True,
-        index=True,
+        sa_column=Column(DateTime(timezone=True), nullable=True, index=True),
     )
     last_fetch_at: datetime | None = Field(
         default=None,
-        sa_type=DateTime(timezone=True),
-        nullable=True,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
     )
     error_streak: int = Field(default=0, nullable=False)
     empty_streak: int = Field(default=0, nullable=False)
-    config: dict = Field(default_factory=dict, sa_type=JSON, nullable=False)
+    config: dict[str, Any] = Field(default_factory=dict, sa_type=JSON, nullable=False)
 
 
 class SourceSubscriptionModel(BaseModel, table=True):
@@ -72,28 +80,32 @@ class IngestLogModel(BaseModel, table=True):
 
     source_id: str = Field(nullable=False, index=True)
     started_at: datetime = Field(
-        sa_type=DateTime(timezone=True),
-        nullable=False,
-        index=True,
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
     )
     completed_at: datetime | None = Field(
         default=None,
-        sa_type=DateTime(timezone=True),
-        nullable=True,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
     )
     status: IngestStatus = Field(
-        sa_type=Enum(
-            IngestStatus,
-            name="ingeststatus",
-            values_callable=lambda e: [i.value for i in e],
-            create_constraint=False,
+        sa_column=Column(
+            Enum(
+                IngestStatus,
+                name="ingeststatus",
+                values_callable=lambda e: [i.value for i in e],
+                create_constraint=False,
+            ),
+            nullable=False,
+            index=True,
         ),
-        nullable=False,
-        index=True,
     )
     items_fetched: int = Field(default=0, nullable=False)
     items_new: int = Field(default=0, nullable=False)
     items_duplicate: int = Field(default=0, nullable=False)
-    error_message: str | None = Field(default=None, sa_type=Text, nullable=True)
+    error_message: str | None = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
     duration_ms: int | None = Field(default=None, nullable=True)
-    metadata_json: dict | None = Field(default=None, sa_type=JSON, nullable=True)
+    metadata_json: dict[str, Any] | None = Field(
+        default=None, sa_type=JSON, nullable=True
+    )

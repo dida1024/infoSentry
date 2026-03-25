@@ -128,7 +128,7 @@ class PostgreSQLUserRepository(EventAwareRepository[User], UserRepository):
         include_deleted: bool = False,
     ) -> tuple[list[User], int]:
         statement = select(
-            UserModel, func.count(UserModel.id).over().label("total_count")
+            UserModel, func.count(col(UserModel.id)).over().label("total_count")
         )
 
         if not include_deleted:
@@ -137,7 +137,7 @@ class PostgreSQLUserRepository(EventAwareRepository[User], UserRepository):
         statement = (
             statement.offset((page - 1) * page_size)
             .limit(page_size)
-            .order_by(UserModel.created_at.desc())
+            .order_by(col(UserModel.created_at).desc())
         )
 
         result = await self.session.execute(statement)
@@ -265,7 +265,8 @@ class PostgreSQLMagicLinkRepository(
         include_deleted: bool = False,
     ) -> tuple[list[MagicLink], int]:
         statement = select(
-            MagicLinkModel, func.count(MagicLinkModel.id).over().label("total_count")
+            MagicLinkModel,
+            func.count(col(MagicLinkModel.id)).over().label("total_count"),
         )
 
         if not include_deleted:
@@ -274,7 +275,7 @@ class PostgreSQLMagicLinkRepository(
         statement = (
             statement.offset((page - 1) * page_size)
             .limit(page_size)
-            .order_by(MagicLinkModel.created_at.desc())
+            .order_by(col(MagicLinkModel.created_at).desc())
         )
 
         result = await self.session.execute(statement)
@@ -386,7 +387,7 @@ class PostgreSQLDeviceSessionRepository(
     ) -> tuple[list[DeviceSession], int]:
         statement = select(
             DeviceSessionModel,
-            func.count(DeviceSessionModel.id).over().label("total_count"),
+            func.count(col(DeviceSessionModel.id)).over().label("total_count"),
         )
 
         if not include_deleted:
@@ -395,7 +396,7 @@ class PostgreSQLDeviceSessionRepository(
         statement = (
             statement.offset((page - 1) * page_size)
             .limit(page_size)
-            .order_by(DeviceSessionModel.created_at.desc())
+            .order_by(col(DeviceSessionModel.created_at).desc())
         )
 
         result = await self.session.execute(statement)
@@ -465,7 +466,7 @@ class PostgreSQLUserBudgetDailyRepository(
                 UserBudgetDailyModel.date <= end_date,
                 col(UserBudgetDailyModel.is_deleted).is_(False),
             )
-            .order_by(UserBudgetDailyModel.date.asc())
+            .order_by(col(UserBudgetDailyModel.date).asc())
         )
         result = await self.session.execute(statement)
         models = result.scalars().all()
@@ -524,14 +525,14 @@ class PostgreSQLUserBudgetDailyRepository(
     ) -> tuple[list[UserBudgetDaily], int]:
         statement = select(
             UserBudgetDailyModel,
-            func.count(UserBudgetDailyModel.id).over().label("total_count"),
+            func.count(col(UserBudgetDailyModel.id)).over().label("total_count"),
         )
 
         if not include_deleted:
             statement = statement.where(col(UserBudgetDailyModel.is_deleted).is_(False))
 
         statement = (
-            statement.order_by(UserBudgetDailyModel.date.desc())
+            statement.order_by(col(UserBudgetDailyModel.date).desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )

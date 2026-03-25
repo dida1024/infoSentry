@@ -160,43 +160,44 @@ class MonitoringService:
             Queues.EMAIL,
         ]
 
-        queue_status = {}
+        queue_status: dict[str, dict[str, Any]] = {}
         for queue in queues:
+            queue_name = queue.value
             try:
                 # 通过 Redis LIST 长度检查队列积压
                 # Celery 使用 Redis 时，队列名作为 LIST key
-                length = await self.redis.llen(queue)
-                queue_status[queue] = {
+                length = await self.redis.llen(queue_name)
+                queue_status[queue_name] = {
                     "length": length,
                     "status": "ok",
                 }
 
                 if length >= settings.QUEUE_BACKLOG_CRITICAL:
-                    queue_status[queue]["status"] = "critical"
+                    queue_status[queue_name]["status"] = "critical"
                     status.alerts.append(
                         Alert(
                             level=AlertLevel.CRITICAL,
                             source="queue",
-                            message=f"Queue {queue} has critical backlog",
-                            details={"queue": queue, "length": length},
+                            message=f"Queue {queue_name} has critical backlog",
+                            details={"queue": queue_name, "length": length},
                         )
                     )
-                    logger.error(f"Critical queue backlog: {queue}={length}")
+                    logger.error(f"Critical queue backlog: {queue_name}={length}")
 
                 elif length >= settings.QUEUE_BACKLOG_WARNING:
-                    queue_status[queue]["status"] = "warning"
+                    queue_status[queue_name]["status"] = "warning"
                     status.alerts.append(
                         Alert(
                             level=AlertLevel.WARNING,
                             source="queue",
-                            message=f"Queue {queue} has backlog",
-                            details={"queue": queue, "length": length},
+                            message=f"Queue {queue_name} has backlog",
+                            details={"queue": queue_name, "length": length},
                         )
                     )
-                    logger.warning(f"Queue backlog warning: {queue}={length}")
+                    logger.warning(f"Queue backlog warning: {queue_name}={length}")
 
             except Exception as e:
-                queue_status[queue] = {
+                queue_status[queue_name] = {
                     "length": -1,
                     "status": "error",
                     "error": str(e),
@@ -344,13 +345,14 @@ class MonitoringService:
         budget_service = BudgetService(self.redis)
         budget_status = await budget_service.get_status()
 
+        usage_percent = round(
+            budget_status.usd_est / settings.DAILY_USD_BUDGET * 100, 1
+        )
         budget_info = {
             "date": budget_status.date,
             "usd_est": round(budget_status.usd_est, 4),
             "daily_limit": settings.DAILY_USD_BUDGET,
-            "usage_percent": round(
-                budget_status.usd_est / settings.DAILY_USD_BUDGET * 100, 1
-            ),
+            "usage_percent": usage_percent,
             "embedding_disabled": budget_status.embedding_disabled,
             "judge_disabled": budget_status.judge_disabled,
         }
@@ -358,7 +360,6 @@ class MonitoringService:
         status.components["budget"] = budget_info
 
         # 检查是否接近预算上限
-        usage_percent = budget_info["usage_percent"]
         if usage_percent >= 100:
             status.alerts.append(
                 Alert(
@@ -441,15 +442,20 @@ class MonitoringService:
                         else "stale",
                         last_heartbeat=last_beat,
                         age_seconds=int(age_seconds),
+                        error=None,
                     )
                 else:
                     result.workers[worker_type] = WorkerHeartbeat(
                         status="unknown",
                         last_heartbeat=None,
+                        age_seconds=None,
+                        error=None,
                     )
             except Exception as e:
                 result.workers[worker_type] = WorkerHeartbeat(
                     status="error",
+                    last_heartbeat=None,
+                    age_seconds=None,
                     error=str(e),
                 )
 

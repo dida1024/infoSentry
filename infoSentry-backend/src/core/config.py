@@ -157,7 +157,7 @@ class Settings(BaseSettings):
         cors_origins = (
             self.BACKEND_CORS_ORIGINS
             if isinstance(self.BACKEND_CORS_ORIGINS, list)
-            else [self.BACKEND_CORS_ORIGINS]
+            else [AnyUrl(str(self.BACKEND_CORS_ORIGINS))]
         )
         if "*" in cors_origins:
             raise ValueError("CORS origin '*' is not allowed")
@@ -235,8 +235,6 @@ class Settings(BaseSettings):
     GOAL_EMAIL_RATE_LIMIT_PER_HOUR: int = 5  # 每目标每小时最多发送次数
     GOAL_EMAIL_LOOKBACK_HOURS: int = 24  # 默认回溯小时数
     GOAL_EMAIL_RATE_LIMIT_TTL: int = 3600  # 限流 Redis TTL (秒)
-    GOAL_MATCH_RANK_HALF_LIFE_DAYS: float = 14.0  # 目标匹配综合排序半衰期
-
     # Default Push Windows (HH:MM 格式，逗号分隔)
     DEFAULT_BATCH_WINDOWS: str = "12:30,18:30"
     DEFAULT_DIGEST_SEND_TIME: str = "09:00"
@@ -272,6 +270,13 @@ class Settings(BaseSettings):
     NEWSNOW_PUBLIC_SOURCE_PREFIX: str = "NewsNow |"
     # RSSHub 配置 - 支持 rsshub:// 协议的 URL 转换
     RSSHUB_BASE_URL: str = "https://rsshub.app"  # 默认使用官方实例，可配置私有实例
+
+    # Discovery Agent
+    DISCOVERY_SESSION_TTL_SEC: int = 3600  # 会话过期时间 1 小时
+    DISCOVERY_AGENT_MODEL: str = "openai:gpt-4o-mini"
+    DISCOVERY_AGENT_MAX_TOOL_CALLS: int = 30
+    DISCOVERY_WEB_SEARCH_API_KEY: str = ""  # Tavily API Key（留空则跳过网络搜索）
+    DISCOVERY_PROBE_TIMEOUT_SEC: float = 10.0
 
     # Embedding Settings
     EMBED_MAX_CHARS: int = 8000  # 约 2000 tokens

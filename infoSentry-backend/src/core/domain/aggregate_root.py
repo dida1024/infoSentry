@@ -1,6 +1,6 @@
 """Aggregate root base class with enhanced domain event support."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from src.core.domain.base_entity import BaseEntity
 
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 class AggregateRoot(BaseEntity):
     """Base class for aggregate roots with enhanced domain event capabilities."""
 
-    def __init__(self, **data):
+    def __init__(self, **data: Any) -> None:
         super().__init__(**data)
 
     def add_domain_event(self, event: "DomainEvent") -> None:

@@ -64,6 +64,27 @@ class PushDecisionRepository(BaseRepository[PushDecisionRecord]):
         """List items for digest that haven't been sent."""
         pass
 
+    @abstractmethod
+    async def list_by_goals(
+        self,
+        goal_ids: list[str],
+        status: PushStatus | None = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[list[PushDecisionRecord], int]:
+        """List decisions for multiple goals."""
+        pass
+
+    @abstractmethod
+    async def batch_update_status(
+        self,
+        ids: list[str],
+        status: PushStatus,
+        sent_at: datetime | None = None,
+    ) -> int:
+        """Batch update decision status."""
+        pass
+
 
 class ClickEventRepository(BaseRepository[ClickEvent]):
     """Click event repository interface."""

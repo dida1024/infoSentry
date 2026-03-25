@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Text, UniqueConstraint
+from sqlalchemy import Column, DateTime, Enum, Text, UniqueConstraint
 from sqlmodel import Field
 
 from src.core.infrastructure.database.base_model import BaseModel
@@ -18,18 +18,19 @@ class UserModel(BaseModel, table=True):
     is_active: bool = Field(default=True, nullable=False)
     status: UserStatus = Field(
         default=UserStatus.ACTIVE,
-        sa_type=Enum(
-            UserStatus,
-            name="userstatus",
-            values_callable=lambda e: [i.value for i in e],
-            create_constraint=False,
+        sa_column=Column(
+            Enum(
+                UserStatus,
+                name="userstatus",
+                values_callable=lambda e: [i.value for i in e],
+                create_constraint=False,
+            ),
+            nullable=False,
         ),
-        nullable=False,
     )
     last_login_at: datetime | None = Field(
         default=None,
-        sa_type=DateTime(timezone=True),
-        nullable=True,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
     )
     display_name: str | None = Field(default=None, nullable=True)
     timezone: str = Field(default="Asia/Shanghai", nullable=False)
@@ -43,14 +44,12 @@ class MagicLinkModel(BaseModel, table=True):
     email: str = Field(index=True, nullable=False)
     token: str = Field(index=True, nullable=False, unique=True)
     expires_at: datetime = Field(
-        sa_type=DateTime(timezone=True),
-        nullable=False,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
     )
     is_used: bool = Field(default=False, nullable=False)
     used_at: datetime | None = Field(
         default=None,
-        sa_type=DateTime(timezone=True),
-        nullable=True,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
     )
 
 
@@ -62,20 +61,19 @@ class DeviceSessionModel(BaseModel, table=True):
     user_id: str = Field(nullable=False, index=True)
     refresh_token_hash: str = Field(nullable=False, index=True, unique=True)
     device_id: str = Field(nullable=False, index=True)
-    user_agent: str | None = Field(default=None, sa_type=Text(), nullable=True)
+    user_agent: str | None = Field(
+        default=None, sa_column=Column(Text(), nullable=True)
+    )
     ip_address: str | None = Field(default=None, nullable=True)
     expires_at: datetime = Field(
-        sa_type=DateTime(timezone=True),
-        nullable=False,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
     )
     last_seen_at: datetime = Field(
-        sa_type=DateTime(timezone=True),
-        nullable=False,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
     )
     revoked_at: datetime | None = Field(
         default=None,
-        sa_type=DateTime(timezone=True),
-        nullable=True,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
     )
 
 

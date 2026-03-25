@@ -13,7 +13,7 @@ import inspect
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 from loguru import logger
@@ -53,9 +53,11 @@ class MatchFeatures:
 
     cosine_similarity: float = 0.0  # 语义相似度 [0, 1]
     term_hits: int = 0  # priority_terms 命中数
-    term_hit_details: list[dict] = field(default_factory=list)  # 命中详情
+    term_hit_details: list[dict[str, Any]] = field(default_factory=list)  # 命中详情
     negative_hits: int = 0  # negative_terms 命中数
-    negative_hit_details: list[dict] = field(default_factory=list)  # 负面命中详情
+    negative_hit_details: list[dict[str, Any]] = field(
+        default_factory=list
+    )  # 负面命中详情
     recency_score: float = 0.0  # 时效性分数 [0, 1]
     source_trust: float = 0.8  # 来源可信度 [0, 1]，默认 0.8
     # 反馈信号
@@ -85,7 +87,7 @@ class MatchReasons:
     """匹配原因（可解释性）。"""
 
     summary: str = ""  # 简短摘要
-    evidence: list[dict] = field(default_factory=list)  # 证据列表
+    evidence: list[dict[str, Any]] = field(default_factory=list)  # 证据列表
     is_blocked: bool = False  # 是否被阻止
     block_reason: str | None = None  # 阻止原因
 
@@ -458,7 +460,7 @@ class MatchService:
                 cached = await self.kv_client.get_json(cache_key)
                 if cached:
                     logger.debug(f"Goal embedding cache hit for {goal.id}")
-                    return cached
+                    return cast(list[float], cached)
             except Exception as e:
                 logger.warning(f"Failed to get goal embedding from cache: {e}")
 
@@ -508,14 +510,14 @@ class MatchService:
         self,
         text: str,
         terms: list[GoalPriorityTerm],
-    ) -> tuple[int, list[dict]]:
+    ) -> tuple[int, list[dict[str, Any]]]:
         """检查词条命中（支持中英文混合匹配）。
 
         对于中文关键词，使用子串匹配；对于英文关键词，使用词边界匹配。
         """
         text_lower = text.lower()
         hits = 0
-        details: list[dict] = []
+        details: list[dict[str, Any]] = []
 
         for term in terms:
             term_lower = term.term.lower()
@@ -609,7 +611,7 @@ class MatchService:
     ) -> MatchReasons:
         """生成匹配原因。"""
         reasons = MatchReasons()
-        evidence: list[dict] = []
+        evidence: list[dict[str, Any]] = []
 
         # 检查负面词命中
         if features.negative_hits > 0:

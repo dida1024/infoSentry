@@ -209,7 +209,7 @@ class AgentAdminService:
         return {"updated": updated}
 
     async def health_check(self) -> dict[str, Any]:
-        health_status = {
+        health_status: dict[str, Any] = {
             "status": "healthy",
             "timestamp": datetime.now(UTC).isoformat(),
             "components": {

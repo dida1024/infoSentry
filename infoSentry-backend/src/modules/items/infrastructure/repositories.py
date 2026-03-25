@@ -54,7 +54,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
             return {}
 
         statement = select(ItemModel).where(
-            ItemModel.id.in_(item_ids),
+            col(ItemModel.id).in_(item_ids),
             col(ItemModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
@@ -85,7 +85,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
         page_size: int = 50,
     ) -> tuple[list[Item], int]:
         statement = (
-            select(ItemModel, func.count(ItemModel.id).over().label("total_count"))
+            select(ItemModel, func.count(col(ItemModel.id)).over().label("total_count"))
             .where(
                 ItemModel.source_id == source_id,
                 col(ItemModel.is_deleted).is_(False),
@@ -127,7 +127,7 @@ class PostgreSQLItemRepository(EventAwareRepository[Item], ItemRepository):
         page_size: int = 50,
     ) -> tuple[list[Item], int]:
         statement = select(
-            ItemModel, func.count(ItemModel.id).over().label("total_count")
+            ItemModel, func.count(col(ItemModel.id)).over().label("total_count")
         ).where(col(ItemModel.is_deleted).is_(False))
 
         if since:
@@ -360,7 +360,7 @@ class PostgreSQLGoalItemMatchRepository(
     ) -> tuple[list[GoalItemMatch], int]:
         statement = select(
             GoalItemMatchModel,
-            func.count(GoalItemMatchModel.id).over().label("total_count"),
+            func.count(col(GoalItemMatchModel.id)).over().label("total_count"),
         ).where(
             GoalItemMatchModel.goal_id == goal_id,
             col(GoalItemMatchModel.is_deleted).is_(False),
@@ -379,7 +379,9 @@ class PostgreSQLGoalItemMatchRepository(
 
         if rank_mode in {RankMode.HYBRID, RankMode.RECENT}:
             statement = statement.join(
-                ItemModel, ItemModel.id == GoalItemMatchModel.item_id, isouter=True
+                ItemModel,
+                col(ItemModel.id) == col(GoalItemMatchModel.item_id),
+                isouter=True,
             )
             item_time = cast(
                 ColumnElement[datetime],

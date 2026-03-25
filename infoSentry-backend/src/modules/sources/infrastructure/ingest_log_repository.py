@@ -115,7 +115,7 @@ class IngestLogRepository:
         self,
         source_id: str,
         since: datetime | None = None,
-    ) -> dict:
+    ) -> dict[str, int]:
         """获取源的统计信息。"""
         statement = select(
             func.count(col(IngestLogModel.id)).label("total_runs"),

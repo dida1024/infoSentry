@@ -1,6 +1,7 @@
 """Goal application data models."""
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -63,8 +64,8 @@ class GoalMatchData(BaseModel):
     goal_id: str
     item_id: str
     match_score: float
-    features_json: dict = Field(default_factory=dict)
-    reasons_json: dict = Field(default_factory=dict)
+    features_json: dict[str, Any] = Field(default_factory=dict)
+    reasons_json: dict[str, Any] = Field(default_factory=dict)
     computed_at: datetime
     item: ItemData | None = None
 

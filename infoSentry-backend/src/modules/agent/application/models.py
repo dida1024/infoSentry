@@ -40,7 +40,7 @@ class AgentRunDetailData(BaseModel):
     status: str
     input_snapshot: dict[str, Any] | None = None
     output_snapshot: dict[str, Any] | None = None
-    final_actions: dict[str, Any] | None = None
+    final_actions: list[dict[str, Any]] = Field(default_factory=list)
     budget_snapshot: dict[str, Any] | None = None
     llm_used: bool
     model_name: str | None = None

@@ -31,7 +31,7 @@ class BaseEntity(BaseModel):
         json_encoders={UUID: str},
     )
 
-    def __init__(self, **data):
+    def __init__(self, **data: Any) -> None:
         super().__init__(**data)
         self._domain_events: list[DomainEvent] = []
 

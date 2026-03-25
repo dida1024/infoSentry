@@ -1,5 +1,7 @@
 """Agent API routes."""
 
+from typing import Any
+
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -74,7 +76,7 @@ async def get_agent_run(
 
 @router.post(
     "/agent/runs/{run_id}/replay",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[dict[str, Any]],
     summary="重放Agent运行",
     description="基于历史运行记录重放Agent决策流程",
 )
@@ -82,7 +84,7 @@ async def replay_agent_run(
     run_id: str,
     _auth: AuthContext = Depends(require_scope(AuthScope.AGENT_READ)),
     service: AgentRunQueryService = Depends(get_agent_run_query_service),
-) -> ApiResponse[dict]:
+) -> ApiResponse[dict[str, Any]]:
     """Replay an agent run based on its input snapshot."""
     replay_info = await service.get_replay_info(run_id)
     return ApiResponse.success(
@@ -106,7 +108,7 @@ async def get_budget_status(
     return ApiResponse.success(data=BudgetResponse(**budget.model_dump()))
 
 
-class ConfigUpdateRequest(ApiResponse):
+class ConfigUpdateRequest(ApiResponse[dict[str, bool | None]]):
     """Config update request."""
 
     LLM_ENABLED: bool | None = None
@@ -115,7 +117,7 @@ class ConfigUpdateRequest(ApiResponse):
     EMAIL_ENABLED: bool | None = None
 
 
-class ConfigResponse(ApiResponse):
+class ConfigResponse(ApiResponse[dict[str, bool]]):
     """Config response with current feature flags."""
 
     LLM_ENABLED: bool
@@ -126,14 +128,14 @@ class ConfigResponse(ApiResponse):
 
 @router.get(
     "/admin/config",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[dict[str, Any]],
     summary="获取当前配置",
     description="获取当前 feature flags 配置",
 )
 async def get_config(
     _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_READ)),
     service: AgentAdminService = Depends(get_agent_admin_service),
-) -> ApiResponse[dict]:
+) -> ApiResponse[dict[str, Any]]:
     """Get current config."""
     config = await service.get_config()
     return ApiResponse.success(data=config)
@@ -141,15 +143,15 @@ async def get_config(
 
 @router.post(
     "/admin/config",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[dict[str, Any]],
     summary="热更新配置",
     description="热更新 feature flags 配置（存储在 Redis 中）",
 )
 async def update_config(
-    config: dict,
+    config: dict[str, Any],
     _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_WRITE)),
     service: AgentAdminService = Depends(get_agent_admin_service),
-) -> ApiResponse[dict]:
+) -> ApiResponse[dict[str, Any]]:
     """Update config in Redis for hot reload.
 
     Supported keys:
@@ -174,14 +176,14 @@ async def update_config(
 
 @router.get(
     "/admin/health",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[dict[str, Any]],
     summary="健康检查",
     description="检查系统各组件健康状态",
 )
 async def health_check(
     _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_READ)),
     service: AgentAdminService = Depends(get_agent_admin_service),
-) -> ApiResponse[dict]:
+) -> ApiResponse[dict[str, Any]]:
     """Health check endpoint."""
     try:
         health_status = await service.health_check()
@@ -196,14 +198,14 @@ async def health_check(
 
 @router.get(
     "/admin/monitoring",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[dict[str, Any]],
     summary="获取监控状态",
     description="获取完整的监控状态（队列、LLM、SMTP、预算等）",
 )
 async def get_monitoring_status(
     _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_READ)),
     service: AgentAdminService = Depends(get_agent_admin_service),
-) -> ApiResponse[dict]:
+) -> ApiResponse[dict[str, Any]]:
     """Get full monitoring status."""
 
     try:
@@ -220,14 +222,14 @@ async def get_monitoring_status(
 
 @router.get(
     "/admin/workers",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[dict[str, Any]],
     summary="获取 Worker 心跳状态",
     description="获取各个 Worker 的心跳状态",
 )
 async def get_worker_status(
     _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_READ)),
     service: AgentAdminService = Depends(get_agent_admin_service),
-) -> ApiResponse[dict]:
+) -> ApiResponse[dict[str, Any]]:
     """Get worker heartbeat status."""
 
     try:
@@ -244,14 +246,14 @@ async def get_worker_status(
 
 @router.post(
     "/admin/budget/reset",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[dict[str, Any]],
     summary="重置每日预算",
     description="重置当日预算（仅用于紧急情况或测试）",
 )
 async def reset_budget(
     _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_WRITE)),
     service: AgentAdminService = Depends(get_agent_admin_service),
-) -> ApiResponse[dict]:
+) -> ApiResponse[dict[str, Any]]:
     """Reset daily budget."""
     try:
         result = await service.reset_budget()
@@ -270,7 +272,7 @@ async def reset_budget(
 
 @router.post(
     "/admin/enable/{feature}",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[dict[str, Any]],
     summary="启用功能",
     description="启用指定的功能（解除熔断）",
 )
@@ -278,7 +280,7 @@ async def enable_feature(
     feature: str,
     _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_WRITE)),
     service: AgentAdminService = Depends(get_agent_admin_service),
-) -> ApiResponse[dict]:
+) -> ApiResponse[dict[str, Any]]:
     """Enable a feature (lift circuit breaker)."""
     try:
         result = await service.enable_feature(feature)
@@ -304,7 +306,7 @@ async def enable_feature(
 
 @router.post(
     "/admin/disable/{feature}",
-    response_model=ApiResponse[dict],
+    response_model=ApiResponse[dict[str, Any]],
     summary="禁用功能",
     description="禁用指定的功能（手动降级）",
 )
@@ -312,7 +314,7 @@ async def disable_feature(
     feature: str,
     _auth: AuthContext = Depends(require_scope(AuthScope.ADMIN_WRITE)),
     service: AgentAdminService = Depends(get_agent_admin_service),
-) -> ApiResponse[dict]:
+) -> ApiResponse[dict[str, Any]]:
     """Disable a feature (manual circuit breaker)."""
     try:
         result = await service.disable_feature(feature)

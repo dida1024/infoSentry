@@ -67,11 +67,14 @@ class SMTPProvider:
 
     def _create_connection(self) -> smtplib.SMTP | smtplib.SMTP_SSL:
         """Create SMTP connection."""
+        if not self.host:
+            raise ValueError("SMTP host is not configured")
+
         if self.use_ssl:
             context = ssl.create_default_context()
-            server = smtplib.SMTP_SSL(self.host, self.port, context=context)
+            return smtplib.SMTP_SSL(self.host, self.port, context=context)
         else:
-            server = smtplib.SMTP(self.host, self.port)
+            server: smtplib.SMTP | smtplib.SMTP_SSL = smtplib.SMTP(self.host, self.port)
             if self.use_tls:
                 context = ssl.create_default_context()
                 server.starttls(context=context)
@@ -305,7 +308,7 @@ class EmailService:
 
         return results
 
-    async def get_health_status(self):
+    async def get_health_status(self) -> dict[str, Any]:
         """Get email service health status.
 
         Returns:

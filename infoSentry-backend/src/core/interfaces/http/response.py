@@ -15,15 +15,15 @@ class ApiResponse[T](BaseModel):
     code: int = 200
     message: str = "Operation successful"
     data: T | None = None
-    meta: dict | None = None
+    meta: dict[str, Any] | None = None
 
     @classmethod
     def success(
         cls,
-        data: T = None,
+        data: T | None = None,
         message: str = "Operation successful",
         code: int = 200,
-        meta: dict | None = None,
+        meta: dict[str, Any] | None = None,
     ) -> "ApiResponse[T]":
         return cls(code=code, message=message, data=data, meta=meta)
 
@@ -45,7 +45,7 @@ class PaginatedResponse[T](ApiResponse[list[T]]):
     """Paginated API response model."""
 
     data: list[T] | None = None
-    meta: dict = {"total": 0, "page": 1, "page_size": 10}
+    meta: dict[str, int] = {"total": 0, "page": 1, "page_size": 10}
 
     @classmethod
     def create(
@@ -86,16 +86,16 @@ class CursorPaginatedResponse[T](ApiResponse[list[T]]):
 class ErrorResponse(BaseModel):
     """Error response model matching API spec."""
 
-    error: dict
+    error: dict[str, Any]
 
     @classmethod
     def create(
         cls,
         code: str,
         message: str,
-        details: dict | None = None,
+        details: dict[str, Any] | None = None,
     ) -> "ErrorResponse":
-        error_dict = {"code": code, "message": message}
+        error_dict: dict[str, Any] = {"code": code, "message": message}
         if details:
             error_dict["details"] = details
         return cls(error=error_dict)

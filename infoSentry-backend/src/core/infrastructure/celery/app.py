@@ -8,8 +8,8 @@
 """
 
 from celery import Celery
-from kombu import Exchange, Queue
 
+from kombu import Exchange, Queue
 from src.core.config import settings
 from src.core.infrastructure.celery.queues import TASK_ROUTES, Queues
 

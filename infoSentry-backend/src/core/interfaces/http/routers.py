@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 
+from src.modules.agent.interfaces.discovery_router import router as discovery_router
 from src.modules.agent.interfaces.router import router as agent_router
 from src.modules.api_keys.interfaces.router import router as api_keys_router
 from src.modules.goals.interfaces.router import router as goals_router
@@ -25,6 +26,9 @@ api_router.include_router(push_router)
 
 # Agent/Observability
 api_router.include_router(agent_router)
+
+# Source Discovery
+api_router.include_router(discovery_router)
 
 # API Key Management
 api_router.include_router(api_keys_router)

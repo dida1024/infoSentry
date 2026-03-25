@@ -1,10 +1,10 @@
 """Item database models."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, DateTime, Enum, Text
+from sqlalchemy import JSON, Column, DateTime, Enum, Text
 from sqlmodel import Field
 
 from src.core.config import settings
@@ -26,15 +26,11 @@ class ItemModel(BaseModel, table=True):
     summary: str | None = Field(default=None, sa_type=Text, nullable=True)
     published_at: datetime | None = Field(
         default=None,
-        sa_type=DateTime(timezone=True),
-        nullable=True,
-        index=True,
+        sa_column=Column(DateTime(timezone=True), nullable=True, index=True),
     )
     ingested_at: datetime = Field(
-        default_factory=datetime.now,
-        sa_type=DateTime(timezone=True),
-        nullable=False,
-        index=True,
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
     )
 
     # Embedding - using pgvector
@@ -45,14 +41,16 @@ class ItemModel(BaseModel, table=True):
     )
     embedding_status: EmbeddingStatus = Field(
         default=EmbeddingStatus.PENDING,
-        sa_type=Enum(
-            EmbeddingStatus,
-            name="embeddingstatus",
-            values_callable=lambda e: [i.value for i in e],
-            create_constraint=False,
+        sa_column=Column(
+            Enum(
+                EmbeddingStatus,
+                name="embeddingstatus",
+                values_callable=lambda e: [i.value for i in e],
+                create_constraint=False,
+            ),
+            nullable=False,
+            index=True,
         ),
-        nullable=False,
-        index=True,
     )
     embedding_model: str | None = Field(default=None, nullable=True)
 
@@ -74,17 +72,18 @@ class GoalItemMatchModel(BaseModel, table=True):
     topic_key: str | None = Field(default=None, nullable=True, index=True)
     item_time: datetime | None = Field(
         default=None,
-        sa_type=DateTime(timezone=True),
-        nullable=True,
-        index=True,
+        sa_column=Column(DateTime(timezone=True), nullable=True, index=True),
     )
     match_score: float = Field(nullable=False, index=True)
-    features_json: dict = Field(default_factory=dict, sa_type=JSON, nullable=False)
-    reasons_json: dict = Field(default_factory=dict, sa_type=JSON, nullable=False)
+    features_json: dict[str, Any] = Field(
+        default_factory=dict, sa_type=JSON, nullable=False
+    )
+    reasons_json: dict[str, Any] = Field(
+        default_factory=dict, sa_type=JSON, nullable=False
+    )
     computed_at: datetime = Field(
-        default_factory=datetime.now,
-        sa_type=DateTime(timezone=True),
-        nullable=False,
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=Column(DateTime(timezone=True), nullable=False),
     )
 
     # Composite unique constraint would be defined in migration

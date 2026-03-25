@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from sqlalchemy import JSON, Enum, Text
+from sqlalchemy import JSON, Column, Enum, Text
 from sqlmodel import Field
 
 from src.core.infrastructure.database.base_model import BaseModel
@@ -20,26 +20,30 @@ class AgentRunModel(BaseModel, table=True):
     __tablename__ = "agent_runs"
 
     trigger: AgentTrigger = Field(
-        sa_type=Enum(
-            AgentTrigger,
-            name="agenttrigger",
-            values_callable=lambda e: [i.value for i in e],
-            create_constraint=False,
+        sa_column=Column(
+            Enum(
+                AgentTrigger,
+                name="agenttrigger",
+                values_callable=lambda e: [i.value for i in e],
+                create_constraint=False,
+            ),
+            nullable=False,
+            index=True,
         ),
-        nullable=False,
-        index=True,
     )
     goal_id: str | None = Field(default=None, nullable=True, index=True)
     status: AgentRunStatus = Field(
         default=AgentRunStatus.RUNNING,
-        sa_type=Enum(
-            AgentRunStatus,
-            name="agentrunstatus",
-            values_callable=lambda e: [i.value for i in e],
-            create_constraint=False,
+        sa_column=Column(
+            Enum(
+                AgentRunStatus,
+                name="agentrunstatus",
+                values_callable=lambda e: [i.value for i in e],
+                create_constraint=False,
+            ),
+            nullable=False,
+            index=True,
         ),
-        nullable=False,
-        index=True,
     )
     plan_json: dict[str, Any] | None = Field(
         default=None,
@@ -91,13 +95,15 @@ class AgentToolCallModel(BaseModel, table=True):
     )
     status: ToolCallStatus = Field(
         default=ToolCallStatus.SUCCESS,
-        sa_type=Enum(
-            ToolCallStatus,
-            name="toolcallstatus",
-            values_callable=lambda e: [i.value for i in e],
-            create_constraint=False,
+        sa_column=Column(
+            Enum(
+                ToolCallStatus,
+                name="toolcallstatus",
+                values_callable=lambda e: [i.value for i in e],
+                create_constraint=False,
+            ),
+            nullable=False,
         ),
-        nullable=False,
     )
     latency_ms: int | None = Field(default=None, nullable=True)
 
@@ -109,13 +115,15 @@ class AgentActionLedgerModel(BaseModel, table=True):
 
     run_id: str = Field(nullable=False, index=True)
     action_type: ActionType = Field(
-        sa_type=Enum(
-            ActionType,
-            name="actiontype",
-            values_callable=lambda e: [i.value for i in e],
-            create_constraint=False,
+        sa_column=Column(
+            Enum(
+                ActionType,
+                name="actiontype",
+                values_callable=lambda e: [i.value for i in e],
+                create_constraint=False,
+            ),
+            nullable=False,
         ),
-        nullable=False,
     )
     payload_json: dict[str, Any] = Field(
         default_factory=dict,

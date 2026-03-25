@@ -22,6 +22,7 @@ from src.modules.push.application.models import (
 from src.modules.push.domain.entities import (
     BlockedSource,
     ClickEvent,
+    FeedbackType,
     ItemFeedback,
     PushChannel,
     PushStatus,
@@ -232,8 +233,10 @@ class NotificationService:
             user_id=user_id,
         )
 
+        feedback_type = FeedbackType(feedback)
+
         if existing:
-            existing.feedback = feedback
+            existing.feedback = feedback_type
             existing.block_source = block_source
             saved = await self.feedback_repo.update(existing)
         else:
@@ -242,7 +245,7 @@ class NotificationService:
                     item_id=item_id,
                     goal_id=goal_id,
                     user_id=user_id,
-                    feedback=feedback,
+                    feedback=feedback_type,
                     block_source=block_source,
                 )
             )

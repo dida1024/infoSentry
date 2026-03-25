@@ -9,17 +9,16 @@
 from __future__ import annotations
 
 import asyncio
+import builtins
 import json
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import Any, cast
 
 import redis.asyncio as aioredis
 from loguru import logger
-
-if TYPE_CHECKING:
-    from redis.asyncio import Redis
+from redis.asyncio import Redis
 
 from src.core.config import settings
 from src.core.infrastructure.health import HealthStatus, RedisHealthResult
@@ -46,7 +45,8 @@ class RedisClient:
     def client(self) -> Redis:
         """获取 Redis 客户端实例（延迟初始化）。"""
         if self._client is None:
-            self._client = aioredis.from_url(
+            redis_from_url = cast(Callable[..., Redis], aioredis.from_url)
+            self._client = redis_from_url(
                 self._url,
                 encoding="utf-8",
                 decode_responses=True,
@@ -69,7 +69,7 @@ class RedisClient:
             连接正常返回 True，否则返回 False
         """
         try:
-            return await self.client.ping()
+            return bool(await self.client.ping())
         except Exception as e:
             logger.warning(f"Redis ping failed: {e}")
             return False
@@ -134,11 +134,13 @@ class RedisClient:
                 status=HealthStatus.OK if is_connected else HealthStatus.ERROR,
                 connected=is_connected,
                 version=info.get("redis_version", "unknown"),
+                error=None,
             )
         except Exception as e:
             return RedisHealthResult(
                 status=HealthStatus.ERROR,
                 connected=False,
+                version=None,
                 error=str(e),
             )
 
@@ -146,7 +148,8 @@ class RedisClient:
 
     async def get(self, key: str) -> str | None:
         """获取字符串值。"""
-        return await self.client.get(key)
+        value = await self.client.get(key)
+        return cast(str | None, value)
 
     async def set(
         self,
@@ -166,23 +169,23 @@ class RedisClient:
         Returns:
             设置成功返回 True
         """
-        return await self.client.set(key, value, ex=ex, nx=nx)
+        return bool(await self.client.set(key, value, ex=ex, nx=nx))
 
     async def delete(self, *keys: str) -> int:
         """删除一个或多个键。"""
-        return await self.client.delete(*keys)
+        return int(await self.client.delete(*keys))
 
     async def exists(self, *keys: str) -> int:
         """检查键是否存在。"""
-        return await self.client.exists(*keys)
+        return int(await self.client.exists(*keys))
 
     async def expire(self, key: str, seconds: int) -> bool:
         """设置键的过期时间。"""
-        return await self.client.expire(key, seconds)
+        return bool(await self.client.expire(key, seconds))
 
     async def ttl(self, key: str) -> int:
         """获取键的剩余生存时间（秒）。"""
-        return await self.client.ttl(key)
+        return int(await self.client.ttl(key))
 
     # ============ JSON 操作 ============
 
@@ -206,43 +209,50 @@ class RedisClient:
 
     async def incr(self, key: str, amount: int = 1) -> int:
         """增加计数器。"""
-        return await self.client.incrby(key, amount)
+        return int(await self.client.incrby(key, amount))
 
     async def decr(self, key: str, amount: int = 1) -> int:
         """减少计数器。"""
-        return await self.client.decrby(key, amount)
+        return int(await self.client.decrby(key, amount))
 
     # ============ 列表操作 ============
 
     async def lpush(self, key: str, *values: str) -> int:
         """向列表头部插入元素。"""
-        return await self.client.lpush(key, *values)
+        client = cast(Any, self.client)
+        return int(await client.lpush(key, *values))
 
     async def rpush(self, key: str, *values: str) -> int:
         """向列表尾部插入元素。"""
-        return await self.client.rpush(key, *values)
+        client = cast(Any, self.client)
+        return int(await client.rpush(key, *values))
 
     async def lrange(self, key: str, start: int, end: int) -> list[str]:
         """获取列表指定范围的元素。"""
-        return await self.client.lrange(key, start, end)
+        client = cast(Any, self.client)
+        return [str(item) for item in await client.lrange(key, start, end)]
 
     async def llen(self, key: str) -> int:
         """获取列表长度。"""
-        return await self.client.llen(key)
+        client = cast(Any, self.client)
+        return int(await client.llen(key))
 
     # ============ 集合操作 ============
 
     async def sadd(self, key: str, *members: str) -> int:
         """向集合添加成员。"""
-        return await self.client.sadd(key, *members)
+        client = cast(Any, self.client)
+        return int(await client.sadd(key, *members))
 
-    async def smembers(self, key: str) -> set[str]:
+    async def smembers(self, key: str) -> builtins.set[str]:
         """获取集合所有成员。"""
-        return await self.client.smembers(key)
+        client = cast(Any, self.client)
+        return {str(member) for member in await client.smembers(key)}
 
     async def sismember(self, key: str, member: str) -> bool:
         """检查成员是否在集合中。"""
-        return await self.client.sismember(key, member)
+        client = cast(Any, self.client)
+        return bool(await client.sismember(key, member))
 
     # ============ 速率限制 ============
 

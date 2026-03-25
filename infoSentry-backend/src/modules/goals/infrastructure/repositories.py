@@ -63,7 +63,7 @@ class PostgreSQLGoalRepository(EventAwareRepository[Goal], GoalRepository):
         page_size: int = 20,
     ) -> tuple[list[Goal], int]:
         statement = select(
-            GoalModel, func.count(GoalModel.id).over().label("total_count")
+            GoalModel, func.count(col(GoalModel.id)).over().label("total_count")
         ).where(
             GoalModel.user_id == user_id,
             col(GoalModel.is_deleted).is_(False),
@@ -75,7 +75,7 @@ class PostgreSQLGoalRepository(EventAwareRepository[Goal], GoalRepository):
         statement = (
             statement.offset((page - 1) * page_size)
             .limit(page_size)
-            .order_by(GoalModel.created_at.desc())
+            .order_by(col(GoalModel.created_at).desc())
         )
 
         result = await self.session.execute(statement)
@@ -149,7 +149,7 @@ class PostgreSQLGoalRepository(EventAwareRepository[Goal], GoalRepository):
         include_deleted: bool = False,
     ) -> tuple[list[Goal], int]:
         statement = select(
-            GoalModel, func.count(GoalModel.id).over().label("total_count")
+            GoalModel, func.count(col(GoalModel.id)).over().label("total_count")
         )
 
         if not include_deleted:
@@ -158,7 +158,7 @@ class PostgreSQLGoalRepository(EventAwareRepository[Goal], GoalRepository):
         statement = (
             statement.offset((page - 1) * page_size)
             .limit(page_size)
-            .order_by(GoalModel.created_at.desc())
+            .order_by(col(GoalModel.created_at).desc())
         )
 
         result = await self.session.execute(statement)
@@ -211,7 +211,7 @@ class PostgreSQLGoalPushConfigRepository(
             return {}
 
         statement = select(GoalPushConfigModel).where(
-            GoalPushConfigModel.goal_id.in_(goal_ids),
+            col(GoalPushConfigModel.goal_id).in_(goal_ids),
             col(GoalPushConfigModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
@@ -319,7 +319,7 @@ class PostgreSQLGoalPriorityTermRepository(
             return {}
 
         statement = select(GoalPriorityTermModel).where(
-            GoalPriorityTermModel.goal_id.in_(goal_ids),
+            col(GoalPriorityTermModel.goal_id).in_(goal_ids),
             col(GoalPriorityTermModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
