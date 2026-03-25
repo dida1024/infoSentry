@@ -11,10 +11,10 @@ from __future__ import annotations
 import asyncio
 import builtins
 import json
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import Any, cast
 
 import redis.asyncio as aioredis
 from loguru import logger

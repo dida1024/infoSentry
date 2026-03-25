@@ -7,7 +7,7 @@
 
 import sys
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
 import structlog
 from loguru import logger

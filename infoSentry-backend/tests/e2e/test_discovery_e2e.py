@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncGenerator
-from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -23,9 +22,7 @@ from pydantic_ai.messages import ToolReturnPart
 from src.modules.agent.domain.discovery_entities import (
     CandidateSource,
     CandidateStatus,
-    DiscoverySession,
     MessageRole,
-    SessionStatus,
 )
 from tests.unit.test_discovery_session_service import (
     InMemoryDiscoveryCandidateRepository,

@@ -1,7 +1,6 @@
 """Discovery session database models."""
 
 from datetime import datetime
-
 from typing import Any
 
 from sqlalchemy import JSON, Column, DateTime, Index, Text
@@ -38,9 +37,7 @@ class DiscoveryCandidateModel(BaseModel, table=True):
     """Discovery candidate source database model."""
 
     __tablename__ = "discovery_candidates"
-    __table_args__ = (
-        Index("ix_discovery_candidates_session", "session_id"),
-    )
+    __table_args__ = (Index("ix_discovery_candidates_session", "session_id"),)
 
     session_id: str = Field(
         foreign_key="discovery_sessions.id",
@@ -50,7 +47,9 @@ class DiscoveryCandidateModel(BaseModel, table=True):
     source_type: str = Field(nullable=False, max_length=20)
     name: str = Field(nullable=False, max_length=255)
     url: str = Field(nullable=False, sa_type=Text)
-    config_json: dict[str, Any] | None = Field(default=None, sa_type=JSON, nullable=True)
+    config_json: dict[str, Any] | None = Field(
+        default=None, sa_type=JSON, nullable=True
+    )
     status: str = Field(default="discovered", nullable=False, max_length=20)
     validation_result_json: dict[str, Any] | None = Field(
         default=None, sa_type=JSON, nullable=True

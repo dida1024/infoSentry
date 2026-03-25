@@ -109,7 +109,11 @@ async def validate_source(
         )
         if not update_ok:
             return {"valid": False, "error": "候选状态更新失败: validation_success"}
-        return {**validation_result, "candidate_id": candidate.id, "_signal": "candidates_valid"}
+        return {
+            **validation_result,
+            "candidate_id": candidate.id,
+            "_signal": "candidates_valid",
+        }
     else:
         validation_result = {
             "valid": False,

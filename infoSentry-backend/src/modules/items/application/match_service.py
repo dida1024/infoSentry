@@ -55,7 +55,9 @@ class MatchFeatures:
     term_hits: int = 0  # priority_terms 命中数
     term_hit_details: list[dict[str, Any]] = field(default_factory=list)  # 命中详情
     negative_hits: int = 0  # negative_terms 命中数
-    negative_hit_details: list[dict[str, Any]] = field(default_factory=list)  # 负面命中详情
+    negative_hit_details: list[dict[str, Any]] = field(
+        default_factory=list
+    )  # 负面命中详情
     recency_score: float = 0.0  # 时效性分数 [0, 1]
     source_trust: float = 0.8  # 来源可信度 [0, 1]，默认 0.8
     # 反馈信号

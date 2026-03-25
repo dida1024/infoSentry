@@ -1,4 +1,3 @@
 from typing import Any
 
-
 def parse(data: str) -> Any: ...

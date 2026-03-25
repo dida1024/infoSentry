@@ -5,10 +5,8 @@ Tests use mocks for external deps (HTTP, catalog, repositories, fetchers).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
 import socket
-from typing import Any
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -21,8 +19,7 @@ from src.modules.agent.domain.discovery_entities import (
     SessionStatus,
 )
 from src.modules.sources.domain.catalog import NewsNowCatalog, NewsNowCatalogSource
-from src.modules.sources.domain.entities import SourceType
-from src.modules.sources.domain.fetcher import FetchResult, FetchStatus, FetchedItem
+from src.modules.sources.domain.fetcher import FetchedItem, FetchResult, FetchStatus
 
 pytestmark = pytest.mark.anyio
 
@@ -53,7 +50,9 @@ def _make_ctx(
 
     # Source repository
     source_repository = AsyncMock()
-    source_repository.exists_by_config_url = AsyncMock(return_value=exists_by_config_url)
+    source_repository.exists_by_config_url = AsyncMock(
+        return_value=exists_by_config_url
+    )
     source_repository.exists_by_name = AsyncMock(return_value=exists_by_name)
     source_repository.delete = AsyncMock(return_value=True)
 
@@ -77,11 +76,13 @@ def _make_ctx(
     # HTTP client mock
     http_client = AsyncMock(spec=httpx.AsyncClient)
     if http_responses:
-        async def mock_get(url, **kwargs):
+
+        async def mock_get(url, **_kwargs):
             for pattern, resp in http_responses.items():
                 if pattern in url:
                     return resp
             return httpx.Response(404, text="Not found")
+
         http_client.get = mock_get
 
     # Candidate repository
@@ -139,10 +140,16 @@ class TestSearchCatalog:
             search_catalog,
         )
 
-        ctx = _make_ctx(catalog_sources=[
-            _make_catalog_source(source_id="github", name="GitHub", title="GitHub Trending"),
-            _make_catalog_source(source_id="hackernews", name="Hacker News", title="HN"),
-        ])
+        ctx = _make_ctx(
+            catalog_sources=[
+                _make_catalog_source(
+                    source_id="github", name="GitHub", title="GitHub Trending"
+                ),
+                _make_catalog_source(
+                    source_id="hackernews", name="Hacker News", title="HN"
+                ),
+            ]
+        )
         result = await search_catalog(ctx, keywords=["github"])
         assert result["found"] == 1
         assert result["matches"][0]["source_id"] == "github"
@@ -152,9 +159,11 @@ class TestSearchCatalog:
             search_catalog,
         )
 
-        ctx = _make_ctx(catalog_sources=[
-            _make_catalog_source(source_id="tech", name="Tech", title="科技新闻"),
-        ])
+        ctx = _make_ctx(
+            catalog_sources=[
+                _make_catalog_source(source_id="tech", name="Tech", title="科技新闻"),
+            ]
+        )
         result = await search_catalog(ctx, keywords=["科技"])
         assert result["found"] == 1
 
@@ -163,9 +172,11 @@ class TestSearchCatalog:
             search_catalog,
         )
 
-        ctx = _make_ctx(catalog_sources=[
-            _make_catalog_source(name="Unrelated"),
-        ])
+        ctx = _make_ctx(
+            catalog_sources=[
+                _make_catalog_source(name="Unrelated"),
+            ]
+        )
         result = await search_catalog(ctx, keywords=["房产"])
         assert result["found"] == 0
 
@@ -174,9 +185,11 @@ class TestSearchCatalog:
             search_catalog,
         )
 
-        ctx = _make_ctx(catalog_sources=[
-            _make_catalog_source(name="GitHub", disable=True),
-        ])
+        ctx = _make_ctx(
+            catalog_sources=[
+                _make_catalog_source(name="GitHub", disable=True),
+            ]
+        )
         result = await search_catalog(ctx, keywords=["github"])
         assert result["found"] == 0
 
@@ -226,7 +239,11 @@ class TestWebSearch:
         ctx = _make_ctx(web_search_api_key="test-key")
         mock_response = {
             "results": [
-                {"url": "https://example.com", "title": "Example", "content": "Test content"},
+                {
+                    "url": "https://example.com",
+                    "title": "Example",
+                    "content": "Test content",
+                },
             ]
         }
         with patch("tavily.AsyncTavilyClient") as MockClient:
@@ -353,7 +370,8 @@ class TestRedirectSafeSsrf:
         final_resp = httpx.Response(200, text="<rss>ok</rss>")
 
         call_count = 0
-        async def mock_get(url, **kwargs):
+
+        async def mock_get(_url, **_kwargs):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -486,7 +504,9 @@ class TestValidateSource:
         )
 
         ctx = _make_ctx()
-        result = await validate_source(ctx, name="Test", source_type="INVALID", config={}, url="https://x.com")
+        result = await validate_source(
+            ctx, name="Test", source_type="INVALID", config={}, url="https://x.com"
+        )
         assert result["valid"] is False
         assert "不支持" in result["error"]
 
@@ -510,9 +530,12 @@ class TestValidateSource:
         ctx.deps.create_fetcher = MagicMock(return_value=mock_fetcher)
 
         result = await validate_source(
-            ctx, name="Test RSS", source_type="RSS",
+            ctx,
+            name="Test RSS",
+            source_type="RSS",
             config={"feed_url": "https://example.com/rss"},
-            url="https://example.com/rss", discovered_via="rss_probe",
+            url="https://example.com/rss",
+            discovered_via="rss_probe",
         )
 
         assert result["valid"] is True
@@ -530,7 +553,9 @@ class TestValidateSource:
         mock_fetcher.validate_config.return_value = (False, "Missing feed_url")
         ctx.deps.create_fetcher = MagicMock(return_value=mock_fetcher)
 
-        result = await validate_source(ctx, name="Bad", source_type="RSS", config={}, url="https://bad.com")
+        result = await validate_source(
+            ctx, name="Bad", source_type="RSS", config={}, url="https://bad.com"
+        )
 
         assert result["valid"] is False
         assert "配置无效" in result["error"]
@@ -552,8 +577,11 @@ class TestValidateSource:
         ctx.deps.create_fetcher = MagicMock(return_value=mock_fetcher)
 
         result = await validate_source(
-            ctx, name="Timeout", source_type="RSS",
-            config={"feed_url": "https://bad.com/rss"}, url="https://bad.com/rss",
+            ctx,
+            name="Timeout",
+            source_type="RSS",
+            config={"feed_url": "https://bad.com/rss"},
+            url="https://bad.com/rss",
         )
 
         assert result["valid"] is False
@@ -633,7 +661,10 @@ class TestAddSource:
 
         ctx = _make_ctx(exists_by_name=True)
         result = await add_source(
-            ctx, name="Existing", source_type="RSS", config={"feed_url": "https://x.com/rss"}
+            ctx,
+            name="Existing",
+            source_type="RSS",
+            config={"feed_url": "https://x.com/rss"},
         )
         assert result["success"] is False
         assert "已存在" in result["error"]
@@ -645,7 +676,10 @@ class TestAddSource:
 
         ctx = _make_ctx(exists_by_config_url=True)
         result = await add_source(
-            ctx, name="New", source_type="RSS", config={"feed_url": "https://dup.com/rss"}
+            ctx,
+            name="New",
+            source_type="RSS",
+            config={"feed_url": "https://dup.com/rss"},
         )
         assert result["success"] is False
         assert "已存在" in result["error"]
@@ -770,9 +804,12 @@ class TestSignalField:
         ctx.deps.create_fetcher = MagicMock(return_value=mock_fetcher)
 
         result = await validate_source(
-            ctx, name="Test", source_type="RSS",
+            ctx,
+            name="Test",
+            source_type="RSS",
             config={"feed_url": "https://x.com/rss"},
-            url="https://x.com/rss", discovered_via="rss_probe",
+            url="https://x.com/rss",
+            discovered_via="rss_probe",
         )
 
         assert result["_signal"] == "candidates_valid"
@@ -791,7 +828,9 @@ class TestSignalField:
         ctx.deps.create_fetcher = MagicMock(return_value=mock_fetcher)
 
         result = await validate_source(
-            ctx, name="Bad", source_type="RSS",
+            ctx,
+            name="Bad",
+            source_type="RSS",
             config={"feed_url": "https://bad.com/rss"},
             url="https://bad.com/rss",
         )
@@ -808,12 +847,12 @@ class TestExpireFullCoverage:
     """Verify expire scans beyond first 100."""
 
     async def test_expires_beyond_first_page(self):
+        from src.modules.agent.application.discovery.session_service import (
+            DiscoverySessionService,
+        )
         from tests.unit.test_discovery_session_service import (
             InMemoryDiscoveryCandidateRepository,
             InMemoryDiscoverySessionRepository,
-        )
-        from src.modules.agent.application.discovery.session_service import (
-            DiscoverySessionService,
         )
 
         session_repo = InMemoryDiscoverySessionRepository()

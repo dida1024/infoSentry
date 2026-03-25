@@ -265,7 +265,8 @@ class PostgreSQLMagicLinkRepository(
         include_deleted: bool = False,
     ) -> tuple[list[MagicLink], int]:
         statement = select(
-            MagicLinkModel, func.count(col(MagicLinkModel.id)).over().label("total_count")
+            MagicLinkModel,
+            func.count(col(MagicLinkModel.id)).over().label("total_count"),
         )
 
         if not include_deleted:

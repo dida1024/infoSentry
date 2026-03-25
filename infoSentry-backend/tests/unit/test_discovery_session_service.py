@@ -9,7 +9,6 @@ Tests:
 """
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 import pytest
 
@@ -69,9 +68,7 @@ class InMemoryDiscoverySessionRepository(DiscoverySessionRepository):
         include_deleted: bool = False,
     ) -> tuple[list[DiscoverySession], int]:
         items = [
-            s
-            for s in self._sessions.values()
-            if include_deleted or not s.is_deleted
+            s for s in self._sessions.values() if include_deleted or not s.is_deleted
         ]
         total = len(items)
         start = (page - 1) * page_size
@@ -94,13 +91,15 @@ class InMemoryDiscoverySessionRepository(DiscoverySessionRepository):
         return items[start : start + page_size], total
 
     async def count_active_by_user(self, user_id: str) -> int:
-        terminal = {SessionStatus.COMPLETED, SessionStatus.FAILED, SessionStatus.EXPIRED}
+        terminal = {
+            SessionStatus.COMPLETED,
+            SessionStatus.FAILED,
+            SessionStatus.EXPIRED,
+        }
         return sum(
             1
             for s in self._sessions.values()
-            if s.user_id == user_id
-            and not s.is_deleted
-            and s.status not in terminal
+            if s.user_id == user_id and not s.is_deleted and s.status not in terminal
         )
 
 
@@ -138,9 +137,7 @@ class InMemoryDiscoveryCandidateRepository(DiscoveryCandidateRepository):
         return items, len(items)
 
     async def list_by_session(self, session_id: str) -> list[CandidateSource]:
-        return [
-            c for c in self._candidates.values() if c.session_id == session_id
-        ]
+        return [c for c in self._candidates.values() if c.session_id == session_id]
 
 
 # ============================================
@@ -174,9 +171,7 @@ def service(
 class TestCreateSession:
     """Test session creation."""
 
-    async def test_create_session_success(
-        self, service: DiscoverySessionService
-    ):
+    async def test_create_session_success(self, service: DiscoverySessionService):
         session = await service.create_session("user-1", "深圳房产消息")
         assert session.user_id == "user-1"
         assert session.initial_query == "深圳房产消息"
@@ -195,7 +190,9 @@ class TestCreateSession:
             await service.create_session("user-1", "Second query")
 
     async def test_create_after_completed_session(
-        self, service: DiscoverySessionService, session_repo: InMemoryDiscoverySessionRepository
+        self,
+        service: DiscoverySessionService,
+        session_repo: InMemoryDiscoverySessionRepository,
     ):
         """User can create new session after previous one completes."""
         s1 = await service.create_session("user-1", "First query")
@@ -222,24 +219,18 @@ class TestCreateSession:
 class TestGetSession:
     """Test session retrieval with ownership."""
 
-    async def test_get_session_success(
-        self, service: DiscoverySessionService
-    ):
+    async def test_get_session_success(self, service: DiscoverySessionService):
         created = await service.create_session("user-1", "Test")
         result = await service.get_session(created.id, "user-1")
         assert result is not None
         assert result.id == created.id
 
-    async def test_get_session_wrong_user(
-        self, service: DiscoverySessionService
-    ):
+    async def test_get_session_wrong_user(self, service: DiscoverySessionService):
         created = await service.create_session("user-1", "Test")
         result = await service.get_session(created.id, "user-2")
         assert result is None
 
-    async def test_get_session_not_found(
-        self, service: DiscoverySessionService
-    ):
+    async def test_get_session_not_found(self, service: DiscoverySessionService):
         result = await service.get_session("nonexistent-id", "user-1")
         assert result is None
 
@@ -273,9 +264,7 @@ class TestAddUserMessage:
         updated = await service.add_user_message(session.id, "user-1", "确认添加")
         assert updated.status == SessionStatus.ACTIVE
 
-    async def test_add_message_wrong_user(
-        self, service: DiscoverySessionService
-    ):
+    async def test_add_message_wrong_user(self, service: DiscoverySessionService):
         session = await service.create_session("user-1", "Test")
         with pytest.raises(ValueError, match="Session not found"):
             await service.add_user_message(session.id, "user-2", "Hello")
@@ -369,9 +358,7 @@ class TestExpireStaleSessions:
         count = await service.expire_stale_sessions()
         assert count == 0
 
-    async def test_no_expire_non_stale_session(
-        self, service: DiscoverySessionService
-    ):
+    async def test_no_expire_non_stale_session(self, service: DiscoverySessionService):
         await service.create_session("user-1", "Test")
         count = await service.expire_stale_sessions()
         assert count == 0

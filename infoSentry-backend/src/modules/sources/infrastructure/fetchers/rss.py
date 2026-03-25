@@ -337,9 +337,7 @@ class RSSFetcher(BaseFetcher):
             parsed = getattr(entry, field, None)
             if parsed:
                 try:
-                    return datetime.fromtimestamp(
-                        calendar.timegm(parsed[:6]), tz=UTC
-                    )
+                    return datetime.fromtimestamp(calendar.timegm(parsed[:6]), tz=UTC)
                 except Exception as e:
                     logger.debug(f"Failed to parse {field}: {e}")
 

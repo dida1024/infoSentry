@@ -66,9 +66,7 @@ class DiscoverySession(BaseEntity):
     messages: list[SessionMessage] = Field(
         default_factory=list, description="Full conversation history"
     )
-    expires_at: datetime | None = Field(
-        default=None, description="Session expiry time"
-    )
+    expires_at: datetime | None = Field(default=None, description="Session expiry time")
 
     def transition_to(self, new_status: SessionStatus) -> None:
         """Transition session to a new status with validation."""

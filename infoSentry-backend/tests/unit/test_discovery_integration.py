@@ -12,8 +12,6 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src.modules.agent.domain.discovery_entities import (
-    DiscoverySession,
-    MessageRole,
     SessionStatus,
 )
 from tests.unit.test_discovery_session_service import (
@@ -137,7 +135,7 @@ class TestSessionLifecycle:
             "/api/v1/discovery/sessions",
             json={"query": "Query 1"},
         )
-        session_id = resp1.json()["data"]["id"]
+        _ = resp1.json()["data"]["id"]
 
         # Complete the first session manually via repo
         # (need to go through the send_message flow to keep it simple)

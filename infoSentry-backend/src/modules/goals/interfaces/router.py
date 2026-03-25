@@ -83,11 +83,7 @@ router = APIRouter(prefix="/goals", tags=["goals"])
 
 
 def _to_goal_response(goal: GoalData) -> GoalResponse:
-    stats = (
-        None
-        if goal.stats is None
-        else GoalStatsResponse(**goal.stats.model_dump())
-    )
+    stats = None if goal.stats is None else GoalStatsResponse(**goal.stats.model_dump())
     return GoalResponse(
         id=goal.id,
         name=goal.name,

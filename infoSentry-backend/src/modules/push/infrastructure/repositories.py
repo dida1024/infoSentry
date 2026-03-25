@@ -119,7 +119,9 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
         since: datetime | None = None,
     ) -> tuple[list[PushDecisionRecord], int]:
         """List decisions by goal."""
-        conditions: list[ColumnElement[bool]] = [col(PushDecisionModel.goal_id) == goal_id]
+        conditions: list[ColumnElement[bool]] = [
+            col(PushDecisionModel.goal_id) == goal_id
+        ]
 
         if status:
             conditions.append(col(PushDecisionModel.status) == status)
@@ -129,7 +131,9 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
             conditions.append(col(PushDecisionModel.decided_at) >= since)
 
         # Count query
-        count_stmt = select(func.count(col(PushDecisionModel.id))).where(and_(*conditions))
+        count_stmt = select(func.count(col(PushDecisionModel.id))).where(
+            and_(*conditions)
+        )
         count_result = await self.session.execute(count_stmt)
         total = count_result.scalar() or 0
 
@@ -252,13 +256,17 @@ class PostgreSQLPushDecisionRepository(PushDecisionRepository):
         if not goal_ids:
             return [], 0
 
-        conditions: list[ColumnElement[bool]] = [col(PushDecisionModel.goal_id).in_(goal_ids)]
+        conditions: list[ColumnElement[bool]] = [
+            col(PushDecisionModel.goal_id).in_(goal_ids)
+        ]
 
         if status:
             conditions.append(col(PushDecisionModel.status) == status)
 
         # Count query
-        count_stmt = select(func.count(col(PushDecisionModel.id))).where(and_(*conditions))
+        count_stmt = select(func.count(col(PushDecisionModel.id))).where(
+            and_(*conditions)
+        )
         count_result = await self.session.execute(count_stmt)
         total = count_result.scalar() or 0
 
@@ -376,7 +384,9 @@ class PostgreSQLClickEventRepository(ClickEventRepository):
         since: datetime | None = None,
     ) -> int:
         """Count clicks for a goal."""
-        conditions: list[ColumnElement[bool]] = [col(ClickEventModel.goal_id) == goal_id]
+        conditions: list[ColumnElement[bool]] = [
+            col(ClickEventModel.goal_id) == goal_id
+        ]
         if since:
             conditions.append(col(ClickEventModel.clicked_at) >= since)
 
@@ -627,7 +637,9 @@ class PostgreSQLBlockedSourceRepository(BlockedSourceRepository):
         goal_id: str | None = None,
     ) -> list[BlockedSource]:
         """List blocked sources for user."""
-        conditions: list[ColumnElement[bool]] = [col(BlockedSourceModel.user_id) == user_id]
+        conditions: list[ColumnElement[bool]] = [
+            col(BlockedSourceModel.user_id) == user_id
+        ]
 
         if goal_id:
             conditions.append(

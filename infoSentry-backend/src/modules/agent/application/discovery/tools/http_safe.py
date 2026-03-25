@@ -90,6 +90,7 @@ async def safe_get(
             # Resolve relative redirects
             if not location.startswith(("http://", "https://")):
                 from urllib.parse import urljoin
+
                 location = urljoin(current_url, location)
             logger.debug(f"Redirect {current_url} -> {location}")
             current_url = location

@@ -1,7 +1,6 @@
 class Exchange:
     def __init__(self, name: str, type: str = ...) -> None: ...
 
-
 class Queue:
     def __init__(
         self,

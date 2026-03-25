@@ -4,7 +4,7 @@ import inspect
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
-from typing import Protocol, TypeVar, cast
+from typing import Protocol, TypeVar
 from uuid import uuid4
 
 from loguru import logger

@@ -81,7 +81,9 @@ async def run_discovery_stream(
 
     prompt = user_messages[-1].content
 
-    async with httpx.AsyncClient(timeout=settings.DISCOVERY_PROBE_TIMEOUT_SEC) as http_client:
+    async with httpx.AsyncClient(
+        timeout=settings.DISCOVERY_PROBE_TIMEOUT_SEC
+    ) as http_client:
         deps = DiscoveryDeps(
             catalog_provider=catalog_provider,
             create_fetcher=create_fetcher,
@@ -127,7 +129,9 @@ async def run_discovery_stream(
                             delta = event.delta.content_delta
                             if delta:
                                 accumulated_text += delta
-                                yield _sse_event("agent_message", {"content": delta, "delta": True})
+                                yield _sse_event(
+                                    "agent_message", {"content": delta, "delta": True}
+                                )
 
                     elif isinstance(event, FunctionToolCallEvent):
                         tool_call_count += 1
@@ -135,15 +139,25 @@ async def run_discovery_stream(
                         log.debug("Tool call", tool=tool_name, count=tool_call_count)
 
                         if tool_call_count > settings.DISCOVERY_AGENT_MAX_TOOL_CALLS:
-                            log.warning("Tool call limit exceeded", limit=settings.DISCOVERY_AGENT_MAX_TOOL_CALLS)
-                            yield _sse_event("error", {
-                                "message": f"工具调用次数超限 ({settings.DISCOVERY_AGENT_MAX_TOOL_CALLS})",
-                                "recoverable": False,
-                            })
+                            log.warning(
+                                "Tool call limit exceeded",
+                                limit=settings.DISCOVERY_AGENT_MAX_TOOL_CALLS,
+                            )
+                            yield _sse_event(
+                                "error",
+                                {
+                                    "message": f"工具调用次数超限 ({settings.DISCOVERY_AGENT_MAX_TOOL_CALLS})",
+                                    "recoverable": False,
+                                },
+                            )
                             break
 
                         try:
-                            args = json.loads(event.part.args) if isinstance(event.part.args, str) else event.part.args
+                            args = (
+                                json.loads(event.part.args)
+                                if isinstance(event.part.args, str)
+                                else event.part.args
+                            )
                         except (json.JSONDecodeError, TypeError):
                             args = str(event.part.args)
 
@@ -153,7 +167,9 @@ async def run_discovery_stream(
                         content = event.content
                         summary = str(content)[:500] if content else ""
                         tool_id = event.tool_call_id or ""
-                        yield _sse_event("tool_result", {"tool_call_id": tool_id, "summary": summary})
+                        yield _sse_event(
+                            "tool_result", {"tool_call_id": tool_id, "summary": summary}
+                        )
 
                         # Track business events via structured _signal field
                         # Tools return {"_signal": "candidates_valid"} or {"_signal": "source_added"}
@@ -162,7 +178,11 @@ async def run_discovery_stream(
                         elif isinstance(content, str):
                             try:
                                 parsed_content = json.loads(content)
-                                signal = parsed_content.get("_signal") if isinstance(parsed_content, dict) else None
+                                signal = (
+                                    parsed_content.get("_signal")
+                                    if isinstance(parsed_content, dict)
+                                    else None
+                                )
                             except (json.JSONDecodeError, TypeError):
                                 signal = None
                         else:
@@ -188,10 +208,13 @@ async def run_discovery_stream(
                         attempt=attempt,
                         error=str(e),
                     )
-                    yield _sse_event("agent_message", {
-                        "content": "正在重试...",
-                        "delta": True,
-                    })
+                    yield _sse_event(
+                        "agent_message",
+                        {
+                            "content": "正在重试...",
+                            "delta": True,
+                        },
+                    )
                     continue
                 # Final attempt failed
                 break
@@ -223,10 +246,13 @@ async def run_discovery_stream(
             except ValueError:
                 pass
             await session_repo.update(session)
-            yield _sse_event("error", {
-                "message": f"Agent 执行出错: {type(last_error).__name__}",
-                "recoverable": False,
-            })
+            yield _sse_event(
+                "error",
+                {
+                    "message": f"Agent 执行出错: {type(last_error).__name__}",
+                    "recoverable": False,
+                },
+            )
             return
 
         # Turn complete — save agent response

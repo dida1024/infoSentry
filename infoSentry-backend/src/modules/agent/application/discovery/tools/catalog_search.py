@@ -35,12 +35,14 @@ async def search_catalog(
                 source_type=SourceType.NEWSNOW,
                 url=src.source_id,
             )
-            matches.append({
-                "source_id": src.source_id,
-                "name": src.name,
-                "title": src.title,
-                "already_exists": already_exists,
-            })
+            matches.append(
+                {
+                    "source_id": src.source_id,
+                    "name": src.name,
+                    "title": src.title,
+                    "already_exists": already_exists,
+                }
+            )
         if len(matches) >= 10:
             break
 

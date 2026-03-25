@@ -170,10 +170,14 @@ class PostgreSQLDiscoverySessionRepository(
         return self.mapper.to_domain_list(models), total_count
 
     async def count_active_by_user(self, user_id: str) -> int:
-        statement = select(func.count()).select_from(DiscoverySessionModel).where(
-            DiscoverySessionModel.user_id == user_id,
-            col(DiscoverySessionModel.is_deleted).is_(False),
-            col(DiscoverySessionModel.status).notin_(_TERMINAL_STATUSES),
+        statement = (
+            select(func.count())
+            .select_from(DiscoverySessionModel)
+            .where(
+                DiscoverySessionModel.user_id == user_id,
+                col(DiscoverySessionModel.is_deleted).is_(False),
+                col(DiscoverySessionModel.status).notin_(_TERMINAL_STATUSES),
+            )
         )
         result = await self.session.execute(statement)
         return result.scalar_one()

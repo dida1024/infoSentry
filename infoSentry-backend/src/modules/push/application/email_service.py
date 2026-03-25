@@ -74,9 +74,7 @@ class SMTPProvider:
             context = ssl.create_default_context()
             return smtplib.SMTP_SSL(self.host, self.port, context=context)
         else:
-            server: smtplib.SMTP | smtplib.SMTP_SSL = smtplib.SMTP(
-                self.host, self.port
-            )
+            server: smtplib.SMTP | smtplib.SMTP_SSL = smtplib.SMTP(self.host, self.port)
             if self.use_tls:
                 context = ssl.create_default_context()
                 server.starttls(context=context)

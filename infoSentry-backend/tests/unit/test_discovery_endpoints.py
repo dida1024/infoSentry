@@ -88,9 +88,7 @@ async def client(
         lambda: mock_candidate_repo
     )
     # SSE stream endpoint needs these additional overrides
-    app.dependency_overrides[get_discovery_session_repository] = (
-        lambda: AsyncMock()
-    )
+    app.dependency_overrides[get_discovery_session_repository] = lambda: AsyncMock()
     app.dependency_overrides[get_source_repository] = lambda: AsyncMock()
     app.dependency_overrides[get_create_source_handler] = lambda: AsyncMock()
     app.dependency_overrides[get_subscribe_source_handler] = lambda: AsyncMock()
@@ -115,9 +113,7 @@ async def client(
 class TestCreateSessionEndpoint:
     """POST /api/v1/discovery/sessions"""
 
-    async def test_create_session_201(
-        self, client: AsyncClient, mock_session_service
-    ):
+    async def test_create_session_201(self, client: AsyncClient, mock_session_service):
         session = _make_session()
         mock_session_service.create_session = AsyncMock(return_value=session)
 
@@ -181,9 +177,7 @@ class TestGetSessionEndpoint:
         assert body["data"]["id"] == session.id
         assert len(body["data"]["messages"]) == 1
 
-    async def test_get_session_404(
-        self, client: AsyncClient, mock_session_service
-    ):
+    async def test_get_session_404(self, client: AsyncClient, mock_session_service):
         mock_session_service.get_session = AsyncMock(return_value=None)
 
         resp = await client.get("/api/v1/discovery/sessions/nonexistent")
@@ -198,9 +192,7 @@ class TestGetSessionEndpoint:
 class TestStreamSessionEndpoint:
     """GET /api/v1/discovery/sessions/{session_id}/stream"""
 
-    async def test_stream_404(
-        self, client: AsyncClient, mock_session_service
-    ):
+    async def test_stream_404(self, client: AsyncClient, mock_session_service):
         mock_session_service.get_session = AsyncMock(return_value=None)
 
         resp = await client.get("/api/v1/discovery/sessions/nonexistent/stream")
@@ -224,9 +216,7 @@ class TestStreamSessionEndpoint:
 class TestSendMessageEndpoint:
     """POST /api/v1/discovery/sessions/{session_id}/messages"""
 
-    async def test_send_message_200(
-        self, client: AsyncClient, mock_session_service
-    ):
+    async def test_send_message_200(self, client: AsyncClient, mock_session_service):
         session = _make_session()
         mock_session_service.add_user_message = AsyncMock(return_value=session)
 
@@ -258,14 +248,10 @@ class TestSendMessageEndpoint:
 class TestListSessionsEndpoint:
     """GET /api/v1/discovery/sessions"""
 
-    async def test_list_sessions_200(
-        self, client: AsyncClient, mock_session_service
-    ):
+    async def test_list_sessions_200(self, client: AsyncClient, mock_session_service):
         s1 = _make_session(query="Query 1")
         s2 = _make_session(query="Query 2", status=SessionStatus.COMPLETED)
-        mock_session_service.list_sessions = AsyncMock(
-            return_value=([s1, s2], 2)
-        )
+        mock_session_service.list_sessions = AsyncMock(return_value=([s1, s2], 2))
 
         resp = await client.get("/api/v1/discovery/sessions")
         assert resp.status_code == 200
@@ -273,9 +259,7 @@ class TestListSessionsEndpoint:
         assert body["meta"]["total"] == 2
         assert len(body["data"]) == 2
 
-    async def test_list_sessions_empty(
-        self, client: AsyncClient, mock_session_service
-    ):
+    async def test_list_sessions_empty(self, client: AsyncClient, mock_session_service):
         mock_session_service.list_sessions = AsyncMock(return_value=([], 0))
 
         resp = await client.get("/api/v1/discovery/sessions")

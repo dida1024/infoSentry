@@ -8,10 +8,10 @@
 from datetime import UTC, datetime, timedelta
 
 from celery import shared_task
-from kombu.exceptions import OperationalError
 from loguru import logger
 from redis.exceptions import RedisError
 
+from kombu.exceptions import OperationalError
 from src.core.config import settings
 from src.core.infrastructure.celery.queues import Queues
 from src.core.infrastructure.celery.retry import DEFAULT_RETRYABLE_EXCEPTIONS

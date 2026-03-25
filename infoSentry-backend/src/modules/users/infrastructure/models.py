@@ -61,7 +61,9 @@ class DeviceSessionModel(BaseModel, table=True):
     user_id: str = Field(nullable=False, index=True)
     refresh_token_hash: str = Field(nullable=False, index=True, unique=True)
     device_id: str = Field(nullable=False, index=True)
-    user_agent: str | None = Field(default=None, sa_column=Column(Text(), nullable=True))
+    user_agent: str | None = Field(
+        default=None, sa_column=Column(Text(), nullable=True)
+    )
     ip_address: str | None = Field(default=None, nullable=True)
     expires_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False),

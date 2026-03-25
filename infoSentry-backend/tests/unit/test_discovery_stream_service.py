@@ -56,7 +56,10 @@ class TestRunDiscoveryStream:
                     result=ToolReturnPart(
                         tool_name="validate_source",
                         tool_call_id="call-1",
-                        content={"_signal": "candidates_valid", "candidate_id": "cand-1"},
+                        content={
+                            "_signal": "candidates_valid",
+                            "candidate_id": "cand-1",
+                        },
                     ),
                     content={"_signal": "candidates_valid", "candidate_id": "cand-1"},
                 ),

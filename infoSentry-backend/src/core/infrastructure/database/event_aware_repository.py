@@ -1,6 +1,6 @@
 """Event-aware repository base class."""
 
-from typing import Generic, Protocol, TypeVar
+from typing import Protocol
 
 from src.core.domain.events import DomainEvent, EventBus
 
@@ -10,10 +10,7 @@ class EventSourcedEntity(Protocol):
     def clear_domain_events(self) -> None: ...
 
 
-T = TypeVar("T", bound=EventSourcedEntity)
-
-
-class EventAwareRepository(Generic[T]):
+class EventAwareRepository[T: EventSourcedEntity]:
     """Repository base class that publishes domain events after persistence operations."""
 
     def __init__(self, event_publisher: EventBus) -> None:

@@ -102,6 +102,10 @@ class IngestLogModel(BaseModel, table=True):
     items_fetched: int = Field(default=0, nullable=False)
     items_new: int = Field(default=0, nullable=False)
     items_duplicate: int = Field(default=0, nullable=False)
-    error_message: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    error_message: str | None = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
     duration_ms: int | None = Field(default=None, nullable=True)
-    metadata_json: dict[str, Any] | None = Field(default=None, sa_type=JSON, nullable=True)
+    metadata_json: dict[str, Any] | None = Field(
+        default=None, sa_type=JSON, nullable=True
+    )

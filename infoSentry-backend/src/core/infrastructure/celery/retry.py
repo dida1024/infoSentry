@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from kombu.exceptions import OperationalError as KombuOperationalError
 from redis.exceptions import RedisError
 from sqlalchemy.exc import SQLAlchemyError
 
+from kombu.exceptions import OperationalError as KombuOperationalError
 from src.core.infrastructure.redis.client import RedisUnavailableError
 
 
