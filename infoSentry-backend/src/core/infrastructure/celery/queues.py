@@ -10,6 +10,8 @@
 
 from src.core.domain.queues import Queues
 
+__all__ = ["Queues", "TASK_ROUTES", "QUEUE_PRIORITIES"]
+
 # 队列路由配置
 # 任务名称模式 -> 队列（使用字符串值）
 TASK_ROUTES = {

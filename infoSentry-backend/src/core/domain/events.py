@@ -146,7 +146,7 @@ def subscribe_to_event(
             async def handle(self, event: DomainEvent) -> None:
                 result = handler_func(event)
                 if inspect.isawaitable(result):
-                    await cast(Awaitable[None], result)
+                    await result
 
         get_event_bus().subscribe(event_type, FunctionHandler())
         return handler_func

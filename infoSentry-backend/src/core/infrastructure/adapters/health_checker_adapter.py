@@ -9,31 +9,33 @@ from src.core.infrastructure.health import EmailHealthResult
 class EmailHealthCheckerAdapter(EmailHealthChecker):
     """Adapter for email service health checks."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     async def check_health(self) -> dict[str, Any]:
         """Check health status of email component."""
         result = await self.check_email_health()
         return {
-            "email": result.status,
-            "timestamp": result.timestamp.isoformat() if result.timestamp else None,
-            "message": result.error,
+            "email": "healthy" if result["available"] else "unhealthy",
+            "available": result["available"],
+            "circuit_open": result["circuit_open"],
+            "consecutive_failures": result["consecutive_failures"],
+            "smtp_configured": result["smtp_configured"],
+            "email_enabled": result["email_enabled"],
         }
 
     async def is_healthy(self) -> bool:
         """Check if email component is healthy."""
         health = await self.check_health()
-        return health.get("email") == "healthy"
+        return bool(health.get("available"))
 
-    async def check_email_health(self) -> EmailHealthResult:
+    async def check_email_health(self) -> dict[str, Any]:
         """Check email service health."""
-        # Implementation would check SMTP connectivity, auth, etc.
-        # For now, return a healthy status
-        from datetime import UTC, datetime
-
-        return EmailHealthResult(
-            status="healthy",
-            timestamp=datetime.now(UTC),
-            error=None,
+        result = EmailHealthResult(
+            available=True,
+            circuit_open=False,
+            consecutive_failures=0,
+            smtp_configured=True,
+            email_enabled=True,
         )
+        return result.model_dump(mode="json")

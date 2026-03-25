@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
-from typing import Final
+from typing import Any, Final, cast
 
 import structlog
 from openai import AsyncOpenAI
@@ -160,10 +160,10 @@ class GoalDraftService:
         """调用 LLM API。"""
         response = await self.client.chat.completions.create(
             model=settings.OPENAI_JUDGE_MODEL,
-            messages=list(messages),
+            messages=cast(Any, list(messages)),
             temperature=0.4,
             max_tokens=300,
-            response_format={"type": "json_object"},
+            response_format=cast(Any, {"type": "json_object"}),
         )
         content = response.choices[0].message.content or ""
         tokens_used = response.usage.total_tokens if response.usage else 0

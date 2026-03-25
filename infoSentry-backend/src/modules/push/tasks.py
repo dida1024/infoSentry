@@ -409,11 +409,11 @@ async def _add_to_immediate_buffer_async(goal_id: str, decision_id: str) -> None
         current_size = await redis_client.llen(buffer_key)
         if current_size >= settings.IMMEDIATE_MAX_ITEMS:
             logger.info(f"Immediate buffer full for goal {goal_id}")
-            return False
+            return
 
         await redis_client.rpush(buffer_key, decision_id)
         await redis_client.expire(buffer_key, 600)
         logger.debug(
             f"Added decision {decision_id} to immediate buffer for goal {goal_id}"
         )
-        return True
+        return

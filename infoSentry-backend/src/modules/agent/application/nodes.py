@@ -14,7 +14,7 @@ import math
 import re
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import structlog
 from loguru import logger
@@ -144,7 +144,7 @@ class RuleGateNode(BaseNode):
         logger.debug(f"RuleGate: Passed for item {state.item.item_id}")
         return state
 
-    def _get_searchable_text(self, item) -> str:
+    def _get_searchable_text(self, item: Any) -> str:
         """获取可搜索文本。"""
         parts = [item.title]
         if item.snippet:
@@ -312,7 +312,7 @@ class BoundaryJudgeNode(BaseNode):
             user_id=state.goal.user_id if state.goal else None,
         )
 
-        return result
+        return cast("BoundaryJudgeOutput | None", result)
 
 
 class CoalesceNode(BaseNode):
@@ -325,7 +325,11 @@ class CoalesceNode(BaseNode):
 
     name = "coalesce"
 
-    def __init__(self, tools: ToolRegistry | None = None, redis_client=None):
+    def __init__(
+        self,
+        tools: ToolRegistry | None = None,
+        redis_client: Any | None = None,
+    ) -> None:
         super().__init__(tools)
         self.redis = redis_client
 
@@ -507,6 +511,9 @@ class EmitActionsNode(BaseNode):
             return state
 
         bucket = state.draft.preliminary_bucket
+        if bucket is None:
+            logger.warning("EmitActions: Missing preliminary bucket")
+            return state
 
         if bucket == DecisionBucket.IGNORE and not state.draft.record_ignore:
             logger.debug("EmitActions: IGNORE, no action")

@@ -274,7 +274,7 @@ async def _match_item_async(item_id: str) -> None:
                         goal_id=r.goal_id,
                         item_id=r.item_id,
                         match_score=r.score,
-                        match_features=r.features.to_dict(),  # type: ignore[operator]
+                        match_features=r.features.to_dict(),
                     )
 
         except Exception as e:

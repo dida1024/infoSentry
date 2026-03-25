@@ -15,7 +15,6 @@ from typing import Any, TypeVar
 from loguru import logger
 
 from src.core.config import settings
-from src.core.domain.ports.kv import KVClient
 from src.modules.agent.domain.entities import (
     AgentToolCall,
     ToolCallStatus,
@@ -42,7 +41,7 @@ class BaseTool(ABC):
     is_write: bool = False  # 是否是写操作
 
     @abstractmethod
-    async def execute(self, **kwargs) -> ToolResult:
+    async def execute(self, *args: Any, **kwargs: Any) -> ToolResult:
         """执行工具。"""
         pass
 
@@ -54,7 +53,7 @@ class ToolRegistry:
     自动记录工具调用到 agent_tool_calls。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._tools: dict[str, BaseTool] = {}
         self._call_records: list[AgentToolCall] = []
         self._run_id: str | None = None
@@ -77,7 +76,7 @@ class ToolRegistry:
         """列出所有工具名称。"""
         return list(self._tools.keys())
 
-    async def call(self, name: str, **kwargs) -> ToolResult:
+    async def call(self, name: str, **kwargs: Any) -> ToolResult:
         """调用工具并记录。"""
         tool = self.get(name)
         if not tool:
@@ -128,6 +127,9 @@ class ToolRegistry:
         latency_ms: int,
     ) -> None:
         """记录工具调用。"""
+        if self._run_id is None:
+            raise ValueError("run_id must be set before recording tool calls")
+
         record = AgentToolCall(
             run_id=self._run_id,
             tool_name=tool_name,
@@ -145,7 +147,7 @@ class ToolRegistry:
     def _sanitize_input(self, data: dict[str, Any]) -> dict[str, Any]:
         """脱敏输入数据。"""
         # 移除敏感字段
-        sanitized = {}
+        sanitized: dict[str, Any] = {}
         for key, value in data.items():
             if key in ("password", "token", "api_key", "secret"):
                 sanitized[key] = "***"
@@ -178,12 +180,17 @@ class GetGoalContextTool(BaseTool):
     description = "获取指定 Goal 的完整上下文信息"
     is_write = False
 
-    def __init__(self, goal_repository, term_repository, blocked_source_repo=None):
+    def __init__(
+        self,
+        goal_repository: Any,
+        term_repository: Any,
+        blocked_source_repo: Any | None = None,
+    ) -> None:
         self.goal_repo = goal_repository
         self.term_repo = term_repository
         self.blocked_source_repo = blocked_source_repo
 
-    async def execute(self, goal_id: str, **kwargs) -> ToolResult:
+    async def execute(self, goal_id: str, **kwargs: Any) -> ToolResult:
         """执行获取 Goal 上下文。"""
         from src.modules.agent.application.state import GoalContext
         from src.modules.goals.domain.entities import TermType
@@ -198,7 +205,7 @@ class GetGoalContextTool(BaseTool):
         negative_terms = [t.term for t in terms if t.term_type == TermType.NEGATIVE]
 
         # 获取 blocked_sources
-        blocked_sources = []
+        blocked_sources: list[str] = []
         if self.blocked_source_repo:
             blocked = await self.blocked_source_repo.list_by_goal(goal_id)
             blocked_sources = [b.source_id for b in blocked]
@@ -225,11 +232,15 @@ class GetItemTool(BaseTool):
     description = "获取指定 Item 的详细信息"
     is_write = False
 
-    def __init__(self, item_repository, source_repository=None):
+    def __init__(
+        self,
+        item_repository: Any,
+        source_repository: Any | None = None,
+    ) -> None:
         self.item_repo = item_repository
         self.source_repo = source_repository
 
-    async def execute(self, item_id: str, **kwargs) -> ToolResult:
+    async def execute(self, item_id: str, **kwargs: Any) -> ToolResult:
         """执行获取 Item。"""
         from src.modules.agent.application.state import ItemContext
 
@@ -263,14 +274,17 @@ class GetHistoryTool(BaseTool):
     is_write = False
 
     def __init__(
-        self, decision_repository=None, click_repository=None, feedback_repository=None
-    ):
+        self,
+        decision_repository: Any | None = None,
+        click_repository: Any | None = None,
+        feedback_repository: Any | None = None,
+    ) -> None:
         self.decision_repo = decision_repository
         self.click_repo = click_repository
         self.feedback_repo = feedback_repository
 
     async def execute(
-        self, goal_id: str, window_hours: int = 24, **kwargs
+        self, goal_id: str, window_hours: int = 24, **kwargs: Any
     ) -> ToolResult:
         """执行获取历史。"""
         from src.modules.agent.application.state import HistoryContext
@@ -319,10 +333,10 @@ class CheckBudgetTool(BaseTool):
     description = "检查当前预算状态"
     is_write = False
 
-    def __init__(self, budget_service):
+    def __init__(self, budget_service: Any) -> None:
         self.budget_service = budget_service
 
-    async def execute(self, **kwargs) -> ToolResult:
+    async def execute(self, **kwargs: Any) -> ToolResult:
         """执行检查预算。"""
         from src.modules.agent.application.state import BudgetContext
 
@@ -345,7 +359,11 @@ class EmitDecisionTool(BaseTool):
     description = "创建推送决策记录"
     is_write = True
 
-    def __init__(self, decision_repository, action_ledger_repo=None):
+    def __init__(
+        self,
+        decision_repository: Any,
+        action_ledger_repo: Any | None = None,
+    ) -> None:
         self.decision_repo = decision_repository
         self.ledger_repo = action_ledger_repo
 
@@ -358,7 +376,7 @@ class EmitDecisionTool(BaseTool):
         dedupe_key: str,
         run_id: str | None = None,
         status: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ToolResult:
         """执行发出决策。"""
         from src.modules.push.domain.entities import (
@@ -421,7 +439,11 @@ class EnqueueEmailTool(BaseTool):
     description = "将决策加入邮件发送队列"
     is_write = True
 
-    def __init__(self, kv_client: KVClient | None = None, ledger_repo=None):
+    def __init__(
+        self,
+        kv_client: Any | None = None,
+        ledger_repo: Any | None = None,
+    ) -> None:
         self.kv_client = kv_client
         self.ledger_repo = ledger_repo
 
@@ -430,7 +452,7 @@ class EnqueueEmailTool(BaseTool):
         decision_ids: list[str],
         channel: str = "email",
         run_id: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ToolResult:
         """执行加入邮件队列。"""
         # 写入 Redis 队列或直接触发 Celery 任务
@@ -457,17 +479,17 @@ class EnqueueEmailTool(BaseTool):
 
 
 def create_default_registry(
-    goal_repository=None,
-    term_repository=None,
-    item_repository=None,
-    source_repository=None,
-    decision_repository=None,
-    budget_service=None,
-    redis_client=None,
-    ledger_repo=None,
-    blocked_source_repo=None,
-    click_repository=None,
-    feedback_repository=None,
+    goal_repository: Any | None = None,
+    term_repository: Any | None = None,
+    item_repository: Any | None = None,
+    source_repository: Any | None = None,
+    decision_repository: Any | None = None,
+    budget_service: Any | None = None,
+    redis_client: Any | None = None,
+    ledger_repo: Any | None = None,
+    blocked_source_repo: Any | None = None,
+    click_repository: Any | None = None,
+    feedback_repository: Any | None = None,
 ) -> ToolRegistry:
     """创建默认工具注册表。"""
     registry = ToolRegistry()

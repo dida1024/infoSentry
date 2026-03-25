@@ -30,7 +30,11 @@ from src.core.interfaces.http.exceptions import (
 )
 from src.core.interfaces.http.routers import api_router
 from src.modules.agent.application import dependencies as agent_app_deps
+from src.modules.agent.application.discovery import dependencies as discovery_app_deps
 from src.modules.agent.infrastructure import dependencies as agent_infra_deps
+from src.modules.agent.infrastructure.discovery import (
+    dependencies as discovery_infra_deps,
+)
 from src.modules.api_keys.application import dependencies as api_keys_app_deps
 from src.modules.api_keys.infrastructure import dependencies as api_keys_infra_deps
 from src.modules.goals.application import dependencies as goals_app_deps
@@ -224,6 +228,20 @@ app.dependency_overrides[agent_app_deps.get_budget_daily_repository] = (
     agent_infra_deps.get_budget_daily_repository
 )
 app.dependency_overrides[agent_app_deps.get_kv_client] = get_redis_client
+
+# Discovery module
+app.dependency_overrides[discovery_app_deps.get_discovery_session_repository] = (
+    discovery_infra_deps.get_discovery_session_repository
+)
+app.dependency_overrides[discovery_app_deps.get_discovery_candidate_repository] = (
+    discovery_infra_deps.get_discovery_candidate_repository
+)
+app.dependency_overrides[discovery_app_deps.get_catalog_provider] = (
+    discovery_infra_deps.get_catalog_provider
+)
+app.dependency_overrides[discovery_app_deps.get_fetcher_creator] = (
+    discovery_infra_deps.get_fetcher_creator
+)
 
 app.dependency_overrides[goals_app_deps.get_goal_repository] = (
     goals_infra_deps.get_goal_repository

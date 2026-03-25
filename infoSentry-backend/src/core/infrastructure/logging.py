@@ -7,10 +7,12 @@
 
 import sys
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import structlog
 from loguru import logger
+from structlog.types import Processor
+from structlog.typing import FilteringBoundLogger
 
 from src.core.config import settings
 
@@ -29,6 +31,7 @@ def setup_logging() -> None:
 def _configure_structlog() -> None:
     """配置 structlog 处理器链。"""
     # 根据环境选择渲染器
+    renderer: Processor
     if settings.ENVIRONMENT == "local":
         # 本地开发使用人类可读格式
         renderer = structlog.dev.ConsoleRenderer(colors=True)
@@ -112,7 +115,7 @@ def _get_log_level_number(level: str) -> int:
 # ============================================================================
 
 
-def get_business_logger() -> structlog.BoundLogger:
+def get_business_logger() -> FilteringBoundLogger:
     """获取业务事件日志记录器。
 
     用于记录关键业务事件，输出为结构化格式。
@@ -123,7 +126,7 @@ def get_business_logger() -> structlog.BoundLogger:
         log = get_business_logger()
         log.info("item_embedded", item_id="123", tokens=500, cost_usd=0.001)
     """
-    return structlog.get_logger("business")
+    return cast(FilteringBoundLogger, structlog.get_logger("business"))
 
 
 class BusinessEvents:

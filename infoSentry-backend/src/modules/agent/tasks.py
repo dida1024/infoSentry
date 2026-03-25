@@ -8,6 +8,7 @@
 """
 
 from datetime import UTC, datetime
+from typing import Any
 
 from celery import shared_task
 from loguru import logger
@@ -31,8 +32,8 @@ def handle_match_computed(
     goal_id: str,
     item_id: str,
     match_score: float,
-    match_features: dict,
-):
+    match_features: dict[str, Any],
+) -> None:
     """处理 MatchComputed 事件，执行 Agent 决策。
 
     Args:
@@ -52,8 +53,8 @@ async def _handle_match_computed_async(
     goal_id: str,
     item_id: str,
     match_score: float,
-    match_features: dict,
-):
+    match_features: dict[str, Any],
+) -> None:
     """异步版本的 MatchComputed 处理。"""
     from src.core.domain.events import SimpleEventBus
     from src.core.infrastructure.database.session import get_async_session

@@ -33,7 +33,7 @@ class TokenPayload(BaseModel):
 def create_access_token(
     subject: str | Any,
     expires_delta: timedelta | None = None,
-    extra_claims: dict | None = None,
+    extra_claims: dict[str, Any] | None = None,
 ) -> str:
     """Create a JWT access token."""
     if expires_delta:
@@ -167,7 +167,7 @@ class JWTTokenService:
     """Token service implementation using JWT."""
 
     def create_access_token(
-        self, subject: str, extra_claims: dict | None = None
+        self, subject: str, extra_claims: dict[str, Any] | None = None
     ) -> str:
         return create_access_token(subject=subject, extra_claims=extra_claims)
 

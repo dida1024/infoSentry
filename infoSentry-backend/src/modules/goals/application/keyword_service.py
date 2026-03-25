@@ -5,6 +5,7 @@
 
 import json
 from collections.abc import Sequence
+from typing import Any, cast
 
 from loguru import logger
 from openai import AsyncOpenAI
@@ -152,10 +153,10 @@ class KeywordSuggestionService:
         """调用 LLM API。"""
         response = await self.client.chat.completions.create(
             model=settings.OPENAI_JUDGE_MODEL,
-            messages=list(messages),
+            messages=cast(Any, list(messages)),
             temperature=0.5,
             max_tokens=200,
-            response_format={"type": "json_object"},
+            response_format=cast(Any, {"type": "json_object"}),
         )
 
         content = response.choices[0].message.content or ""

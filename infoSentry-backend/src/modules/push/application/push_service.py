@@ -9,6 +9,7 @@ Handles:
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from loguru import logger
 
@@ -46,14 +47,14 @@ class PushService:
 
     def __init__(
         self,
-        decision_repository,
-        goal_repository,
-        item_repository,
-        source_repository,
-        user_repository,
+        decision_repository: Any,
+        goal_repository: Any,
+        item_repository: Any,
+        source_repository: Any,
+        user_repository: Any,
         redis_client: RedisClient,
         email_service: EmailService | None = None,
-    ):
+    ) -> None:
         self.decision_repo = decision_repository
         self.goal_repo = goal_repository
         self.item_repo = item_repository

@@ -48,6 +48,11 @@ async def check_ai_service_health() -> AIServiceHealthResult:
         return AIServiceHealthResult(
             status=HealthStatus.SKIPPED,
             message="AI features are disabled",
+            base_url=settings.OPENAI_API_BASE,
+            latency_ms=None,
+            models_available=None,
+            sample_models=None,
+            error=None,
         )
 
     # 检查 API Key 配置
@@ -55,7 +60,12 @@ async def check_ai_service_health() -> AIServiceHealthResult:
         logger.warning("OpenAI API key is not configured")
         return AIServiceHealthResult(
             status=HealthStatus.ERROR,
+            message=None,
             error="API key not configured",
+            base_url=settings.OPENAI_API_BASE,
+            latency_ms=None,
+            models_available=None,
+            sample_models=None,
         )
 
     try:
@@ -82,10 +92,12 @@ async def check_ai_service_health() -> AIServiceHealthResult:
 
         return AIServiceHealthResult(
             status=HealthStatus.OK,
+            message=None,
             base_url=settings.OPENAI_API_BASE,
             latency_ms=latency_ms,
             models_available=len(models.data),
             sample_models=model_ids,
+            error=None,
         )
 
     except Exception as e:
@@ -98,6 +110,10 @@ async def check_ai_service_health() -> AIServiceHealthResult:
 
         return AIServiceHealthResult(
             status=HealthStatus.ERROR,
+            message=None,
             error=error_msg,
             base_url=settings.OPENAI_API_BASE,
+            latency_ms=None,
+            models_available=None,
+            sample_models=None,
         )

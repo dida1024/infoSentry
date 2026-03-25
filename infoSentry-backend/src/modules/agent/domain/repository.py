@@ -4,6 +4,10 @@ from abc import abstractmethod
 from datetime import datetime
 
 from src.core.domain.repository import BaseRepository
+from src.modules.agent.domain.discovery_entities import (
+    CandidateSource,
+    DiscoverySession,
+)
 from src.modules.agent.domain.entities import (
     AgentActionLedger,
     AgentRun,
@@ -69,4 +73,32 @@ class BudgetDailyRepository(BaseRepository[BudgetDaily]):
     @abstractmethod
     async def get_or_create_today(self) -> BudgetDaily:
         """Get or create today's budget record."""
+        pass
+
+
+class DiscoverySessionRepository(BaseRepository[DiscoverySession]):
+    """Discovery session repository interface."""
+
+    @abstractmethod
+    async def list_by_user(
+        self,
+        user_id: str,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[DiscoverySession], int]:
+        """List sessions for a user, ordered by created_at desc."""
+        pass
+
+    @abstractmethod
+    async def count_active_by_user(self, user_id: str) -> int:
+        """Count active (non-terminal) sessions for concurrency limiting."""
+        pass
+
+
+class DiscoveryCandidateRepository(BaseRepository[CandidateSource]):
+    """Discovery candidate repository interface."""
+
+    @abstractmethod
+    async def list_by_session(self, session_id: str) -> list[CandidateSource]:
+        """List all candidates for a session."""
         pass

@@ -69,7 +69,7 @@ class PostgreSQLAgentRunRepository(EventAwareRepository[AgentRun], AgentRunRepos
         page_size: int = 50,
     ) -> tuple[list[AgentRun], int]:
         statement = select(
-            AgentRunModel, func.count(AgentRunModel.id).over().label("total_count")
+            AgentRunModel, func.count(col(AgentRunModel.id)).over().label("total_count")
         ).where(
             AgentRunModel.goal_id == goal_id,
             col(AgentRunModel.is_deleted).is_(False),
@@ -81,7 +81,7 @@ class PostgreSQLAgentRunRepository(EventAwareRepository[AgentRun], AgentRunRepos
             statement = statement.where(AgentRunModel.trigger == trigger)
 
         statement = (
-            statement.order_by(AgentRunModel.created_at.desc())
+            statement.order_by(col(AgentRunModel.created_at).desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -103,14 +103,14 @@ class PostgreSQLAgentRunRepository(EventAwareRepository[AgentRun], AgentRunRepos
         page_size: int = 50,
     ) -> tuple[list[AgentRun], int]:
         statement = select(
-            AgentRunModel, func.count(AgentRunModel.id).over().label("total_count")
+            AgentRunModel, func.count(col(AgentRunModel.id)).over().label("total_count")
         ).where(col(AgentRunModel.is_deleted).is_(False))
 
         if since:
             statement = statement.where(AgentRunModel.created_at >= since)
 
         statement = (
-            statement.order_by(AgentRunModel.created_at.desc())
+            statement.order_by(col(AgentRunModel.created_at).desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -207,7 +207,7 @@ class PostgreSQLAgentToolCallRepository(
                 AgentToolCallModel.run_id == run_id,
                 col(AgentToolCallModel.is_deleted).is_(False),
             )
-            .order_by(AgentToolCallModel.created_at.asc())
+            .order_by(col(AgentToolCallModel.created_at).asc())
         )
 
         result = await self.session.execute(statement)
@@ -276,7 +276,7 @@ class PostgreSQLAgentActionLedgerRepository(
                 AgentActionLedgerModel.run_id == run_id,
                 col(AgentActionLedgerModel.is_deleted).is_(False),
             )
-            .order_by(AgentActionLedgerModel.created_at.asc())
+            .order_by(col(AgentActionLedgerModel.created_at).asc())
         )
 
         result = await self.session.execute(statement)
@@ -394,14 +394,14 @@ class PostgreSQLBudgetDailyRepository(
     ) -> tuple[list[BudgetDaily], int]:
         statement = select(
             BudgetDailyModel,
-            func.count(BudgetDailyModel.id).over().label("total_count"),
+            func.count(col(BudgetDailyModel.id)).over().label("total_count"),
         )
 
         if not include_deleted:
             statement = statement.where(col(BudgetDailyModel.is_deleted).is_(False))
 
         statement = (
-            statement.order_by(BudgetDailyModel.date.desc())
+            statement.order_by(col(BudgetDailyModel.date).desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )

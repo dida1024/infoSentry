@@ -63,6 +63,15 @@ class SourceRepository(BaseRepository[Source]):
         """Check if source with name exists."""
         pass
 
+    @abstractmethod
+    async def exists_by_config_url(self, source_type: SourceType, url: str) -> bool:
+        """Check if a source with the given config URL already exists.
+
+        Checks config->>'feed_url' for RSS, config->>'list_url' for SITE,
+        config->>'source_id' for NEWSNOW.
+        """
+        pass
+
 
 class SourceSubscriptionRepository(BaseRepository[SourceSubscription]):
     """Source subscription repository interface."""

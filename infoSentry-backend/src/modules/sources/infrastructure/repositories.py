@@ -54,7 +54,7 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
             return {}
 
         statement = select(SourceModel).where(
-            SourceModel.id.in_(source_ids),
+            col(SourceModel.id).in_(source_ids),
             col(SourceModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
@@ -80,6 +80,24 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
         result = await self.session.execute(statement)
         return result.scalar_one_or_none() is not None
 
+    async def exists_by_config_url(self, source_type: SourceType, url: str) -> bool:
+        config_key_map = {
+            SourceType.RSS: "feed_url",
+            SourceType.SITE: "list_url",
+            SourceType.NEWSNOW: "source_id",
+        }
+        config_key = config_key_map.get(source_type)
+        if not config_key:
+            return False
+
+        statement = select(SourceModel).where(
+            SourceModel.type == source_type,
+            col(SourceModel.is_deleted).is_(False),
+            SourceModel.config[config_key].as_string() == url,
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one_or_none() is not None
+
     async def list_by_type(
         self,
         source_type: SourceType | None = None,
@@ -89,7 +107,7 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
         page_size: int = 50,
     ) -> tuple[list[Source], int]:
         statement = select(
-            SourceModel, func.count(SourceModel.id).over().label("total_count")
+            SourceModel, func.count(col(SourceModel.id)).over().label("total_count")
         ).where(col(SourceModel.is_deleted).is_(False))
 
         if source_type:
@@ -132,7 +150,7 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
         page_size: int = 50,
     ) -> tuple[list[Source], int]:
         statement = select(
-            SourceModel, func.count(SourceModel.id).over().label("total_count")
+            SourceModel, func.count(col(SourceModel.id)).over().label("total_count")
         ).where(
             col(SourceModel.is_deleted).is_(False),
             col(SourceModel.is_private).is_(False),
@@ -180,9 +198,9 @@ class PostgreSQLSourceRepository(EventAwareRepository[Source], SourceRepository)
             )
             .where(
                 (col(SourceModel.next_fetch_at).is_(None))
-                | (SourceModel.next_fetch_at <= before_time)
+                | (col(SourceModel.next_fetch_at) <= before_time)
             )
-            .order_by(SourceModel.next_fetch_at.asc().nullsfirst())
+            .order_by(col(SourceModel.next_fetch_at).asc().nullsfirst())
             .limit(limit)
         )
 
@@ -309,11 +327,11 @@ class PostgreSQLSourceSubscriptionRepository(
             select(
                 SourceModel,
                 SourceSubscriptionModel,
-                func.count(SourceSubscriptionModel.id).over().label("total_count"),
+                func.count(col(SourceSubscriptionModel.id)).over().label("total_count"),
             )
             .join(
                 SourceSubscriptionModel,
-                SourceSubscriptionModel.source_id == SourceModel.id,
+                col(SourceSubscriptionModel.source_id) == col(SourceModel.id),
             )
             .where(
                 SourceSubscriptionModel.user_id == user_id,
@@ -353,7 +371,7 @@ class PostgreSQLSourceSubscriptionRepository(
             return []
         statement = select(SourceSubscriptionModel).where(
             SourceSubscriptionModel.user_id == user_id,
-            SourceSubscriptionModel.source_id.in_(source_ids),
+            col(SourceSubscriptionModel.source_id).in_(source_ids),
             col(SourceSubscriptionModel.is_deleted).is_(False),
         )
         result = await self.session.execute(statement)
@@ -417,7 +435,7 @@ class PostgreSQLSourceSubscriptionRepository(
     ) -> tuple[list[SourceSubscription], int]:
         statement = select(
             SourceSubscriptionModel,
-            func.count(SourceSubscriptionModel.id).over().label("total_count"),
+            func.count(col(SourceSubscriptionModel.id)).over().label("total_count"),
         )
 
         if not include_deleted:
@@ -428,7 +446,7 @@ class PostgreSQLSourceSubscriptionRepository(
         statement = (
             statement.offset((page - 1) * page_size)
             .limit(page_size)
-            .order_by(SourceSubscriptionModel.created_at.desc())
+            .order_by(col(SourceSubscriptionModel.created_at).desc())
         )
 
         result = await self.session.execute(statement)

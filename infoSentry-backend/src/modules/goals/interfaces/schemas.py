@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -137,8 +138,8 @@ class GoalItemMatchResponse(BaseModel):
     goal_id: str = Field(..., description="Goal ID")
     item_id: str = Field(..., description="Item ID")
     match_score: float = Field(..., description="匹配分数")
-    features_json: dict = Field(default_factory=dict, description="特征值")
-    reasons_json: dict = Field(default_factory=dict, description="匹配原因")
+    features_json: dict[str, Any] = Field(default_factory=dict, description="特征值")
+    reasons_json: dict[str, Any] = Field(default_factory=dict, description="匹配原因")
     computed_at: datetime = Field(..., description="计算时间")
     item: ItemResponse | None = Field(None, description="关联的Item")
 

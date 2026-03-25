@@ -3,6 +3,7 @@
 支持标准的 RSS 2.0 和 Atom 格式。
 """
 
+import calendar
 import time
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
@@ -336,7 +337,9 @@ class RSSFetcher(BaseFetcher):
             parsed = getattr(entry, field, None)
             if parsed:
                 try:
-                    return datetime(*parsed[:6], tzinfo=UTC)
+                    return datetime.fromtimestamp(
+                        calendar.timegm(parsed[:6]), tz=UTC
+                    )
                 except Exception as e:
                     logger.debug(f"Failed to parse {field}: {e}")
 

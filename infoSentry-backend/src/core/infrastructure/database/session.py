@@ -5,8 +5,7 @@ from contextlib import asynccontextmanager
 
 from loguru import logger
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from src.core.config import settings
 from src.core.infrastructure.health import DatabaseHealthResult, HealthStatus
@@ -20,11 +19,9 @@ async_engine = create_async_engine(
     max_overflow=10,
 )
 
-AsyncSessionLocal = sessionmaker(
+AsyncSessionLocal = async_sessionmaker(
     async_engine,
-    class_=AsyncSession,
     expire_on_commit=False,
-    autocommit=False,
     autoflush=False,
 )
 
@@ -98,11 +95,14 @@ async def check_db_health() -> DatabaseHealthResult:
                 connected=True,
                 version=version.split(",")[0] if version else "unknown",
                 pgvector=has_pgvector,
+                error=None,
             )
     except Exception as e:
         logger.warning(f"Database health check failed: {e}")
         return DatabaseHealthResult(
             status=HealthStatus.ERROR,
             connected=False,
+            version=None,
+            pgvector=False,
             error=str(e),
         )

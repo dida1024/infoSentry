@@ -3,7 +3,6 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime
 from sqlmodel import Field, SQLModel
 
 
@@ -24,14 +23,12 @@ class BaseModel(SQLModel):
 
     created_at: datetime = Field(
         default_factory=_utc_now,
-        sa_type=DateTime(timezone=True),
-        nullable=False,
+        sa_column_kwargs={"nullable": False},
     )
 
     updated_at: datetime = Field(
         default_factory=_utc_now,
-        sa_type=DateTime(timezone=True),
-        nullable=False,
+        sa_column_kwargs={"nullable": False},
     )
 
     is_deleted: bool = Field(default=False, nullable=False)

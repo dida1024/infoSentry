@@ -53,6 +53,9 @@ from src.modules.goals.application.services import (
     GoalMatchQueryService,
     GoalQueryService,
 )
+from src.modules.goals.domain.entities import (
+    PriorityMode as DomainPriorityMode,
+)
 from src.modules.goals.interfaces.schemas import (
     CreateGoalRequest,
     EmailPreviewData,
@@ -60,6 +63,7 @@ from src.modules.goals.interfaces.schemas import (
     GenerateGoalDraftResponse,
     GoalItemMatchResponse,
     GoalResponse,
+    GoalStatsResponse,
     GoalStatus,
     GoalStatusResponse,
     ItemResponse,
@@ -79,6 +83,11 @@ router = APIRouter(prefix="/goals", tags=["goals"])
 
 
 def _to_goal_response(goal: GoalData) -> GoalResponse:
+    stats = (
+        None
+        if goal.stats is None
+        else GoalStatsResponse(**goal.stats.model_dump())
+    )
     return GoalResponse(
         id=goal.id,
         name=goal.name,
@@ -90,7 +99,7 @@ def _to_goal_response(goal: GoalData) -> GoalResponse:
         batch_enabled=goal.batch_enabled if goal.batch_enabled is not None else True,
         batch_windows=goal.batch_windows,
         digest_send_time=goal.digest_send_time,
-        stats=goal.stats,
+        stats=stats,
         created_at=goal.created_at,
         updated_at=goal.updated_at,
     )
@@ -146,7 +155,7 @@ async def create_goal(
         user_id=auth.user_id,
         name=request.name,
         description=request.description,
-        priority_mode=request.priority_mode.value,
+        priority_mode=DomainPriorityMode(request.priority_mode.value),
         priority_terms=request.priority_terms,
         negative_terms=request.negative_terms,
         batch_enabled=request.batch_enabled,
@@ -271,7 +280,11 @@ async def update_goal(
         user_id=auth.user_id,
         name=request.name,
         description=request.description,
-        priority_mode=request.priority_mode.value if request.priority_mode else None,
+        priority_mode=(
+            DomainPriorityMode(request.priority_mode.value)
+            if request.priority_mode is not None
+            else None
+        ),
         priority_terms=request.priority_terms,
         negative_terms=request.negative_terms,
         batch_enabled=request.batch_enabled,
@@ -317,7 +330,9 @@ async def pause_goal(
     """Pause a goal."""
     command = PauseGoalCommand(goal_id=goal_id, user_id=auth.user_id)
     goal = await handler.handle(command)
-    return ApiResponse.success(data=GoalStatusResponse(status=goal.status))
+    return ApiResponse.success(
+        data=GoalStatusResponse(status=GoalStatus(goal.status.value))
+    )
 
 
 @router.post(
@@ -334,7 +349,9 @@ async def resume_goal(
     """Resume a goal."""
     command = ResumeGoalCommand(goal_id=goal_id, user_id=auth.user_id)
     goal = await handler.handle(command)
-    return ApiResponse.success(data=GoalStatusResponse(status=goal.status))
+    return ApiResponse.success(
+        data=GoalStatusResponse(status=GoalStatus(goal.status.value))
+    )
 
 
 class GoalMatchListResponse(PaginatedResponse[GoalItemMatchResponse]):

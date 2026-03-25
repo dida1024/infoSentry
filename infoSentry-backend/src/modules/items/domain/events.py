@@ -1,5 +1,7 @@
 """Item domain events."""
 
+from typing import Any
+
 from pydantic import Field
 
 from src.core.domain.events import DomainEvent
@@ -26,4 +28,4 @@ class MatchComputedEvent(DomainEvent):
     goal_id: str = Field(..., description="Goal ID")
     item_id: str = Field(..., description="Item ID")
     score: float = Field(..., description="匹配分数")
-    features: dict = Field(..., description="特征值")
+    features: dict[str, Any] = Field(..., description="特征值")
